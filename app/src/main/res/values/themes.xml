@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Wallpaper shows through the window; system bars are see-through. -->
+    <style name="Theme.OneUI.Home.Base" parent="@android:style/Theme.Material.Wallpaper.NoTitleBar">
+        <item name="android:windowShowWallpaper">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:colorBackgroundCacheHint">@null</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Theme.OneUI.Home" parent="Theme.OneUI.Home.Base" />
+
+    <!-- Step 6c2: setup screen of the launcher's own widgets (wallpaper shows behind the preview). -->
+    <style name="Theme.OneUI.Setup" parent="Theme.OneUI.Home.Base" />
+
+</resources>

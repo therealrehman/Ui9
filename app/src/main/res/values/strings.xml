@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OneUI 9 Launcher</string>
+    <!-- Step 10c: branding. app_name is the only place the name is written; every message in the app reads it from here. -->
+    <string name="app_tagline">A One UI-style home screen, written from scratch.</string>
+    <string name="app_credits">Original code and icons. Nothing is copied from Samsung.</string>
+    <!-- Play Store: public addresses of the policy pages (see PLAY_STORE.md). Change YOUR_NAME to your GitHub name. -->
+    <string name="privacy_url" translatable="false">https://therealrehman.github.io/Ui9/privacy-policy.html</string>
+    <string name="terms_url" translatable="false">https://therealrehman.github.io/Ui9/terms.html</string>
+
+    <!-- Step 6c1: the launcher's own widgets (names show in the widget picker) -->
+    <string name="widget_clock_label">Clock</string>
+    <string name="widget_clock_small_label">Mini clock</string>
+    <string name="widget_date_label">Date</string>
+    <!-- Step 6c2 -->
+    <string name="widget_analog_label">Analog clock</string>
+    <string name="widget_analog_desc">A round clock face with hands and the date. Tap to open the Clock app.</string>
+    <string name="widget_clock_desc">Time and date. The numbers grow and shrink with the widget. Tap to open the Clock app.</string>
+    <string name="widget_clock_small_desc">A small clock with the date. Tap to open the Clock app.</string>
+    <string name="widget_date_desc">Weekday, day and month on a glass tile. Tap to open the Calendar.</string>
+</resources>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Draw into the notch / punch-hole area like a real home screen. -->
+    <style name="Theme.OneUI.Home" parent="Theme.OneUI.Home.Base">
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+
+</resources>

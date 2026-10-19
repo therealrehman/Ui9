@@ -1,0 +1,53 @@
+format_version: "13"
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+project_type: android
+
+workflows:
+  primary:
+    description: Builds the debug APK of OneUI 9 Launcher and publishes it as a build artifact.
+    steps:
+    - git-clone@8: {}
+    - install-missing-android-tools@3:
+        inputs:
+        - gradlew_path: "$BITRISE_SOURCE_DIR/gradlew"
+    - android-build@1:
+        inputs:
+        - project_location: "$BITRISE_SOURCE_DIR"
+        - module: app
+        - variant: debug
+        - build_type: apk
+    - deploy-to-bitrise-io@2: {}
+
+  release:
+    description: |
+      Builds the shrunk, signed release APK. Needs these Bitrise secrets: RELEASE_KEYSTORE_BASE64 (the .jks file as base64),
+      RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD. Without them the APK stays unsigned.
+    steps:
+    - git-clone@8: {}
+    - install-missing-android-tools@3:
+        inputs:
+        - gradlew_path: "$BITRISE_SOURCE_DIR/gradlew"
+    - script@1:
+        title: Write the keystore from the secret
+        inputs:
+        - content: |
+            #!/usr/bin/env bash
+            set -e
+            if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
+              echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > "$BITRISE_SOURCE_DIR/oneui9-release.jks"
+              envman add --key RELEASE_STORE_FILE --value "oneui9-release.jks"
+            else
+              echo "No RELEASE_KEYSTORE_BASE64 secret - the release APK will be unsigned."
+            fi
+    - android-build@1:
+        inputs:
+        - project_location: "$BITRISE_SOURCE_DIR"
+        - module: app
+        - variant: release
+        - build_type: apk
+    - deploy-to-bitrise-io@2: {}
+
+meta:
+  bitrise.io:
+    stack: linux-docker-android-22.04
+    machine_type_id: standard
