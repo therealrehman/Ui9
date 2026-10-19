@@ -50,6 +50,7 @@ Each new step ships as a full project zip. Use the same command with the new zip
 | 10c | Release part 3: own icon (with themed-icon layer), About screen | DONE |
 | 10d | Release part 4: signed, shrunk release build (release.sh) | DONE |
 | 11 | Play Store pack: privacy policy, terms, listing text, target API 36, .aab, in-app policy links | DONE |
+| 12 | Look like the reference: 12a colourful system-app icons + rounder squircle, 12b Apps screen in left/right pages | DONE |
 
 ## Step 1 - what is in it
 
@@ -398,6 +399,15 @@ Each new step ships as a full project zip. Use the same command with the new zip
 - Home settings > About now has **Privacy policy** and **Terms of use** links (addresses in `strings.xml`: replace `YOUR_NAME`),
   and turning on notification badges first shows a short dialog that says what the access is for.
 - Version 1.0.1 (code 111).
+
+## Step 12 - Look like the reference
+
+- **12a Icons.** Phone, Messages, Contacts, Camera, Albums / Gallery, Browser, Calendar (shows today's date), Clock, Calculator, Files, Settings and Weather
+  get the launcher's own colourful icons (drawn in code, original). Only apps that came with the phone are replaced; Chrome, Instagram, games... keep their
+  own icon. The squircle is a little rounder. Long-press an empty spot > **Icon style: Colourful / Original**. Themed icons (8d) override it while on.
+- **12b Apps screen.** Swipe up from Home opens it as before; inside, swipe left / right between pages (4 columns, up to 5 rows), page dots,
+  the search pill at the bottom, the sort menu (three dots) at the top right. A swipe down closes it. The A-Z strip is gone.
+- Version 1.0.2 (code 112).
 
 ## Cloud build (Bitrise) - no Termux build needed
 

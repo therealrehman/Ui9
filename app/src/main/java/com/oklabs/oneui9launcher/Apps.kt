@@ -75,7 +75,8 @@ object AppRepository {
         val self = context.packageName
         val query = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val installTimes = HashMap<String, LongArray>() // package -> (first install, last update)
-        val themeKey = IconTheme.signature
+        val themeKey = IconTheme.signature + "|" + IconPack.signature
+        val packDefaults = if (IconPack.enabled && !IconTheme.enabled) IconPack.defaults(context) else emptyMap()
         val result = ArrayList<AppEntry>()
 
         for (info in pm.queryIntentActivities(query, 0)) {
@@ -95,8 +96,13 @@ object AppRepository {
             val cacheKey = pkg + "/" + activity.name + "|" + iconPx + "|" + themeKey + "|" + times[1]
             var icon: Bitmap? = iconCache.get(cacheKey)
             if (icon == null) {
+                val style = IconPack.styleFor(label, pkg, activity.applicationInfo?.flags ?: 0, packDefaults)
                 icon = try {
-                    IconShaper.shape(info.loadIcon(pm), iconPx)
+                    if (style != null) {
+                        IconShaper.shapeDrawn(iconPx) { IconPack.draw(it, style, iconPx) }
+                    } else {
+                        IconShaper.shape(info.loadIcon(pm), iconPx)
+                    }
                 } catch (e: Exception) {
                     continue
                 }

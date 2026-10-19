@@ -5,8 +5,6 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
 import android.text.Editable
 import android.text.InputType
 import android.text.TextWatcher
@@ -17,16 +15,14 @@ import android.view.ViewGroup
 import android.view.animation.PathInterpolator
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
-import android.widget.AbsListView
-import android.widget.BaseAdapter
 import android.widget.EditText
 import android.widget.FrameLayout
-import android.widget.GridView
 import android.widget.LinearLayout
 import android.widget.PopupMenu
 import android.widget.TextView
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.min
 
 private const val MATCH = ViewGroup.LayoutParams.MATCH_PARENT
 private const val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
@@ -35,7 +31,8 @@ private const val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
  * The Apps screen. It sits on top of the home screen and is driven by [progress]
  * (0 = hidden, 1 = fully open), either by a finger ([LauncherRoot]) or by [open] / [close].
  *
- * Search pill on top, one vertically scrolling grid of every app, A-Z index on the right edge.
+ * Step 12b: swipe up from Home opens it (as before); inside, the apps are PAGES you swipe left / right (4 columns, up to 5 rows),
+ * with page dots, the search pill at the bottom and the sort menu (three dots) at the top right.
  */
 class AppsScreen(
     context: Context,
@@ -62,41 +59,24 @@ class AppsScreen(
     private val prefs = context.getSharedPreferences("launcher", Context.MODE_PRIVATE)
 
     private val panel = FrameLayout(context)
-    private val grid = GridView(context)
+    private val pager = HomePager(context)
+    private val dots = PageDots(context)
     private val pill = LinearLayout(context)
     private val searchField = EditText(context)
     private val clearButton = GlyphView(context, GlyphView.CLEAR).also { it.tint = Look.text }
     private val moreButton = GlyphView(context, GlyphView.MORE).also { it.tint = Look.text }
     private val emptyText = TextView(context)
-    private val indexBar = IndexBar(context)
 
     private var baseApps: List<AppEntry> = emptyList()
     private var sortedApps: List<AppEntry> = emptyList()
     private var shown: List<AppEntry> = emptyList()
     private var loaded = false
     private var sortMode = SortMode.from(prefs.getString(KEY_SORT, null))
-    private val sectionStart = HashMap<Char, Int>()
 
     private var insetTop = 0
     private var insetBottom = 0
     private var animator: ValueAnimator? = null
-
-    private val adapter = AppsAdapter()
-
-    private val scrollListener = object : AbsListView.OnScrollListener {
-        override fun onScrollStateChanged(view: AbsListView, scrollState: Int) {
-            if (scrollState == AbsListView.OnScrollListener.SCROLL_STATE_TOUCH_SCROLL) hideKeyboard()
-        }
-
-        override fun onScroll(
-            view: AbsListView,
-            firstVisibleItem: Int,
-            visibleItemCount: Int,
-            totalItemCount: Int
-        ) {
-            shown.getOrNull(firstVisibleItem)?.let { indexBar.setCurrent(it.letter) }
-        }
-    }
+    private var rebuilding = false
 
     init {
         visibility = View.GONE
@@ -106,19 +86,22 @@ class AppsScreen(
 
         addView(panel, FrameLayout.LayoutParams(MATCH, MATCH))
 
-        // --- app grid
-        grid.numColumns = columnCount()
-        grid.verticalSpacing = dp(10)
-        grid.horizontalSpacing = 0
-        grid.stretchMode = GridView.STRETCH_COLUMN_WIDTH
-        grid.setSelector(ColorDrawable(Color.TRANSPARENT))
-        grid.isVerticalScrollBarEnabled = false
-        grid.isVerticalFadingEdgeEnabled = true
-        grid.setFadingEdgeLength(dp(28))
-        grid.clipToPadding = false
-        grid.setAdapter(adapter)
-        grid.setOnScrollListener(scrollListener)
-        panel.addView(grid, FrameLayout.LayoutParams(MATCH, MATCH))
+        // --- the pages
+        pager.onPageChanged = { page, count ->
+            dots.setPages(count, page)
+            dots.visibility = if (count > 1) View.VISIBLE else View.INVISIBLE
+        }
+        pager.onScrolled = {
+            // The finger moved the pages: put the keyboard away (not while the pages are being rebuilt by typing).
+            if (!rebuilding && searchField.hasFocus()) {
+                searchField.clearFocus()
+                hideKeyboard()
+            }
+        }
+        pager.addOnLayoutChangeListener { _, l, t, r, b, ol, ot, orr, ob ->
+            if (r - l != orr - ol || b - t != ob - ot) post { rebuildPages(true) }
+        }
+        panel.addView(pager, FrameLayout.LayoutParams(MATCH, MATCH))
 
         // --- "No apps found"
         emptyText.text = "No apps found"
@@ -128,16 +111,20 @@ class AppsScreen(
         emptyText.visibility = View.GONE
         panel.addView(emptyText, FrameLayout.LayoutParams(MATCH, WRAP, Gravity.TOP))
 
-        // --- A-Z index (right edge)
-        indexBar.visibility = View.GONE
-        indexBar.onLetter = { letter -> sectionStart[letter]?.let { grid.setSelection(it) } }
-        panel.addView(indexBar, FrameLayout.LayoutParams(dp(96), MATCH, Gravity.END))
+        // --- page dots
+        dots.tint = Look.text
+        dots.visibility = View.INVISIBLE
+        panel.addView(dots, FrameLayout.LayoutParams(WRAP, WRAP, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL))
 
-        // --- search pill
+        // --- sort menu (three dots, top right)
+        moreButton.setOnClickListener { showSortMenu(it) }
+        panel.addView(moreButton, FrameLayout.LayoutParams(dp(44), dp(44), Gravity.TOP or Gravity.END))
+
+        // --- search pill (bottom)
         buildPill()
-        val pillParams = FrameLayout.LayoutParams(MATCH, dp(PILL_HEIGHT_DP), Gravity.TOP)
-        pillParams.leftMargin = dp(16)
-        pillParams.rightMargin = dp(16)
+        val pillParams = FrameLayout.LayoutParams(MATCH, dp(PILL_HEIGHT_DP), Gravity.BOTTOM)
+        pillParams.leftMargin = dp(44)
+        pillParams.rightMargin = dp(44)
         panel.addView(pill, pillParams)
 
         applyInsets()
@@ -167,7 +154,7 @@ class AppsScreen(
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                applyFilter(scrollToTop = true)
+                applyFilter(toFirstPage = true)
             }
         })
         searchField.setOnEditorActionListener { _, actionId, _ ->
@@ -175,7 +162,8 @@ class AppsScreen(
                 hideKeyboard()
                 val first = shown.firstOrNull()
                 if (first != null && searchField.text.isNotEmpty()) {
-                    onLaunch(grid.getChildAt(0) ?: grid, first.launchIntent)
+                    val anchor = (pager.getChildAt(0) as? ViewGroup)?.getChildAt(0) ?: pager
+                    onLaunch(anchor, first.launchIntent)
                 }
                 true
             } else {
@@ -189,21 +177,18 @@ class AppsScreen(
         clearButton.visibility = View.GONE
         clearButton.setOnClickListener { searchField.setText("") }
         pill.addView(clearButton, LinearLayout.LayoutParams(dp(40), dp(40)))
-
-        moreButton.setOnClickListener { showSortMenu(it) }
-        pill.addView(moreButton, LinearLayout.LayoutParams(dp(40), dp(40)))
     }
 
     private fun columnCount(): Int {
         val metrics = resources.displayMetrics
         val widthDp = metrics.widthPixels / metrics.density
-        return (widthDp / 72f).toInt().coerceIn(4, 8)
+        return (widthDp / 84f).toInt().coerceIn(4, 8)
     }
 
     private fun dp(value: Int): Int = context.dp(value)
     private fun dpf(value: Float): Float = context.dpf(value)
 
-    /** Keeps the pill below the status bar and the last row above the navigation bar / keyboard. */
+    /** Keeps the menu below the status bar and the search pill above the navigation bar / keyboard. */
     fun setInsets(top: Int, bottom: Int) {
         if (top == insetTop && bottom == insetBottom) return
         insetTop = top
@@ -212,18 +197,21 @@ class AppsScreen(
     }
 
     private fun applyInsets() {
-        val pillTop = max(insetTop, dp(24)) + dp(10)
-        val gridTop = pillTop + dp(PILL_HEIGHT_DP) + dp(6)
-        val bottom = insetBottom + dp(12)
+        val top = max(insetTop, dp(24))
+        val bottom = insetBottom + dp(14)
+        val aboveDots = bottom + dp(PILL_HEIGHT_DP) + dp(12)
 
-        (pill.layoutParams as FrameLayout.LayoutParams).topMargin = pillTop
-        (grid.layoutParams as FrameLayout.LayoutParams).topMargin = gridTop
-        grid.setPadding(dp(8), dp(4), dp(8), bottom)
-        (indexBar.layoutParams as FrameLayout.LayoutParams).apply {
-            topMargin = gridTop
-            bottomMargin = insetBottom + dp(8)
+        (pill.layoutParams as FrameLayout.LayoutParams).bottomMargin = bottom
+        (dots.layoutParams as FrameLayout.LayoutParams).bottomMargin = aboveDots
+        (moreButton.layoutParams as FrameLayout.LayoutParams).apply {
+            topMargin = top
+            rightMargin = dp(10)
         }
-        (emptyText.layoutParams as FrameLayout.LayoutParams).topMargin = gridTop + dp(70)
+        (pager.layoutParams as FrameLayout.LayoutParams).apply {
+            topMargin = top + dp(48)
+            bottomMargin = aboveDots + dp(18)
+        }
+        (emptyText.layoutParams as FrameLayout.LayoutParams).topMargin = top + dp(140)
         panel.requestLayout()
     }
 
@@ -233,7 +221,7 @@ class AppsScreen(
         baseApps = apps
         loaded = true
         sortedApps = AppRepository.sort(baseApps, sortMode)
-        applyFilter(scrollToTop = false)
+        applyFilter(toFirstPage = false)
     }
 
     private fun setSort(mode: SortMode) {
@@ -241,31 +229,53 @@ class AppsScreen(
         sortMode = mode
         prefs.edit().putString(KEY_SORT, mode.key).apply()
         sortedApps = AppRepository.sort(baseApps, sortMode)
-        applyFilter(scrollToTop = true)
+        applyFilter(toFirstPage = true)
     }
 
-    private fun applyFilter(scrollToTop: Boolean) {
+    private fun applyFilter(toFirstPage: Boolean) {
         val query = searchField.text?.toString().orEmpty()
         clearButton.visibility = if (query.isEmpty()) View.GONE else View.VISIBLE
         shown = AppRepository.filter(sortedApps, query)
-        adapter.notifyDataSetChanged()
-        if (scrollToTop) grid.setSelection(0)
         emptyText.visibility = if (loaded && shown.isEmpty()) View.VISIBLE else View.GONE
-        refreshIndex(query.isEmpty())
+        rebuildPages(!toFirstPage)
     }
 
-    /** The A-Z strip only makes sense for the alphabetical list without a search. */
-    private fun refreshIndex(noQuery: Boolean) {
-        sectionStart.clear()
-        if (sortMode == SortMode.AZ && noQuery) {
-            shown.forEachIndexed { i, app ->
-                if (!sectionStart.containsKey(app.letter)) sectionStart[app.letter] = i
-            }
+    /** Cuts [shown] into pages of columns x rows icons for the size the pager has now. */
+    private fun rebuildPages(keepPage: Boolean) {
+        val w = pager.width
+        val h = pager.height
+        if (w <= 0 || h <= 0) return // the layout listener calls this again once the size is known
+        val cols = columnCount()
+        val rows = (h / dp(CELL_DP)).coerceIn(2, MAX_ROWS)
+        val perPage = cols * rows
+
+        rebuilding = true
+        val pages = ArrayList<View>()
+        var start = 0
+        while (start < shown.size) {
+            val page = AppsPage(context, cols, rows)
+            for (i in start until min(start + perPage, shown.size)) page.addView(makeIcon(shown[i]))
+            pages.add(page)
+            start += perPage
         }
-        val visible = sectionStart.size >= 3
-        indexBar.visibility = if (visible) View.VISIBLE else View.GONE
-        indexBar.setLetters(sectionStart.keys)
-        indexBar.setCurrent(shown.getOrNull(grid.firstVisiblePosition)?.letter)
+        if (pages.isEmpty()) pages.add(AppsPage(context, cols, rows))
+        pager.setPages(pages, keepPage)
+        rebuilding = false
+    }
+
+    private fun makeIcon(app: AppEntry): View {
+        val view = AppIconView(context, app.icon, app.label, ICON_DP, Look.text)
+        view.setPadding(dp(2), dp(6), dp(2), dp(6))
+        view.gravity = Gravity.CENTER
+        view.badgePackage = app.packageName
+        view.contentDescription = app.label
+        view.setOnClickListener { onLaunch(it, app.launchIntent) }
+        view.setOnLongClickListener { v ->
+            val handler = onAppLongPress
+            handler?.invoke(v, app)
+            handler != null
+        }
+        return view
     }
 
     private fun showSortMenu(anchor: View) {
@@ -372,53 +382,47 @@ class AppsScreen(
     private fun finishTransition(target: Float) {
         panel.setLayerType(View.LAYER_TYPE_NONE, null)
         if (target == 0f) {
-            // Next time the drawer opens it starts clean: no old search, list at the top.
+            // Next time the drawer opens it starts clean: no old search, first page.
             searchField.setText("")
-            grid.setSelection(0)
+            pager.setPage(0, false)
         }
     }
 
-    /** True when a downward swipe should close the drawer instead of scrolling the list. */
-    fun canStartCloseDrag(): Boolean {
-        if (progress < 1f) return true
-        if (shown.isEmpty()) return true
-        if (grid.firstVisiblePosition > 0) return false
-        val first = grid.getChildAt(0) ?: return true
-        return first.top >= grid.paddingTop
-    }
+    /** The pages move sideways only, so a swipe down always closes the drawer. */
+    fun canStartCloseDrag(): Boolean = true
 
-    // ------------------------------------------------------------------ grid adapter
+    // ------------------------------------------------------------------ one page of icons
 
-    private inner class AppsAdapter : BaseAdapter() {
+    /** A page: [cols] x [rows] equal cells, filled left to right, top to bottom. */
+    private class AppsPage(context: Context, private val cols: Int, private val rows: Int) : ViewGroup(context) {
 
-        override fun getCount(): Int = shown.size
+        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+            val w = View.MeasureSpec.getSize(widthMeasureSpec)
+            val h = View.MeasureSpec.getSize(heightMeasureSpec)
+            setMeasuredDimension(w, h)
+            val cellW = w / cols
+            val cellH = h / rows
+            val wSpec = View.MeasureSpec.makeMeasureSpec(cellW, View.MeasureSpec.EXACTLY)
+            val hSpec = View.MeasureSpec.makeMeasureSpec(cellH, View.MeasureSpec.EXACTLY)
+            for (i in 0 until childCount) getChildAt(i).measure(wSpec, hSpec)
+        }
 
-        override fun getItem(position: Int): Any = shown[position]
-
-        override fun getItemId(position: Int): Long = position.toLong()
-
-        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-            val app = shown[position]
-            val view = (convertView as? AppIconView)
-                ?: AppIconView(context, app.icon, app.label, ICON_DP, Look.text).also {
-                    it.setPadding(dp(2), dp(6), dp(2), dp(6))
-                }
-            view.bind(app.icon, app.label)
-            view.badgePackage = app.packageName
-            view.contentDescription = app.label
-            view.setOnClickListener { onLaunch(it, app.launchIntent) }
-            view.setOnLongClickListener { v ->
-                val handler = onAppLongPress
-                handler?.invoke(v, app)
-                handler != null
+        override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+            val cellW = (r - l) / cols
+            val cellH = (b - t) / rows
+            for (i in 0 until childCount) {
+                val x = (i % cols) * cellW
+                val y = (i / cols) * cellH
+                getChildAt(i).layout(x, y, x + cellW, y + cellH)
             }
-            return view
         }
     }
 
     companion object {
-        const val ICON_DP = 54
+        const val ICON_DP = 58
         private const val PILL_HEIGHT_DP = 48
+        private const val CELL_DP = 112
+        private const val MAX_ROWS = 5
         private const val KEY_SORT = "apps_sort"
     }
 }

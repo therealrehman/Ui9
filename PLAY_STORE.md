@@ -55,14 +55,15 @@ HOME SCREEN
 - Search bar on Home (optional), swipe down for notifications, pinch for the edit screen
 
 APPS SCREEN
-- Swipe up for all your apps, A-Z strip and instant search
-- Hide the apps you do not want to see
+- Swipe up for all your apps, then swipe left and right through the pages
+- Instant search at the bottom, sort A-Z or by newest, hide the apps you do not want to see
 
 WIDGETS
 - Add widgets from any app, move and resize them with handles
 - Built-in clock, mini clock, analog clock and date widgets
 
 LOOK AND FEEL
+- Colourful icons for Phone, Messages, Camera, Contacts, Calendar, Clock and more (or keep each app's own icon)
 - Themed icons in one colour (from your wallpaper or a colour you pick)
 - Dark and light panels, blur behind panels (Android 12+), wallpaper that slides with the pages
 - Choose the colour and opacity of the dock
@@ -146,7 +147,7 @@ No login is needed.
 4. Testing > Internal testing > create release > upload `OneUI9Launcher-release.aab` > add your email as tester > install from the link and test on a real phone.
 5. If your account needs a closed test, run it with the required testers and days, then apply for production.
 6. Production > create release > upload the same .aab (or a newer one) > release notes > send for review (can take from hours to several days).
-7. Next updates: raise `versionCode` in `app/build.gradle.kts` every time (now 111), run `bash release.sh`, upload the new .aab. Same keystore every time.
+7. Next updates: raise `versionCode` in `app/build.gradle.kts` every time (now 112), run `bash release.sh`, upload the new .aab. Same keystore every time.
 
 ## 7. After you publish
 

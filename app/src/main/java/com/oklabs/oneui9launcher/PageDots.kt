@@ -13,6 +13,13 @@ class PageDots(context: Context) : View(context) {
     private var active = 0
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
+    /** Colour of the dots: white on the wallpaper (default), the panel's text colour on the Apps screen. */
+    var tint: Int = Color.WHITE
+        set(value) {
+            field = value
+            invalidate()
+        }
+
     fun setPages(total: Int, current: Int) {
         count = total.coerceAtLeast(1)
         active = current.coerceIn(0, count - 1)
@@ -34,7 +41,7 @@ class PageDots(context: Context) : View(context) {
         for (i in 0 until count) {
             val cx = context.dpf(1f) + dot / 2f + i * (dot + gap)
             val isActive = i == active
-            paint.color = if (isActive) Color.WHITE else Color.argb(115, 255, 255, 255)
+            paint.color = if (isActive) tint else Color.argb(115, Color.red(tint), Color.green(tint), Color.blue(tint))
             canvas.drawCircle(cx, cy, if (isActive) dot / 2f + context.dpf(0.5f) else dot / 2f, paint)
         }
     }

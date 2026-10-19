@@ -252,6 +252,7 @@ class LauncherActivity : Activity() {
         // Step 9b: the Home screen turns with the phone only when Home settings say so.
         requestedOrientation = if (HomeStore.landscape) ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         Look.load(this) // dark / light panels (Step 8c)
+        IconPack.load(this) // Step 12a: the launcher's own system-app icons
         IconTheme.load(this) // themed icons (Step 8d); after Look, because the plate follows dark / light
         makeWindowEdgeToEdge()
         widgetHost = WidgetHost(this)
@@ -911,6 +912,10 @@ class LauncherActivity : Activity() {
                 MenuEntry("Panels: " + Look.modeName(), null) {
                     Look.cycle(this)
                     recreate() // every panel is built again in the new colours
+                },
+                MenuEntry("Icon style: " + IconPack.modeName(), null) {
+                    IconPack.toggle(this)
+                    loadApps() // every icon is drawn again
                 },
                 MenuEntry("Themed icons: " + IconTheme.modeName(), null) {
                     IconTheme.cycle(this)

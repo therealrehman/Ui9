@@ -29,7 +29,7 @@ import kotlin.math.sin
 object IconShaper {
 
     /** Superellipse exponent: 2.0 = circle, higher = squarer. */
-    private const val EXPONENT = 4.0
+    private const val EXPONENT = 3.4
     private const val POINTS = 180
 
     private val clearPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -70,6 +70,16 @@ object IconShaper {
         } else {
             drawNormal(canvas, icon, size)
         }
+        canvas.drawPath(outside(size), clearPaint)
+        return bitmap
+    }
+
+    /** Step 12a: a picture drawn by the launcher itself ([IconPack]) in the same squircle. */
+    @Synchronized
+    fun shapeDrawn(size: Int, draw: (Canvas) -> Unit): Bitmap {
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        draw(canvas)
         canvas.drawPath(outside(size), clearPaint)
         return bitmap
     }
