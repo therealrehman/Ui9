@@ -4,7 +4,7 @@ project_type: android
 
 workflows:
   primary:
-    description: Builds the debug APK of Ok Launcher and publishes it as a build artifact.
+    description: Builds the debug APK of OneUI 9 Launcher and publishes it as a build artifact.
     steps:
     - git-clone@8: {}
     - install-missing-android-tools@3:

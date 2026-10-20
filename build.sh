@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ok Launcher - one-command build for Termux.
+# OneUI 9 Launcher - one-command build for Termux.
 #   bash build.sh
 cd "$(dirname "$0")" || exit 1
 
@@ -57,4 +57,4 @@ fi
 echo
 echo "APK ready: $DL/OneUI9Launcher.apk"
 termux-open "$DL/OneUI9Launcher.apk" 2>/dev/null || echo "Open it from your Downloads folder to install."
-echo "After installing: press Home, pick Ok Launcher, tap Always."
+echo "After installing: press Home, pick OneUI 9 Launcher, tap Always."

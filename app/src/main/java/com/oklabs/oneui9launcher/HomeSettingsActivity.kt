@@ -548,7 +548,7 @@ class HomeSettingsActivity : Activity() {
         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT)
             .addCategory(Intent.CATEGORY_OPENABLE)
             .setType("text/plain")
-            .putExtra(Intent.EXTRA_TITLE, "OkLauncher-backup-$stamp.txt")
+            .putExtra(Intent.EXTRA_TITLE, "OneUI9Launcher-backup-$stamp.txt")
         try {
             startActivityForResult(intent, REQ_BACKUP)
         } catch (e: Exception) {
