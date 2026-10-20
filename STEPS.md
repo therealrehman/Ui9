@@ -412,6 +412,7 @@ Each new step ships as a full project zip. Use the same command with the new zip
 
 ## Step 13 - Settings app, Apps screen grid, more icons, Contact and policies
 
+- **Settings is an app of its own:** "Launcher Settings" (settings-gear icon) now shows in the Apps screen and in any launcher's app list; open it like any app.
 - **Settings UI.** Long-press an empty spot on Home > **Settings** (or three dots on the Apps screen > Apps screen grid..., or long-press the launcher icon > Settings).
   A categorized settings app with colour tiles: Home screen (grid, icon size, search bar) - Apps screen - Dock (colour, opacity) - Icons - Look and feel
   (panels, blur, wallpaper scroll) - Gestures (swipe down for notifications, double-tap lock) - Notification badges - Edge panel - Hide apps - Screen turning -

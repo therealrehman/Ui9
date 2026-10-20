@@ -93,12 +93,18 @@
         </activity>
 
         <!-- Step 9a / 13: Settings (all settings, contact and policies). Opened from the Home screen's long-press menu, the Apps screen menu and the icon shortcut. -->
+        <!-- It is also an app of its own: "Launcher Settings" shows up in the Apps screen (and in any other launcher) and opens this UI. -->
         <activity
             android:name=".HomeSettingsActivity"
-            android:excludeFromRecents="true"
-            android:exported="false"
+            android:exported="true"
+            android:label="@string/settings_app_name"
             android:screenOrientation="portrait"
-            android:theme="@style/Theme.OneUI.Setup" />
+            android:theme="@style/Theme.OneUI.Setup">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
 
         <!-- Step 6c1: the launcher's own widgets. They show up in the widget picker like any other app's widgets. -->
         <receiver

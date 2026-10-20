@@ -82,7 +82,9 @@ object AppRepository {
         for (info in pm.queryIntentActivities(query, 0)) {
             val activity = info.activityInfo ?: continue
             val pkg = activity.packageName
-            if (pkg == self) continue
+            // The launcher's own Home activity is not listed; its Settings activity is (Step 13: the Settings app).
+            val isSettingsApp = pkg == self && activity.name.endsWith(".HomeSettingsActivity")
+            if (pkg == self && !isSettingsApp) continue
 
             val label = info.loadLabel(pm).toString().trim().ifEmpty { pkg }
             val times = installTimes.getOrPut(pkg) {
@@ -96,7 +98,7 @@ object AppRepository {
             val cacheKey = pkg + "/" + activity.name + "|" + iconPx + "|" + themeKey + "|" + times[1]
             var icon: Bitmap? = iconCache.get(cacheKey)
             if (icon == null) {
-                val style = IconPack.styleFor(label, pkg, activity.applicationInfo?.flags ?: 0, packDefaults)
+                val style = if (isSettingsApp) IconPack.Style.SETTINGS else IconPack.styleFor(label, pkg, activity.applicationInfo?.flags ?: 0, packDefaults)
                 icon = try {
                     if (style != null) {
                         IconShaper.shapeDrawn(iconPx) { IconPack.draw(it, style, iconPx) }
