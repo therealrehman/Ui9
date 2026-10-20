@@ -446,6 +446,22 @@ Each new step ships as a full project zip. Use the same command with the new zip
 - The colours live in one table (`WidgetThemes` in `WidgetConfig.kt`); the five drawables `res/drawable/widget_theme_*.xml` are written from it.
 - Version 1.0.4 (code 114).
 
+## Step 15 - Dock gradients and gradient wallpapers (portrait and landscape)
+
+- **Dock gradient.** Settings > Dock (and the Dock card of the edit screen) now has a **Gradient** row under the colours: None + 12 gradients
+  (Aurora, Sunset, Ocean, Forest, Midnight, Rose, Lavender, Peach, Mint, Graphite, Candy, Ember). The dock pill becomes a left-to-right glass gradient with a hairline
+  light edge; the **opacity** slider still works on it. Picking a plain colour switches the gradient off. Picking a gradient while the opacity is under 40%
+  lifts it to 75% (22% was too faint to see). Settings > Dock shows a live preview pill.
+- **Gradient wallpapers.** New **Settings > Wallpaper** (also: long-press an empty spot on Home > **Wallpaper**). 12 gradient wallpapers drawn in code
+  (same table as the dock, `Gradients.kt`: gradient + two soft glows + a shade at the bottom so the dock reads well).
+  - **Made for:** Portrait (tall), Landscape (wide) or Both (a square, which the phone crops well in either direction). The tiles change shape with the choice.
+  - **Set on:** Home, Lock or Both. Tap a tile, then the big button. The picture is made at your real screen size (never above 2560 px) and given to Android.
+  - New permission `SET_WALLPAPER` (normal, no prompt). Added to Permissions and data use + `docs/privacy-policy.html`. No photos are read.
+- Saved key: `dock_gradient` (0 = none, 1.. = table order). Old docks look exactly the same. Backup and restore carry it automatically.
+- **Left / not done:** Android keeps ONE wallpaper picture, so "Portrait" and "Landscape" are two ways to cut it, not two pictures that swap on rotation
+  (that needs the phone's own wallpaper service). Not tested on a real phone; compile-checked only (R-free sources, 0 errors).
+- Version 1.0.5 (code 115).
+
 ## Cloud build (Bitrise) - no Termux build needed
 
 `push.sh` puts the project on GitHub; Bitrise builds the APK from there.

@@ -248,6 +248,19 @@ internal class SettingsTile(context: Context, private val kind: Int, private val
                 c.drawOval(RectF(s * 0.5f - r * 0.45f, s * 0.5f - r, s * 0.5f + r * 0.45f, s * 0.5f + r), paint)
                 c.drawLine(s * 0.5f - r, s * 0.5f, s * 0.5f + r, s * 0.5f, paint)
             }
+            WALLPAPER -> {
+                // a picture frame with a sun and two hills
+                c.drawRoundRect(RectF(s * 0.2f, s * 0.24f, s * 0.8f, s * 0.76f), s * 0.07f, s * 0.07f, stroke(s * 0.05f))
+                c.drawCircle(s * 0.64f, s * 0.4f, s * 0.055f, fill())
+                val hills = Path()
+                hills.moveTo(s * 0.24f, s * 0.72f)
+                hills.lineTo(s * 0.42f, s * 0.48f)
+                hills.lineTo(s * 0.56f, s * 0.66f)
+                hills.lineTo(s * 0.64f, s * 0.58f)
+                hills.lineTo(s * 0.76f, s * 0.72f)
+                hills.close()
+                c.drawPath(hills, fill())
+            }
             COPY -> {
                 c.drawRoundRect(RectF(s * 0.22f, s * 0.3f, s * 0.58f, s * 0.8f), s * 0.06f, s * 0.06f, stroke(s * 0.05f))
                 c.drawRoundRect(RectF(s * 0.42f, s * 0.2f, s * 0.78f, s * 0.7f), s * 0.06f, s * 0.06f, fill())
@@ -277,6 +290,7 @@ internal class SettingsTile(context: Context, private val kind: Int, private val
         const val BUG = 18
         const val GLOBE = 19
         const val COPY = 20
+        const val WALLPAPER = 21
 
         val BLUE = Color.rgb(54, 128, 255)
         val GREEN = Color.rgb(38, 184, 108)
@@ -579,6 +593,59 @@ internal class SettingsKit(private val ctx: Context) {
         val rowLp = LinearLayout.LayoutParams(wrap, wrap)
         rowLp.topMargin = dp(12)
         block.addView(row, rowLp)
+        return block
+    }
+
+    /**
+     * Step 15: a title and a row of gradient circles (scrolls sideways). The first circle is "None" (the plain colour above it);
+     * [selected] is 0 for it, 1.. for the gradients of [Gradients.all].
+     */
+    fun gradientDots(title: String, selected: Int, onPick: (Int) -> Unit): View {
+        val block = LinearLayout(ctx)
+        block.orientation = LinearLayout.VERTICAL
+        block.setPadding(dp(16), dp(14), dp(16), dp(14))
+        val head = TextView(ctx)
+        head.text = title
+        head.setTextColor(Look.text)
+        head.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+        block.addView(head, LinearLayout.LayoutParams(wrap, wrap))
+        val row = LinearLayout(ctx)
+        row.orientation = LinearLayout.HORIZONTAL
+        val dots = ArrayList<View>()
+        fun paintAll(current: Int) {
+            for ((i, view) in dots.withIndex()) {
+                val shape = if (i == 0) GradientDrawable() else GradientDrawable(GradientDrawable.Orientation.TL_BR, Gradients.all[i - 1].colors)
+                shape.shape = GradientDrawable.OVAL
+                if (i == 0) shape.setColor(Look.inkA(24))
+                shape.setStroke(dp(if (i == current) 3 else 1), if (i == current) Look.text else Look.inkA(80))
+                view.background = shape
+            }
+        }
+        for (i in 0..Gradients.all.size) {
+            val dot = if (i == 0) TextView(ctx).apply {
+                text = "\u2715" // a cross: no gradient
+                gravity = Gravity.CENTER
+                setTextColor(Look.textA(170))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            } else View(ctx)
+            dot.isClickable = true
+            dot.contentDescription = if (i == 0) "No gradient" else Gradients.all[i - 1].name
+            dot.setOnClickListener {
+                paintAll(i)
+                onPick(i)
+            }
+            val lp = LinearLayout.LayoutParams(dp(36), dp(36))
+            lp.rightMargin = dp(12)
+            row.addView(dot, lp)
+            dots.add(dot)
+        }
+        paintAll(selected)
+        val scroller = android.widget.HorizontalScrollView(ctx)
+        scroller.isHorizontalScrollBarEnabled = false
+        scroller.addView(row)
+        val scrollerLp = LinearLayout.LayoutParams(match, wrap)
+        scrollerLp.topMargin = dp(12)
+        block.addView(scroller, scrollerLp)
         return block
     }
 

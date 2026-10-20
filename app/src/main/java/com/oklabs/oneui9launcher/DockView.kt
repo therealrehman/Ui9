@@ -3,6 +3,7 @@ package com.oklabs.oneui9launcher
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Rect
+import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -24,10 +25,12 @@ class DockView(context: Context) : FrameLayout(context) {
 
     private fun slotWidth(total: Int): Int = ((total - paddingLeft - paddingRight) / slots).coerceAtLeast(0)
 
-    /** Step 8a: the tray's look. [color] is any colour (its alpha is ignored), [opacity] 0 (invisible) to 100 (solid). */
-    fun setStyle(color: Int, opacity: Int) {
-        val alpha = (opacity.coerceIn(0, 100) * 255 / 100)
-        background = roundRect(Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color)), context.dpf(32f))
+    /**
+     * Step 8a: the tray's look. [color] is any colour (its alpha is ignored), [opacity] 0 (invisible) to 100 (solid).
+     * Step 15: [gradient] 0 = the plain [color]; 1.. = one of [Gradients.all] (left to right, same opacity).
+     */
+    fun setStyle(color: Int, opacity: Int, gradient: Int = 0) {
+        background = styleDrawable(context, color, opacity, gradient)
     }
 
     /** Shows [views] (slot number -> icon view); every other slot is empty. */
@@ -87,6 +90,21 @@ class DockView(context: Context) : FrameLayout(context) {
     }
 
     companion object {
+        /** The tray's background for a saved look; also used by the little preview in Settings. */
+        fun styleDrawable(context: Context, color: Int, opacity: Int, gradient: Int): GradientDrawable {
+            val alpha = (opacity.coerceIn(0, 100) * 255 / 100)
+            val def = Gradients.forIndex(gradient)
+            if (def == null) {
+                return roundRect(Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color)), context.dpf(32f))
+            }
+            val drawable = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, Gradients.withAlpha(def.colors, alpha))
+            drawable.shape = GradientDrawable.RECTANGLE
+            drawable.cornerRadius = context.dpf(32f)
+            // a hairline light edge: it makes the tray read as glass, and follows the opacity
+            drawable.setStroke(context.dp(1), Color.argb(alpha * 70 / 255, 255, 255, 255))
+            return drawable
+        }
+
         /** Same size as the Apps screen icons, so they are never stretched. */
         const val ICON_DP = 54
         const val HEIGHT_DP = 84

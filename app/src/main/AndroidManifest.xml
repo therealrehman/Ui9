@@ -9,6 +9,7 @@
 
     <!-- Step 8a: lets the wallpaper slide with the pages. -->
     <uses-permission android:name="android.permission.SET_WALLPAPER_HINTS" />
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
 
     <!-- Android 11+ hides other apps unless declared. These let the launcher see every
          launchable app plus the default Phone / Messages / Browser / Camera / Settings. -->

@@ -908,6 +908,9 @@ class LauncherActivity : Activity() {
             listOf(
                 MenuEntry("Edit Home screen", null) { enterEditMode() },
                 MenuEntry("Widgets", null) { openWidgetPicker() },
+                MenuEntry("Wallpaper", null) {
+                    startActivity(Intent(this, HomeSettingsActivity::class.java).putExtra(HomeSettingsActivity.EXTRA_PAGE, HomeSettingsActivity.PAGE_WALLPAPER))
+                },
                 MenuEntry("Settings", null) { startActivity(Intent(this, HomeSettingsActivity::class.java)) },
                 MenuEntry("Panels: " + Look.modeName(), null) {
                     Look.cycle(this)
@@ -958,9 +961,9 @@ class LauncherActivity : Activity() {
             setShowSearchBar(!showSearchBar())
             refreshEditLabels()
         }
-        dockSheet = DockStyleSheet(this) { color, opacity ->
+        dockSheet = DockStyleSheet(this) { color, opacity, gradient ->
             getSharedPreferences("launcher", MODE_PRIVATE).edit()
-                .putInt(KEY_DOCK_COLOR, color).putInt(KEY_DOCK_OPACITY, opacity).apply()
+                .putInt(KEY_DOCK_COLOR, color).putInt(KEY_DOCK_OPACITY, opacity).putInt(KEY_DOCK_GRADIENT, gradient).apply()
             applyDockStyle()
         }
         dockSheet.visibility = View.GONE
@@ -1013,7 +1016,8 @@ class LauncherActivity : Activity() {
         val prefs = getSharedPreferences("launcher", MODE_PRIVATE)
         dockSheet.show(
             prefs.getInt(KEY_DOCK_COLOR, Color.WHITE),
-            prefs.getInt(KEY_DOCK_OPACITY, DockStyleSheet.DEFAULT_OPACITY)
+            prefs.getInt(KEY_DOCK_OPACITY, DockStyleSheet.DEFAULT_OPACITY),
+            prefs.getInt(KEY_DOCK_GRADIENT, 0)
         )
         dockSheet.visibility = View.VISIBLE
     }
@@ -1023,7 +1027,8 @@ class LauncherActivity : Activity() {
         val prefs = getSharedPreferences("launcher", MODE_PRIVATE)
         dock.setStyle(
             prefs.getInt(KEY_DOCK_COLOR, Color.WHITE),
-            prefs.getInt(KEY_DOCK_OPACITY, DockStyleSheet.DEFAULT_OPACITY)
+            prefs.getInt(KEY_DOCK_OPACITY, DockStyleSheet.DEFAULT_OPACITY),
+            prefs.getInt(KEY_DOCK_GRADIENT, 0)
         )
     }
 
@@ -1722,6 +1727,7 @@ class LauncherActivity : Activity() {
         const val BLUR_DP = 28
         const val KEY_DOCK_COLOR = "dock_color"
         const val KEY_DOCK_OPACITY = "dock_opacity"
+        const val KEY_DOCK_GRADIENT = "dock_gradient"
         const val KEY_WALLPAPER_SCROLL = "wallpaper_scroll"
         const val KEY_LOCK_TAP = "lock_tap"
         const val REQ_LOCK_ADMIN = 1010

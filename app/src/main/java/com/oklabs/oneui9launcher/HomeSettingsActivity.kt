@@ -2,7 +2,10 @@ package com.oklabs.oneui9launcher
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.app.WallpaperManager
 import android.app.role.RoleManager
+import android.graphics.drawable.GradientDrawable
+import android.util.DisplayMetrics
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
@@ -38,7 +41,7 @@ private const val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
  * from the three-dot menu of the Apps screen ("Apps screen grid...") and from the launcher icon's long-press shortcut.
  *
  * The main page lists the categories; each opens its own page:
- *  Home screen (grid, icon size, search bar) - Apps screen (columns, rows, icon size, names, sort) - Dock (colour, opacity) -
+ *  Home screen (grid, icon size, search bar) - Apps screen (columns, rows, icon size, names, sort) - Dock (colour, gradient, opacity) - Wallpaper (gradients) -
  *  Icons (colourful / original, themed) - Look and feel (panels, blur, wallpaper scroll) - Gestures (notifications, double-tap lock) -
  *  Notification badges - Edge panel - Hide apps - Screen turning - Backup and restore - Contact us - Privacy policy -
  *  Terms of use - Permissions and data use - About.
@@ -155,6 +158,7 @@ class HomeSettingsActivity : Activity() {
             HOME -> homePage()
             APPS -> appsPage()
             DOCK -> dockPage()
+            WALLPAPER -> wallpaperPage()
             ICONS -> iconsPage()
             LOOK -> lookPage()
             GESTURES -> gesturesPage()
@@ -272,12 +276,13 @@ class HomeSettingsActivity : Activity() {
             box,
             kit.row(SettingsTile.HOME, SettingsTile.BLUE, "Home screen", homeSummary()) { go(HOME) },
             kit.row(SettingsTile.APPS, SettingsTile.PURPLE, "Apps screen", appsSummary()) { go(APPS) },
-            kit.row(SettingsTile.DOCK, SettingsTile.TEAL, "Dock", "Background colour and opacity") { go(DOCK) }
+            kit.row(SettingsTile.DOCK, SettingsTile.TEAL, "Dock", "Colour, gradient and opacity") { go(DOCK) }
         )
 
         kit.label(box, "Look")
         kit.card(
             box,
+            kit.row(SettingsTile.WALLPAPER, SettingsTile.ORANGE, "Wallpaper", "Gradient wallpapers · portrait and landscape") { go(WALLPAPER) },
             kit.row(SettingsTile.ICONS, SettingsTile.PINK, "Icons", IconPack.modeName() + " · Themed: " + IconTheme.choiceNames[IconTheme.savedMode(this)]) { go(ICONS) },
             kit.row(SettingsTile.LOOK, SettingsTile.SLATE, "Look and feel", "Panels: " + panelModeName() + " · Blur " + onOff(prefs().getBoolean(K_BLUR, true))) { go(LOOK) }
         )
@@ -435,18 +440,176 @@ class HomeSettingsActivity : Activity() {
     // ------------------------------------------------------------------ Dock
 
     private fun dockPage(): View = kit.page("Dock", { goBack() }) { box ->
+        val color = prefs().getInt(K_DOCK_COLOR, Color.WHITE)
+        val opacity = prefs().getInt(K_DOCK_OPACITY, DockStyleSheet.DEFAULT_OPACITY)
+        val gradient = prefs().getInt(K_DOCK_GRADIENT, 0)
+
+        // A live picture of the dock on a dark backdrop (it follows the choices below).
+        val preview = FrameLayout(this)
+        preview.background = roundRect(Color.rgb(34, 38, 52), dpf(22f))
+        val pill = View(this)
+        pill.background = DockView.styleDrawable(this, color, opacity, gradient)
+        preview.addView(pill, FrameLayout.LayoutParams(MATCH, dp(64), Gravity.CENTER).also { it.setMargins(dp(18), dp(22), dp(18), dp(22)) })
+        box.addView(preview, LinearLayout.LayoutParams(MATCH, ViewGroup.LayoutParams.WRAP_CONTENT).also { it.topMargin = dp(6) })
+
+        kit.label(box, "Background")
         kit.card(
             box,
-            kit.colorDots("Background colour", DockStyleSheet.COLORS, prefs().getInt(K_DOCK_COLOR, Color.WHITE)) { color ->
-                prefs().edit().putInt(K_DOCK_COLOR, color).apply()
+            kit.colorDots("Background colour", DockStyleSheet.COLORS, color) { picked ->
+                // a plain colour switches the gradient off
+                prefs().edit().putInt(K_DOCK_COLOR, picked).putInt(K_DOCK_GRADIENT, 0).apply()
                 changed()
+                show()
             },
-            kit.slider("Background opacity", 100, prefs().getInt(K_DOCK_OPACITY, DockStyleSheet.DEFAULT_OPACITY), { "$it%" }) { value ->
+            kit.gradientDots("Gradient", gradient) { picked ->
+                val edit = prefs().edit().putInt(K_DOCK_GRADIENT, picked)
+                // a gradient at the old 22% is hard to see: lift it to a clear glass look
+                if (picked > 0 && opacity < DockStyleSheet.GRADIENT_MIN_OPACITY) edit.putInt(K_DOCK_OPACITY, DockStyleSheet.GRADIENT_OPACITY)
+                edit.apply()
+                changed()
+                show()
+            },
+            kit.slider("Background opacity", 100, opacity, { "$it%" }) { value ->
                 prefs().edit().putInt(K_DOCK_OPACITY, value).apply()
                 changed()
+                pill.background = DockView.styleDrawable(this, prefs().getInt(K_DOCK_COLOR, Color.WHITE), value, prefs().getInt(K_DOCK_GRADIENT, 0))
             }
         )
         kit.note(box, "The dock is the bar of favourite apps at the bottom of the Home screen. To change its apps, long-press an empty spot > Edit Home screen.")
+    }
+
+    // ------------------------------------------------------------------ Wallpaper (Step 15)
+
+    /** What the wallpaper page has picked: the gradient (index in [Gradients.all], -1 = none yet), how it is cut, and where it is set. */
+    private var wpSel = -1
+    private var wpMode = Gradients.PORTRAIT
+    private var wpTarget = 2
+
+    private fun wallpaperPage(): View = kit.page("Wallpaper", { goBack() }) { box ->
+        kit.card(
+            box,
+            kit.chips("Made for", listOf("Portrait", "Landscape", "Both"), wpMode) { wpMode = it; show() },
+            kit.chips("Set on", listOf("Home", "Lock", "Both"), wpTarget) { wpTarget = it }
+        )
+        kit.note(
+            box,
+            when (wpMode) {
+                Gradients.LANDSCAPE -> "Drawn wide, for a phone held sideways."
+                Gradients.BOTH -> "Drawn square, so it looks right held either way (the phone crops it)."
+                else -> "Drawn tall, for a phone held upright."
+            }
+        )
+
+        kit.label(box, "Gradient wallpapers")
+        val columns = if (wpMode == Gradients.LANDSCAPE) 2 else 3
+        val gap = dp(10)
+        val screenWidth = resources.displayMetrics.widthPixels - dp(36)
+        val tileWidth = (screenWidth - gap * (columns - 1)) / columns
+        val tileHeight = when (wpMode) {
+            Gradients.LANDSCAPE -> tileWidth * 9 / 16
+            Gradients.BOTH -> tileWidth
+            else -> tileWidth * 16 / 9
+        }
+        var rowView: LinearLayout? = null
+        for ((index, def) in Gradients.all.withIndex()) {
+            if (index % columns == 0) {
+                rowView = LinearLayout(this)
+                rowView.orientation = LinearLayout.HORIZONTAL
+                val rowLp = LinearLayout.LayoutParams(MATCH, ViewGroup.LayoutParams.WRAP_CONTENT)
+                rowLp.bottomMargin = gap
+                box.addView(rowView, rowLp)
+            }
+            rowView?.addView(wallpaperTile(def, index, tileWidth, tileHeight), LinearLayout.LayoutParams(tileWidth, ViewGroup.LayoutParams.WRAP_CONTENT).also {
+                if (index % columns != 0) it.leftMargin = gap
+            })
+        }
+
+        val button = TextView(this)
+        button.text = if (wpSel >= 0) "Set \u201C${Gradients.all[wpSel].name}\u201D as wallpaper" else "Pick a wallpaper"
+        button.gravity = Gravity.CENTER
+        button.setTextColor(Look.panel(255))
+        button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+        button.setPadding(dp(16), dp(14), dp(16), dp(14))
+        button.background = roundRect(if (wpSel >= 0) Look.text else Look.inkA(90), dpf(26f))
+        button.isClickable = true
+        button.setOnClickListener { applyWallpaper() }
+        box.addView(button, LinearLayout.LayoutParams(MATCH, ViewGroup.LayoutParams.WRAP_CONTENT).also { it.topMargin = dp(8) })
+        kit.note(box, "Your phone keeps one wallpaper picture; the launcher draws it at your screen's size. Pick it again any time to change it.")
+    }
+
+    /** One tile: the gradient drawn small, its name, and a ring when it is the picked one. */
+    private fun wallpaperTile(def: GradientDef, index: Int, width: Int, height: Int): View {
+        val cell = LinearLayout(this)
+        cell.orientation = LinearLayout.VERTICAL
+        cell.isClickable = true
+        cell.contentDescription = def.name
+        cell.setOnClickListener {
+            wpSel = index
+            show()
+        }
+        val on = index == wpSel
+        val frame = FrameLayout(this)
+        frame.setPadding(dp(3), dp(3), dp(3), dp(3))
+        frame.background = GradientDrawable().apply {
+            cornerRadius = dpf(18f)
+            setColor(Color.TRANSPARENT)
+            setStroke(dp(if (on) 3 else 0), Look.text)
+        }
+        val image = ImageView(this)
+        image.setImageBitmap(Gradients.render(def, width, height))
+        image.scaleType = ImageView.ScaleType.FIT_XY
+        image.clipToOutline = true
+        image.outlineProvider = object : android.view.ViewOutlineProvider() {
+            override fun getOutline(view: View, outline: android.graphics.Outline) {
+                outline.setRoundRect(0, 0, view.width, view.height, dpf(15f))
+            }
+        }
+        frame.addView(image, FrameLayout.LayoutParams(width - dp(6), height - dp(6)))
+        cell.addView(frame, LinearLayout.LayoutParams(width, height))
+        val name = TextView(this)
+        name.text = def.name
+        name.gravity = Gravity.CENTER
+        name.maxLines = 1
+        name.setTextColor(if (on) Look.text else Look.textA(170))
+        name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
+        name.setPadding(0, dp(5), 0, 0)
+        cell.addView(name, LinearLayout.LayoutParams(width, ViewGroup.LayoutParams.WRAP_CONTENT))
+        return cell
+    }
+
+    /** Draws the picked gradient at the phone's screen size (portrait, landscape or square) and makes it the wallpaper. */
+    private fun applyWallpaper() {
+        val def = Gradients.all.getOrNull(wpSel)
+        if (def == null) {
+            toast("Pick a wallpaper first")
+            return
+        }
+        val manager = WallpaperManager.getInstance(this)
+        if (!manager.isWallpaperSupported || !manager.isSetWallpaperAllowed) {
+            toast("This phone does not let apps change the wallpaper.")
+            return
+        }
+        val metrics = DisplayMetrics()
+        @Suppress("DEPRECATION")
+        windowManager.defaultDisplay.getRealMetrics(metrics)
+        val (width, height) = Gradients.sizeFor(wpMode, metrics.widthPixels, metrics.heightPixels)
+        val which = when (wpTarget) {
+            0 -> WallpaperManager.FLAG_SYSTEM
+            1 -> WallpaperManager.FLAG_LOCK
+            else -> WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK
+        }
+        toast("Setting the wallpaper...")
+        Thread {
+            val message = try {
+                val bitmap = Gradients.render(def, width, height)
+                manager.setBitmap(bitmap, null, true, which)
+                bitmap.recycle()
+                "Wallpaper set: ${def.name}"
+            } catch (e: Throwable) {
+                "Could not set the wallpaper"
+            }
+            runOnUiThread { toast(message) }
+        }.start()
     }
 
     // ------------------------------------------------------------------ Icons
@@ -1123,10 +1286,14 @@ class HomeSettingsActivity : Activity() {
         /** Start Settings on a page other than the main one, e.g. "apps" (used by the Apps screen's menu and the icon shortcut). */
         const val EXTRA_PAGE = "page"
 
+        /** The page of Settings > Wallpaper (the Home screen menu opens it with [EXTRA_PAGE]). */
+        const val PAGE_WALLPAPER = "wallpaper"
+
         private const val MAIN = "main"
         private const val HOME = "home"
         private const val APPS = "apps"
         private const val DOCK = "dock"
+        private const val WALLPAPER = "wallpaper"
         private const val ICONS = "icons"
         private const val LOOK = "look"
         private const val GESTURES = "gestures"
@@ -1145,7 +1312,7 @@ class HomeSettingsActivity : Activity() {
 
         /** Pages a caller may ask for with [EXTRA_PAGE]. */
         private val PAGES = setOf(
-            HOME, APPS, DOCK, ICONS, LOOK, GESTURES, BADGES, EDGE, HIDE, ROTATION, BACKUP, CONTACT, PRIVACY, TERMS, PERMISSIONS, ABOUT
+            HOME, APPS, DOCK, WALLPAPER, ICONS, LOOK, GESTURES, BADGES, EDGE, HIDE, ROTATION, BACKUP, CONTACT, PRIVACY, TERMS, PERMISSIONS, ABOUT
         )
 
         // The launcher's saved settings (same keys the Home screen reads).
@@ -1156,6 +1323,7 @@ class HomeSettingsActivity : Activity() {
         private const val K_WALLPAPER_SCROLL = "wallpaper_scroll"
         private const val K_DOCK_COLOR = "dock_color"
         private const val K_DOCK_OPACITY = "dock_opacity"
+        private const val K_DOCK_GRADIENT = "dock_gradient"
         private const val K_APPS_SORT = "apps_sort"
 
         private const val REQ_BACKUP = 2001

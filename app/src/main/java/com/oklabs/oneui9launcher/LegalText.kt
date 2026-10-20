@@ -237,6 +237,11 @@ object LegalText {
             false
         ),
         Permission(
+            "Set wallpaper",
+            "Only when you tap “Set as wallpaper” in Settings > Wallpaper: the launcher draws the gradient you picked and gives it to Android as your wallpaper. Nothing is read from your photos.",
+            false
+        ),
+        Permission(
             "Widgets",
             "The app can host widgets from other apps and has its own clock and date widgets. Widgets from other apps are drawn by those apps and follow their own privacy policies.",
             false
