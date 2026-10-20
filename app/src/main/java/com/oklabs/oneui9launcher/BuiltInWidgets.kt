@@ -143,6 +143,11 @@ object BuiltInWidgets {
         val background = when (config.background) {
             WidgetConfig.BG_GLASS -> R.drawable.widget_glass_bg
             WidgetConfig.BG_DARK -> R.drawable.widget_dark_bg
+            WidgetConfig.BG_AURORA -> R.drawable.widget_theme_aurora
+            WidgetConfig.BG_SUNSET -> R.drawable.widget_theme_sunset
+            WidgetConfig.BG_OCEAN -> R.drawable.widget_theme_ocean
+            WidgetConfig.BG_FOREST -> R.drawable.widget_theme_forest
+            WidgetConfig.BG_MIDNIGHT -> R.drawable.widget_theme_midnight
             else -> 0
         }
         views.setInt(R.id.widget_root, "setBackgroundResource", background)

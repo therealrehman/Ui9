@@ -10,7 +10,7 @@ cd ~/storage/downloads && unzip -oq "$(ls -t OneUI9Launcher-step01*.zip | head -
 ```
 
 Each new step ships as a full project zip. Use the same command with the new zip name
-(step02, step03, step04, step05a, step05b, step05c, step06a, step06b1, step06b2, step06c1, step06c2, step07a, step07b, step07c, step08a, step08b, step08c, step08d, step09a, step09b, step10a, step10b, step10c, step10d, step11, step12, step13). Your `local.properties` is kept between steps.
+(step02, step03, step04, step05a, step05b, step05c, step06a, step06b1, step06b2, step06c1, step06c2, step07a, step07b, step07c, step08a, step08b, step08c, step08d, step09a, step09b, step10a, step10b, step10c, step10d, step11, step12, step13, step14). Your `local.properties` is kept between steps.
 
 ## Status
 
@@ -52,6 +52,7 @@ Each new step ships as a full project zip. Use the same command with the new zip
 | 11 | Play Store pack: privacy policy, terms, listing text, target API 36, .aab, in-app policy links | DONE |
 | 12 | Look like the reference: 12a colourful system-app icons + rounder squircle, 12b Apps screen in left/right pages | DONE |
 | 13 | Settings app + Apps screen grid options + more icons + Contact / policies inside the app | DONE |
+| 14 | Gradient glass backgrounds for the clock / date widgets: 5 themes (Aurora, Sunset, Ocean, Forest, Midnight) | DONE |
 
 ## Step 1 - what is in it
 
@@ -430,6 +431,20 @@ Each new step ships as a full project zip. Use the same command with the new zip
 - **Crash note.** If the app ever crashes, the error is saved on the phone and shown on the next Settings start (Copy / Email / Clear). Never sent by the app.
 - **Easier page swipe.** Pages (Apps screen and Home) now start moving after half the touch slop on any mostly-sideways move, a fast short flick turns the page, a drag of ~18% of a page is enough, and a slanted swipe on the open Apps screen no longer closes it.
 - Version 1.0.3 (code 113).
+
+## Step 14 - Gradient glass backgrounds for the clock widgets
+
+- Long-press a Clock, Mini clock or Analog clock widget > **Widget settings** > **Background**: next to None / Glass / Dark there is now a
+  second row, **Gradient glass**, with five themes shown as little tiles with their names:
+  **Aurora** (teal to violet), **Sunset** (orange to pink), **Ocean** (blue to cyan), **Forest** (green to deep teal) and **Midnight** (navy to purple).
+  Tap a tile and the live widget at the top changes at once; **Done** saves it for that widget.
+- It is real frosted-glass look: the colours are see-through, so your wallpaper glows through them; there is a soft light sheen from the top
+  and a hairline light edge, with the same rounded corners as the Glass and Dark tiles. White text (or any colour you pick) reads on all five.
+- Every widget keeps its own choice (two clocks can use two themes). The Date widget uses the same row, since it shares the Background setting.
+- Nothing changes for widgets you already have: None / Glass / Dark are saved as before and look the same. The save format is unchanged
+  (the background number just goes up to 7).
+- The colours live in one table (`WidgetThemes` in `WidgetConfig.kt`); the five drawables `res/drawable/widget_theme_*.xml` are written from it.
+- Version 1.0.4 (code 114).
 
 ## Cloud build (Bitrise) - no Termux build needed
 

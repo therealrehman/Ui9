@@ -16,7 +16,7 @@ class WidgetConfig(
     val hours: Int,
     /** Show the date line under the clock (clocks only). */
     val showDate: Boolean,
-    /** [BG_NONE], [BG_GLASS] or [BG_DARK]. */
+    /** [BG_NONE], [BG_GLASS], [BG_DARK], or one of the five gradient glass themes ([BG_AURORA] .. [BG_MIDNIGHT], see [WidgetThemes]). */
     val background: Int
 ) {
 
@@ -48,6 +48,13 @@ class WidgetConfig(
         const val BG_GLASS = 1
         const val BG_DARK = 2
 
+        // Step 14: gradient glass themes. Values 0..2 keep their old meaning, so saved widgets look the same as before.
+        const val BG_AURORA = 3
+        const val BG_SUNSET = 4
+        const val BG_OCEAN = 5
+        const val BG_FOREST = 6
+        const val BG_MIDNIGHT = 7
+
         /** White, black, sky, mint, amber, rose (ARGB). The analog clock has one set of pictures per colour, in this order. */
         val COLORS = intArrayOf(
             0xFFFFFFFF.toInt(),
@@ -73,10 +80,32 @@ class WidgetConfig(
                 "0" -> false
                 else -> fallback.showDate
             }
-            val background = parts[4].toIntOrNull()?.takeIf { it in BG_NONE..BG_DARK } ?: fallback.background
+            val background = parts[4].toIntOrNull()?.takeIf { it in BG_NONE..BG_MIDNIGHT } ?: fallback.background
             return WidgetConfig(style, color, hours, date, background)
         }
     }
+}
+
+/**
+ * One gradient glass background of the launcher's own widgets (Step 14). [start] and [end] are ARGB colours,
+ * top-left to bottom-right; they are see-through on purpose, so the wallpaper glows through like frosted glass.
+ * The widget itself uses the drawable res/drawable/widget_theme_<[key]>.xml (written from this table), the setup
+ * screen draws its little tiles from the same colours.
+ */
+class WidgetTheme(val background: Int, val key: String, val name: String, val start: Int, val end: Int)
+
+object WidgetThemes {
+
+    val all: List<WidgetTheme> = listOf(
+        WidgetTheme(WidgetConfig.BG_AURORA, "aurora", "Aurora", 0xB31DD3B8.toInt(), 0xB37B61FF.toInt()),
+        WidgetTheme(WidgetConfig.BG_SUNSET, "sunset", "Sunset", 0xB3FF9A4D.toInt(), 0xB3FF4D8D.toInt()),
+        WidgetTheme(WidgetConfig.BG_OCEAN, "ocean", "Ocean", 0xB32F8CFF.toInt(), 0xB316D3E6.toInt()),
+        WidgetTheme(WidgetConfig.BG_FOREST, "forest", "Forest", 0xB33CC27A.toInt(), 0xB30E6B6B.toInt()),
+        WidgetTheme(WidgetConfig.BG_MIDNIGHT, "midnight", "Midnight", 0xCC24294F.toInt(), 0xCC5B2C83.toInt())
+    )
+
+    /** The theme behind a [WidgetConfig.background] value, or null for None / Glass / Dark. */
+    fun forBackground(background: Int): WidgetTheme? = all.firstOrNull { it.background == background }
 }
 
 /** Which of the launcher's own widgets this is. [defaults] is what a freshly added one looks like. */

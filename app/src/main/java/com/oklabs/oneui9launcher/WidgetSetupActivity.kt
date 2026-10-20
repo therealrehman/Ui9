@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Outline
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import android.os.Bundle
@@ -28,7 +29,8 @@ private const val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
  * Step 6c2: the setup screen of the launcher's own widgets (Clock, Mini clock, Analog clock, Date).
  * Android opens it when the widget is added and the launcher opens it again from the widget's menu ("Widget settings").
  * The top half shows the real widget, live, over the wallpaper; the bottom sheet has the choices:
- * style (digital / analog), colour, time format (phone / 12 h / 24 h), date line on / off, background (none / glass / dark).
+ * style (digital / analog), colour, time format (phone / 12 h / 24 h), date line on / off, background (none / glass / dark,
+ * or one of five gradient glass themes - Step 14).
  * Done saves and updates the widget; Back / Cancel changes nothing.
  */
 class WidgetSetupActivity : Activity() {
@@ -190,8 +192,15 @@ class WidgetSetupActivity : Activity() {
 
         addSection("Background")
         addRow(
-            chipRow(listOf("None", "Glass", "Dark"), config.background) { config = config.copy(background = it); changed() }
+            // -1: none of these three is chosen (one of the gradient themes below is)
+            chipRow(listOf("None", "Glass", "Dark"), if (config.background <= WidgetConfig.BG_DARK) config.background else -1) {
+                config = config.copy(background = it)
+                changed()
+            }
         )
+
+        addSection("Gradient glass")
+        addRow(themeRow())
     }
 
     private fun addSection(text: String) {
@@ -253,6 +262,74 @@ class WidgetSetupActivity : Activity() {
         }
         return row
     }
+
+    /** The five gradient glass themes as little tiles with their names; the chosen one gets a ring. */
+    private fun themeRow(): View {
+        val row = LinearLayout(this)
+        row.orientation = LinearLayout.HORIZONTAL
+        for (theme in WidgetThemes.all) {
+            val on = config.background == theme.background
+            val cell = LinearLayout(this)
+            cell.orientation = LinearLayout.VERTICAL
+            cell.gravity = Gravity.CENTER_HORIZONTAL
+            cell.isClickable = true
+            cell.contentDescription = theme.name
+            cell.setOnClickListener {
+                config = config.copy(background = theme.background)
+                changed()
+            }
+
+            val tile = View(this)
+            tile.background = themeTile(theme, on)
+            cell.addView(tile, LinearLayout.LayoutParams(MATCH, dp(48)))
+
+            val label = TextView(this)
+            label.text = theme.name
+            label.gravity = Gravity.CENTER
+            label.maxLines = 1
+            label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            label.setTextColor(if (on) Color.WHITE else Color.argb(170, 255, 255, 255))
+            val labelParams = LinearLayout.LayoutParams(WRAP, WRAP)
+            labelParams.topMargin = dp(5)
+            cell.addView(label, labelParams)
+
+            val lp = LinearLayout.LayoutParams(0, WRAP, 1f)
+            lp.leftMargin = dp(3)
+            lp.rightMargin = dp(3)
+            row.addView(cell, lp)
+        }
+        return row
+    }
+
+    /**
+     * A small picture of a theme: its two colours (made solid, so they read on the dark sheet) with the same soft sheen
+     * and light edge the widget has. The chosen one sits inside a white ring.
+     */
+    private fun themeTile(theme: WidgetTheme, selected: Boolean): Drawable {
+        val radius = dpf(14f)
+        val fill = GradientDrawable(
+            GradientDrawable.Orientation.TL_BR,
+            intArrayOf(solid(theme.start), solid(theme.end))
+        )
+        fill.cornerRadius = radius
+        val sheen = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x3DFFFFFF, 0x00FFFFFF))
+        sheen.cornerRadius = radius
+        val edge = GradientDrawable()
+        edge.cornerRadius = radius
+        edge.setColor(Color.TRANSPARENT)
+        edge.setStroke(dp(1), Color.argb(92, 255, 255, 255))
+        if (!selected) return LayerDrawable(arrayOf(fill, sheen, edge))
+
+        val ring = GradientDrawable()
+        ring.cornerRadius = radius + dpf(3f)
+        ring.setColor(Color.TRANSPARENT)
+        ring.setStroke(dp(3), Color.WHITE)
+        val layers = LayerDrawable(arrayOf(ring, fill, sheen, edge))
+        for (layer in 1..3) layers.setLayerInset(layer, dp(5), dp(5), dp(5), dp(5))
+        return layers
+    }
+
+    private fun solid(color: Int): Int = (color and 0x00FFFFFF) or (0xF2 shl 24)
 
     private fun swatchDrawable(color: Int, selected: Boolean) =
         if (!selected) {
