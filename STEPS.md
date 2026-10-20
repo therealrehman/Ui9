@@ -460,6 +460,8 @@ Each new step ships as a full project zip. Use the same command with the new zip
 - Saved key: `dock_gradient` (0 = none, 1.. = table order). Old docks look exactly the same. Backup and restore carry it automatically.
 - **Left / not done:** Android keeps ONE wallpaper picture, so "Portrait" and "Landscape" are two ways to cut it, not two pictures that swap on rotation
   (that needs the phone's own wallpaper service). Not tested on a real phone; compile-checked only (R-free sources, 0 errors).
+- **Search bar gradient.** Settings > Home screen > Search > **Search bar gradient**: None + the same 12 gradients. The Home search pill becomes a left-to-right
+  glass gradient (about 75% clear, hairline light edge); None = the old soft white glass. Saved key `search_gradient`. The Apps screen's own search pill is unchanged.
 - Version 1.0.5 (code 115).
 
 ## Cloud build (Bitrise) - no Termux build needed

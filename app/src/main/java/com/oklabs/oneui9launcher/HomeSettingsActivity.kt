@@ -362,6 +362,10 @@ class HomeSettingsActivity : Activity() {
             kit.toggle(-1, 0, "Show search bar", "A search bar on the Home screen; tap it to search your apps", prefs().getBoolean(K_HOME_SEARCH, true)) { on ->
                 prefs().edit().putBoolean(K_HOME_SEARCH, on).apply()
                 changed()
+            },
+            kit.gradientDots("Search bar gradient", prefs().getInt(K_SEARCH_GRADIENT, 0)) { picked ->
+                prefs().edit().putInt(K_SEARCH_GRADIENT, picked).apply()
+                changed()
             }
         )
     }
@@ -1324,6 +1328,7 @@ class HomeSettingsActivity : Activity() {
         private const val K_DOCK_COLOR = "dock_color"
         private const val K_DOCK_OPACITY = "dock_opacity"
         private const val K_DOCK_GRADIENT = "dock_gradient"
+        private const val K_SEARCH_GRADIENT = "search_gradient"
         private const val K_APPS_SORT = "apps_sort"
 
         private const val REQ_BACKUP = 2001

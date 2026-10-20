@@ -3,6 +3,7 @@ package com.oklabs.oneui9launcher
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
@@ -41,6 +42,20 @@ class HomeSearchBar(context: Context) : LinearLayout(context) {
         addView(hint, lp)
     }
 
+    /** Step 15: [gradient] 0 = the soft white glass; 1.. = one of [Gradients.all] (left to right glass with a hairline light edge). */
+    fun setGradient(gradient: Int) {
+        val def = Gradients.forIndex(gradient)
+        if (def == null) {
+            background = roundRect(Color.argb(64, 255, 255, 255), context.dpf(28f))
+            return
+        }
+        val drawable = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, Gradients.withAlpha(def.colors, GRADIENT_ALPHA))
+        drawable.shape = GradientDrawable.RECTANGLE
+        drawable.cornerRadius = context.dpf(28f)
+        drawable.setStroke(context.dp(1), Color.argb(70, 255, 255, 255))
+        background = drawable
+    }
+
     /** Same "squish" as the icons. */
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
@@ -54,5 +69,8 @@ class HomeSearchBar(context: Context) : LinearLayout(context) {
 
     companion object {
         const val HEIGHT_DP = 50
+
+        /** How see-through a gradient search bar is (0..255): clear colour, the wallpaper still glows through. */
+        const val GRADIENT_ALPHA = 190
     }
 }

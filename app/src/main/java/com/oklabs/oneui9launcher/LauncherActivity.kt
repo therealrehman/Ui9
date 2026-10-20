@@ -492,6 +492,7 @@ class LauncherActivity : Activity() {
         )
 
         searchBar = HomeSearchBar(this)
+        searchBar.setGradient(getSharedPreferences("launcher", MODE_PRIVATE).getInt(KEY_SEARCH_GRADIENT, 0))
         searchBar.visibility = if (showSearchBar()) View.VISIBLE else View.GONE
         searchBar.setOnClickListener {
             if (apps.progress == 0f && !folderLayer.isOpen) apps.openWithSearch()
@@ -1728,6 +1729,7 @@ class LauncherActivity : Activity() {
         const val KEY_DOCK_COLOR = "dock_color"
         const val KEY_DOCK_OPACITY = "dock_opacity"
         const val KEY_DOCK_GRADIENT = "dock_gradient"
+        const val KEY_SEARCH_GRADIENT = "search_gradient"
         const val KEY_WALLPAPER_SCROLL = "wallpaper_scroll"
         const val KEY_LOCK_TAP = "lock_tap"
         const val REQ_LOCK_ADMIN = 1010
