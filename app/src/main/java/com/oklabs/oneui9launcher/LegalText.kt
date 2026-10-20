@@ -156,7 +156,7 @@ object LegalText {
         Section(
             "6. No affiliation; trademarks",
             listOf(
-                "The app is an independent product of {company}. It is not made, sponsored or endorsed by Samsung or any other phone maker. " +
+                "The app is an independent product of {company}. It is not made, sponsored or endorsed by any phone maker. " +
                     "All code and icons in the app are original. All product names and trademarks mentioned belong to their owners."
             )
         ),
@@ -262,7 +262,7 @@ object LegalText {
         Section(
             "Trademarks",
             listOf(
-                "Android is a trademark of Google LLC. Samsung and One UI are trademarks of Samsung Electronics. {app} is not affiliated with, made by, sponsored or endorsed by them."
+                "Android is a trademark of Google LLC. All other product names and trademarks belong to their owners. {app} is not affiliated with, made by, sponsored or endorsed by them."
             )
         )
     )

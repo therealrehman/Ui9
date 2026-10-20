@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# OneUI 9 Launcher - signed, shrunk release build for Termux.
+# Ok Launcher - signed, shrunk release build for Termux.
 #   bash release.sh
 # The first run creates your own signing key (oneui9-release.jks + keystore.properties).
 # KEEP BOTH FILES: every later update must be signed with the same key, or Android refuses to update the app.

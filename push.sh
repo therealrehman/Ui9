@@ -33,7 +33,7 @@ VERSION=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts | head
 if git diff --cached --quiet; then
   echo "Nothing new to commit."
 else
-  git commit -q -m "OneUI 9 Launcher ${VERSION}"
+  git commit -q -m "Ok Launcher ${VERSION}"
 fi
 git branch -M main >/dev/null 2>&1
 
@@ -43,4 +43,4 @@ if ! git push -u origin main; then
   exit 1
 fi
 echo
-echo "Pushed OneUI 9 Launcher ${VERSION}."
+echo "Pushed Ok Launcher ${VERSION}."

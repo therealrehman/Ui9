@@ -67,16 +67,13 @@
             android:stateNotNeeded="true"
             android:taskAffinity=""
             android:windowSoftInputMode="adjustResize|stateHidden">
+            <!-- The Home screen. Only HOME here: the app icon you tap (in any launcher) is the Settings activity below.
+                 Some phones hide an app whose Home activity also carries the LAUNCHER category. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.HOME" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Step 13: long-press the launcher icon > Settings. -->
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
         </activity>
 
         <!-- Step 6c2: setup screen of the launcher's own widgets. Android opens it when one is added; the launcher opens it
@@ -92,12 +89,13 @@
             </intent-filter>
         </activity>
 
-        <!-- Step 9a / 13: Settings (all settings, contact and policies). Opened from the Home screen's long-press menu, the Apps screen menu and the icon shortcut. -->
-        <!-- It is also an app of its own: "Launcher Settings" shows up in the Apps screen (and in any other launcher) and opens this UI. -->
+        <!-- The app icon: this is what you tap in the phone's app list (and in this launcher's Apps screen). It opens the Settings UI (all settings, contact and policies), where you can make it your Home app.
+             Also opened from the Home screen's long-press menu and the Apps screen menu. -->
         <activity
             android:name=".HomeSettingsActivity"
             android:exported="true"
-            android:label="@string/settings_app_name"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.OneUI.Setup">
             <intent-filter>

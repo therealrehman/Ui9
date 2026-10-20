@@ -98,7 +98,7 @@ object AppRepository {
             val cacheKey = pkg + "/" + activity.name + "|" + iconPx + "|" + themeKey + "|" + times[1]
             var icon: Bitmap? = iconCache.get(cacheKey)
             if (icon == null) {
-                val style = if (isSettingsApp) IconPack.Style.SETTINGS else IconPack.styleFor(label, pkg, activity.applicationInfo?.flags ?: 0, packDefaults)
+                val style = if (isSettingsApp) null else IconPack.styleFor(label, pkg, activity.applicationInfo?.flags ?: 0, packDefaults)
                 icon = try {
                     if (style != null) {
                         IconShaper.shapeDrawn(iconPx) { IconPack.draw(it, style, iconPx) }
