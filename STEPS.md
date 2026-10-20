@@ -428,6 +428,7 @@ Each new step ships as a full project zip. Use the same command with the new zip
   The contact address, developer name and website are in `strings.xml` (`contact_email`, `developer_name`, `website_url`): change them there once.
   The "online" rows stay hidden until `YOUR_NAME` in `privacy_url` / `terms_url` / `website_url` is replaced (see PLAY_STORE.md).
 - **Crash note.** If the app ever crashes, the error is saved on the phone and shown on the next Settings start (Copy / Email / Clear). Never sent by the app.
+- **Easier page swipe.** Pages (Apps screen and Home) now start moving after half the touch slop on any mostly-sideways move, a fast short flick turns the page, a drag of ~18% of a page is enough, and a slanted swipe on the open Apps screen no longer closes it.
 - Version 1.0.3 (code 113).
 
 ## Cloud build (Bitrise) - no Termux build needed

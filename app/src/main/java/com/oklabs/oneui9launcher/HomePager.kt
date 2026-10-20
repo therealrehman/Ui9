@@ -151,6 +151,14 @@ class HomePager(context: Context) : ViewGroup(context) {
                 if (!dragging) maybeStartDrag(ev)
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                // A very short but fast flick still turns the page (and the icon under the finger is not tapped).
+                if (!dragging && ev.actionMasked == MotionEvent.ACTION_UP) {
+                    track(ev)
+                    if (quickFlick(ev)) {
+                        recycleTracker()
+                        return true
+                    }
+                }
                 if (!dragging) recycleTracker()
             }
         }
@@ -190,6 +198,10 @@ class HomePager(context: Context) : ViewGroup(context) {
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 removeCallbacks(longPress)
+                if (!dragging && !longPressFired && ev.actionMasked == MotionEvent.ACTION_UP && quickFlick(ev)) {
+                    recycleTracker()
+                    return true
+                }
                 if (ev.actionMasked == MotionEvent.ACTION_UP) noteTap(ev)
                 if (dragging) release(ev.actionMasked == MotionEvent.ACTION_CANCEL)
                 dragging = false
@@ -222,7 +234,8 @@ class HomePager(context: Context) : ViewGroup(context) {
     private fun maybeStartDrag(ev: MotionEvent) {
         val dx = ev.x - downX
         val dy = ev.y - downY
-        if (abs(dx) > slop && abs(dx) > abs(dy) * 1.2f) {
+        // Step 13: starts on half the usual touch slop and on any mostly-sideways move, so a short swipe counts at once.
+        if (abs(dx) > slop * START_SLOP_FACTOR && abs(dx) > abs(dy)) {
             startDrag()
             lastX = ev.x
         }
@@ -248,7 +261,10 @@ class HomePager(context: Context) : ViewGroup(context) {
         trackNearest()
     }
 
-    /** Finger lifted: a flick counts like extra dragging, but never skips more than one page. */
+    /**
+     * Finger lifted. Step 13: easy to turn a page. A flick (even a short one) goes that way; otherwise a drag of
+     * about a fifth of the page is enough. Never skips more than one page.
+     */
     private fun release(cancelled: Boolean) {
         var velocity = 0f
         tracker?.let {
@@ -256,10 +272,36 @@ class HomePager(context: Context) : ViewGroup(context) {
             velocity = it.xVelocity
         }
         val position = if (width == 0) 0f else scrollX.toFloat() / width
-        val bias = (-velocity / context.dpf(FLING_DP_PER_PAGE)).coerceIn(-0.6f, 0.6f)
-        var target = if (cancelled) nearestPage() else floor(position + bias + 0.5f).toInt()
+        val moved = position - dragStartPage
+        var target = nearestPage()
+        if (!cancelled) {
+            target = when {
+                velocity < -context.dpf(FLICK_DP_PER_SECOND) -> dragStartPage + 1
+                velocity > context.dpf(FLICK_DP_PER_SECOND) -> dragStartPage - 1
+                moved > PAGE_TURN_FRACTION -> dragStartPage + 1
+                moved < -PAGE_TURN_FRACTION -> dragStartPage - 1
+                else -> dragStartPage
+            }
+        }
         target = target.coerceIn(dragStartPage - 1, dragStartPage + 1).coerceIn(0, max(0, childCount - 1))
         animateTo(target)
+    }
+
+    /** Finger lifted without a drag but with a fast, mostly sideways flick: turn one page. True when it did. */
+    private fun quickFlick(ev: MotionEvent): Boolean {
+        val t = tracker ?: return false
+        if (width == 0 || childCount <= 1) return false
+        t.computeCurrentVelocity(1000, maxFling)
+        val vx = t.xVelocity
+        val vy = t.yVelocity
+        val dx = ev.x - downX
+        if (abs(vx) < context.dpf(FLICK_DP_PER_SECOND) || abs(vx) < abs(vy) || abs(dx) < context.dpf(5f)) return false
+        val from = nearestPage()
+        val target = (if (vx < 0f) from + 1 else from - 1).coerceIn(0, childCount - 1)
+        if (target == from) return false
+        dragStartPage = from
+        animateTo(target)
+        return true
     }
 
     // ------------------------------------------------------------------ settling
@@ -333,7 +375,13 @@ class HomePager(context: Context) : ViewGroup(context) {
         /** Share of a drag that still moves the pages beyond the first / last page. */
         const val EDGE_RESISTANCE = 0.4f
 
-        /** A flick of this many dp per second counts as one whole page of extra dragging. */
-        const val FLING_DP_PER_PAGE = 2400f
+        /** A drag starts after this share of the system touch slop (it was the full slop before Step 13). */
+        const val START_SLOP_FACTOR = 0.5f
+
+        /** A sideways flick faster than this (dp per second) turns the page, however short it was. */
+        const val FLICK_DP_PER_SECOND = 450f
+
+        /** Dragging this share of a page is enough to turn it. */
+        const val PAGE_TURN_FRACTION = 0.18f
     }
 }

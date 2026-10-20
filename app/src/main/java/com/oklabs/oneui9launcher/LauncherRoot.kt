@@ -171,7 +171,9 @@ class LauncherRoot(context: Context) : FrameLayout(context) {
     private fun maybeStartDrag(ev: MotionEvent) {
         val dy = ev.y - downY
         val dx = ev.x - downX
-        if (abs(dy) <= slop || abs(dy) <= abs(dx) * 1.2f) return
+        // Step 13: with the Apps screen open, a slanted swipe belongs to the page swipe, so closing needs a clearly vertical move.
+        val ratio = if (apps.progress > 0f) 1.8f else 1.2f
+        if (abs(dy) <= slop || abs(dy) <= abs(dx) * ratio) return
         if (dy > 0f && apps.progress == 0f) {
             // Swipe down on the Home screen itself: the notification panel (once per touch).
             if (!swipeDown && dy > context.dp(40) && swipeDownEnabled()) {
