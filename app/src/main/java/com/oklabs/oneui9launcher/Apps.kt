@@ -78,6 +78,7 @@ object AppRepository {
         val themeKey = IconTheme.signature + "|" + IconPack.signature
         val packDefaults = if (IconPack.enabled && !IconTheme.enabled) IconPack.defaults(context) else emptyMap()
         val result = ArrayList<AppEntry>()
+        var haveSettingsApp = false
 
         for (info in pm.queryIntentActivities(query, 0)) {
             val activity = info.activityInfo ?: continue
@@ -110,9 +111,31 @@ object AppRepository {
                 }
                 iconCache.put(cacheKey, icon)
             }
+            if (isSettingsApp) haveSettingsApp = true
             result.add(
                 AppEntry(label, ComponentName(pkg, activity.name), icon, times[0], AppText.letterOf(label))
             )
+        }
+        // Step 13: the launcher's own Settings app is always in the list, even if the phone's package list did not report it.
+        if (!haveSettingsApp) {
+            try {
+                val own = ComponentName(self, "$self.HomeSettingsActivity")
+                val ownLabel = context.getString(R.string.app_name)
+                val ownKey = self + "/settings|" + iconPx + "|" + themeKey
+                var ownIcon: Bitmap? = iconCache.get(ownKey)
+                if (ownIcon == null) {
+                    ownIcon = IconShaper.shape(context.applicationInfo.loadIcon(pm), iconPx)
+                    iconCache.put(ownKey, ownIcon)
+                }
+                val installed = try {
+                    pm.getPackageInfo(self, 0).firstInstallTime
+                } catch (e: PackageManager.NameNotFoundException) {
+                    0L
+                }
+                result.add(AppEntry(ownLabel, own, ownIcon, installed, AppText.letterOf(ownLabel)))
+            } catch (e: Exception) {
+                // the list simply stays without it
+            }
         }
         return result
     }

@@ -303,8 +303,11 @@ class AppsScreen(
         popup.menu.setGroupCheckable(0, true, true)
         val gridId = SortMode.values().size
         popup.menu.add(1, gridId, gridId, "Apps screen grid\u2026")
+        popup.menu.add(1, gridId + 1, gridId + 1, "Settings")
         popup.setOnMenuItemClickListener { item ->
-            if (item.itemId == gridId) {
+            if (item.itemId == gridId + 1) {
+                context.startActivity(Intent(context, HomeSettingsActivity::class.java))
+            } else if (item.itemId == gridId) {
                 // Step 13: the grid (columns / rows / icon size / names) lives in Settings > Apps screen.
                 context.startActivity(
                     Intent(context, HomeSettingsActivity::class.java).putExtra(HomeSettingsActivity.EXTRA_PAGE, "apps")
