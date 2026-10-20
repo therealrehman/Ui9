@@ -42,6 +42,18 @@ object HomeStore {
     var landscape = false
         private set
 
+    /** Step 13: Apps screen grid. Columns / rows: 0 = automatic (fits the screen), otherwise the number chosen in Settings. */
+    var appsCols = 0
+        private set
+    var appsRows = 0
+        private set
+
+    /** Step 13: icon size on the Apps screen ([ICON_SMALL] / [ICON_MEDIUM] / [ICON_LARGE]) and whether the app names are shown. */
+    var appsIconSize = ICON_MEDIUM
+        private set
+    var appsLabels = true
+        private set
+
     const val BADGE_OFF = 0
     const val BADGE_DOT = 1
     const val BADGE_NUMBER = 2
@@ -65,6 +77,17 @@ object HomeStore {
     private const val KEY_EDGE_ON = "edge_on"
     private const val KEY_EDGE_APPS = "edge_apps"
     private const val KEY_LANDSCAPE = "landscape_on"
+    private const val KEY_APPS_COLS = "apps_cols"
+    private const val KEY_APPS_ROWS = "apps_rows"
+    private const val KEY_APPS_ICON = "apps_icon_size"
+    private const val KEY_APPS_LABELS = "apps_labels"
+
+    /** What the Apps screen settings offer: 0 = Auto, then the numbers. */
+    val APPS_COL_CHOICES = listOf(0, 3, 4, 5, 6)
+    val APPS_ROW_CHOICES = listOf(0, 4, 5, 6, 7)
+
+    /** Icon size of the Apps screen in dp for [ICON_SMALL] / [ICON_MEDIUM] / [ICON_LARGE]. */
+    val APPS_ICON_DP = intArrayOf(50, AppsScreen.ICON_DP, AppsScreen.ICON_LOAD_DP)
 
     /** Reads the settings into [COLS], [ROWS], [iconSize] and [hidden]. Call first thing when the launcher starts. */
     fun loadConfig(context: Context) {
@@ -76,6 +99,10 @@ object HomeStore {
         edgeOn = savedEdgeOn(context)
         edgeApps = savedEdgeApps(context)
         landscape = savedLandscape(context)
+        appsCols = savedAppsCols(context)
+        appsRows = savedAppsRows(context)
+        appsIconSize = savedAppsIconSize(context)
+        appsLabels = savedAppsLabels(context)
     }
 
     /** True when the saved settings are not the ones the launcher is showing right now. */
@@ -83,7 +110,36 @@ object HomeStore {
         savedCols(context) != COLS || savedRows(context) != ROWS ||
             savedIconSize(context) != iconSize || savedHidden(context) != hidden ||
             savedBadgeMode(context) != badgeMode || savedEdgeOn(context) != edgeOn ||
-            savedEdgeApps(context) != edgeApps || savedLandscape(context) != landscape
+            savedEdgeApps(context) != edgeApps || savedLandscape(context) != landscape ||
+            savedAppsCols(context) != appsCols || savedAppsRows(context) != appsRows ||
+            savedAppsIconSize(context) != appsIconSize || savedAppsLabels(context) != appsLabels
+
+    fun savedAppsCols(context: Context): Int =
+        prefs(context).getInt(KEY_APPS_COLS, 0).let { if (it in APPS_COL_CHOICES) it else 0 }
+
+    fun savedAppsRows(context: Context): Int =
+        prefs(context).getInt(KEY_APPS_ROWS, 0).let { if (it in APPS_ROW_CHOICES) it else 0 }
+
+    fun savedAppsIconSize(context: Context): Int =
+        prefs(context).getInt(KEY_APPS_ICON, ICON_MEDIUM).coerceIn(ICON_SMALL, ICON_LARGE)
+
+    fun savedAppsLabels(context: Context): Boolean = prefs(context).getBoolean(KEY_APPS_LABELS, true)
+
+    fun setAppsCols(context: Context, cols: Int) {
+        prefs(context).edit().putInt(KEY_APPS_COLS, if (cols in APPS_COL_CHOICES) cols else 0).apply()
+    }
+
+    fun setAppsRows(context: Context, rows: Int) {
+        prefs(context).edit().putInt(KEY_APPS_ROWS, if (rows in APPS_ROW_CHOICES) rows else 0).apply()
+    }
+
+    fun setAppsIconSize(context: Context, size: Int) {
+        prefs(context).edit().putInt(KEY_APPS_ICON, size.coerceIn(ICON_SMALL, ICON_LARGE)).apply()
+    }
+
+    fun setAppsLabels(context: Context, on: Boolean) {
+        prefs(context).edit().putBoolean(KEY_APPS_LABELS, on).apply()
+    }
 
     fun savedCols(context: Context): Int = prefs(context).getInt(KEY_COLS, 4).coerceIn(4, 5)
 

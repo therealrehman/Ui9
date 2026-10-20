@@ -10,7 +10,7 @@ cd ~/storage/downloads && unzip -oq "$(ls -t OneUI9Launcher-step01*.zip | head -
 ```
 
 Each new step ships as a full project zip. Use the same command with the new zip name
-(step02, step03, step04, step05a, step05b, step05c, step06a, step06b1, step06b2, step06c1, step06c2, step07a, step07b, step07c, step08a, step08b, step08c, step08d, step09a, step09b, step10a, step10b, step10c, step10d). Your `local.properties` is kept between steps.
+(step02, step03, step04, step05a, step05b, step05c, step06a, step06b1, step06b2, step06c1, step06c2, step07a, step07b, step07c, step08a, step08b, step08c, step08d, step09a, step09b, step10a, step10b, step10c, step10d, step11, step12, step13). Your `local.properties` is kept between steps.
 
 ## Status
 
@@ -51,6 +51,7 @@ Each new step ships as a full project zip. Use the same command with the new zip
 | 10d | Release part 4: signed, shrunk release build (release.sh) | DONE |
 | 11 | Play Store pack: privacy policy, terms, listing text, target API 36, .aab, in-app policy links | DONE |
 | 12 | Look like the reference: 12a colourful system-app icons + rounder squircle, 12b Apps screen in left/right pages | DONE |
+| 13 | Settings app + Apps screen grid options + more icons + Contact / policies inside the app | DONE |
 
 ## Step 1 - what is in it
 
@@ -408,6 +409,24 @@ Each new step ships as a full project zip. Use the same command with the new zip
 - **12b Apps screen.** Swipe up from Home opens it as before; inside, swipe left / right between pages (4 columns, up to 5 rows), page dots,
   the search pill at the bottom, the sort menu (three dots) at the top right. A swipe down closes it. The A-Z strip is gone.
 - Version 1.0.2 (code 112).
+
+## Step 13 - Settings app, Apps screen grid, more icons, Contact and policies
+
+- **Settings UI.** Long-press an empty spot on Home > **Settings** (or three dots on the Apps screen > Apps screen grid..., or long-press the launcher icon > Settings).
+  A categorized settings app with colour tiles: Home screen (grid, icon size, search bar) - Apps screen - Dock (colour, opacity) - Icons - Look and feel
+  (panels, blur, wallpaper scroll) - Gestures (swipe down for notifications, double-tap lock) - Notification badges - Edge panel - Hide apps - Screen turning -
+  Backup and restore - Contact us - Privacy policy - Terms of use - Permissions and data use - About. Every switch is saved at once; Home rebuilds itself when you go back.
+- **Apps screen grid.** Settings > Apps screen: Columns (Auto / 3 / 4 / 5 / 6), Rows (Auto / 4 / 5 / 6 / 7) with a live preview and "N apps per page",
+  Icon size (Small / Medium / Large), Show app names, Sort. Icons shrink by themselves when a cell is too small.
+- **Icons.** Nine more launcher-drawn icons for generic system apps: Mail, Music, Videos, Maps, Notes, Recorder, Downloads, Games, Store (same squircle, drawn in code).
+  Brand apps (Facebook, Instagram, WhatsApp, Chrome, YouTube, Gmail...) keep their own real icon on purpose: their logos are the owners' trademarks and are not redrawn.
+  Settings > Icons: Colourful / Original and Themed icons (Off, Wallpaper, 5 colours).
+- **Contact and policies, inside the app (no internet needed).** Settings > Contact us (Email us, Report a problem with app / Android / phone model added, Privacy question,
+  Copy address), Privacy policy, Terms of use, Permissions and data use (every permission and why), About (rate, share, report, code / icons / trademarks).
+  The text is in `LegalText.kt` and says the same as `docs/privacy-policy.html` and `docs/terms.html`. New page `docs/contact.html`.
+  The contact address, developer name and website are in `strings.xml` (`contact_email`, `developer_name`, `website_url`): change them there once.
+  The "online" rows stay hidden until `YOUR_NAME` in `privacy_url` / `terms_url` / `website_url` is replaced (see PLAY_STORE.md).
+- Version 1.0.3 (code 113).
 
 ## Cloud build (Bitrise) - no Termux build needed
 

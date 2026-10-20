@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Step 13: long-press the launcher icon in any launcher > Settings. -->
+    <shortcut
+        android:shortcutId="settings"
+        android:enabled="true"
+        android:shortcutShortLabel="@string/shortcut_settings"
+        android:shortcutLongLabel="@string/shortcut_settings_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.oklabs.oneui9launcher"
+            android:targetClass="com.oklabs.oneui9launcher.HomeSettingsActivity" />
+    </shortcut>
+</shortcuts>

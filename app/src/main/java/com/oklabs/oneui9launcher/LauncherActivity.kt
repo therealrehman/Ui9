@@ -720,7 +720,7 @@ class LauncherActivity : Activity() {
     // ---------------------------------------------------------------- apps
 
     private fun loadApps() {
-        AppRepository.load(this, dp(AppsScreen.ICON_DP)) { list ->
+        AppRepository.load(this, dp(AppsScreen.ICON_LOAD_DP)) { list ->
             if (!isDestroyed) onAppsLoaded(list)
         }
     }
@@ -908,7 +908,7 @@ class LauncherActivity : Activity() {
             listOf(
                 MenuEntry("Edit Home screen", null) { enterEditMode() },
                 MenuEntry("Widgets", null) { openWidgetPicker() },
-                MenuEntry("Home settings", null) { startActivity(Intent(this, HomeSettingsActivity::class.java)) },
+                MenuEntry("Settings", null) { startActivity(Intent(this, HomeSettingsActivity::class.java)) },
                 MenuEntry("Panels: " + Look.modeName(), null) {
                     Look.cycle(this)
                     recreate() // every panel is built again in the new colours

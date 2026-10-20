@@ -73,6 +73,10 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Step 13: long-press the launcher icon > Settings. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
 
         <!-- Step 6c2: setup screen of the launcher's own widgets. Android opens it when one is added; the launcher opens it
@@ -88,7 +92,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Step 9a: Home settings (grid size, icon size, hide apps). Opened from the Home screen's long-press menu. -->
+        <!-- Step 9a / 13: Settings (all settings, contact and policies). Opened from the Home screen's long-press menu, the Apps screen menu and the icon shortcut. -->
         <activity
             android:name=".HomeSettingsActivity"
             android:excludeFromRecents="true"

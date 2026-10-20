@@ -58,6 +58,20 @@ object IconTheme {
         compute(context)
     }
 
+    /** Step 13: Settings > Icons picks the mode directly: 0 = Off, 1 = Wallpaper, 2.. = a colour of [choiceNames]. */
+    fun setMode(context: Context, newMode: Int) {
+        mode = newMode.coerceIn(OFF, WALLPAPER + PALETTE.size)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt(KEY, mode).apply()
+        compute(context)
+    }
+
+    /** The saved mode (index into [choiceNames]). */
+    fun savedMode(context: Context): Int =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KEY, OFF).coerceIn(OFF, WALLPAPER + PALETTE.size)
+
+    /** Names of every mode in order: Off, Wallpaper, then the colours. */
+    val choiceNames: List<String> get() = listOf("Off", "Wallpaper") + NAMES.toList()
+
     /** Looks at the wallpaper again (it may have changed). True when the colours are different now: the icons must be drawn again. */
     fun refresh(context: Context): Boolean {
         if (mode != WALLPAPER) return false

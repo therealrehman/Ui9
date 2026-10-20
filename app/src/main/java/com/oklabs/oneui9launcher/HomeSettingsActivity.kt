@@ -2,12 +2,16 @@ package com.oklabs.oneui9launcher
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.app.role.RoleManager
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
-import android.net.Uri
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -17,31 +21,36 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
-import android.widget.ScrollView
 import android.widget.Switch
+import android.widget.TextView
 import android.widget.Toast
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import android.widget.TextView
-import android.window.OnBackInvokedCallback
-import android.window.OnBackInvokedDispatcher
 
 private const val MATCH = ViewGroup.LayoutParams.MATCH_PARENT
 private const val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
 
 /**
- * Step 9a: Home settings. Opened from the long-press menu of the Home screen.
- *  - Home screen grid: 4 x 5, 4 x 6, 5 x 5 or 5 x 6 icons per page.
- *  - Icon size on the home pages: Small / Medium / Large.
- *  - Hide apps: pick the apps that disappear from the Home screen and the Apps screen (switch them off again to get them back).
- *  - Step 9b: Notification badges (off / dot / number), Edge panel (on / off + the apps in it) and Landscape (portrait only / allowed).
- * Every choice is saved at once; the launcher applies them when you go back to it (it restarts its screen once).
+ * Settings (Step 9a / 9b, rebuilt in Step 13 as a full Settings app). Opened from the Home screen's long-press menu ("Settings"),
+ * from the three-dot menu of the Apps screen ("Apps screen grid...") and from the launcher icon's long-press shortcut.
+ *
+ * The main page lists the categories; each opens its own page:
+ *  Home screen (grid, icon size, search bar) - Apps screen (columns, rows, icon size, names, sort) - Dock (colour, opacity) -
+ *  Icons (colourful / original, themed) - Look and feel (panels, blur, wallpaper scroll) - Gestures (notifications, double-tap lock) -
+ *  Notification badges - Edge panel - Hide apps - Screen turning - Backup and restore - Contact us - Privacy policy -
+ *  Terms of use - Permissions and data use - About.
+ * Every choice is saved at once; the launcher builds its screen again when you go back to it.
  */
 class HomeSettingsActivity : Activity() {
 
     private lateinit var holder: FrameLayout
-    private var onHiddenPage = false
+    private lateinit var kit: SettingsKit
+
+    /** The pages that are open, the last one is on screen. Back goes one page up; from the main page it closes Settings. */
+    private val stack = ArrayList<String>()
     private val hidden = HashSet<String>()
     private val edgeApps = HashSet<String>()
 
@@ -55,14 +64,27 @@ class HomeSettingsActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Look.load(this)
+        IconPack.load(this)
+        IconTheme.load(this)
         hidden.addAll(HomeStore.savedHidden(this))
         edgeApps.addAll(HomeStore.savedEdgeApps(this))
 
         window.setBackgroundDrawable(ColorDrawable(Look.panel(255)))
         setDarkBarIcons(!Look.dark)
+        kit = SettingsKit(this)
         holder = FrameLayout(this)
+        // Android 15+ draws apps edge to edge: keep the pages clear of the status and navigation bars.
+        holder.setOnApplyWindowInsetsListener { view, insets ->
+            @Suppress("DEPRECATION")
+            view.setPadding(insets.systemWindowInsetLeft, insets.systemWindowInsetTop, insets.systemWindowInsetRight, insets.systemWindowInsetBottom)
+            insets
+        }
         setContentView(holder, ViewGroup.LayoutParams(MATCH, MATCH))
-        showMain()
+
+        stack.add(MAIN)
+        val first = intent?.getStringExtra(EXTRA_PAGE)
+        if (first != null && first != MAIN && first in PAGES) stack.add(first)
+        show()
 
         if (Build.VERSION.SDK_INT >= 33) {
             onBackInvokedDispatcher.registerOnBackInvokedCallback(
@@ -72,186 +94,454 @@ class HomeSettingsActivity : Activity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Back from the phone's own settings screens (default Home app, notification access): show the new state.
+        if (::holder.isInitialized && (stack.last() == MAIN || stack.last() == BADGES)) show()
+    }
+
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         goBack()
     }
 
     private fun goBack() {
-        if (onHiddenPage) showMain() else finish()
+        if (stack.size <= 1) {
+            finish()
+        } else {
+            stack.removeAt(stack.size - 1)
+            show()
+        }
     }
 
-    // ------------------------------------------------------------------ main page
+    private fun go(page: String) {
+        stack.add(page)
+        show()
+    }
 
-    private fun showMain() {
-        onHiddenPage = false
+    /** Draws the page on top of the stack. */
+    private fun show() {
         holder.removeAllViews()
-        val scroll = ScrollView(this)
-        scroll.isVerticalScrollBarEnabled = false
-        val box = LinearLayout(this)
-        box.orientation = LinearLayout.VERTICAL
-        box.setPadding(dp(20), dp(16), dp(20), dp(28))
-        scroll.addView(box, FrameLayout.LayoutParams(MATCH, WRAP))
-
-        box.addView(title("Home settings"))
-
-        box.addView(section("Home screen grid"))
-        val gridNames = HomeStore.GRIDS.map { "${it.first} x ${it.second}" }
-        val currentGrid = HomeStore.GRIDS.indexOfFirst {
-            it.first == HomeStore.savedCols(this) && it.second == HomeStore.savedRows(this)
-        }.coerceAtLeast(1)
-        box.addView(chips(gridNames, currentGrid) { index ->
-            HomeStore.setGrid(this, HomeStore.GRIDS[index].first, HomeStore.GRIDS[index].second)
-        })
-        box.addView(note("Columns x rows of icons on every page. Icons and widgets that no longer fit move to free spots."))
-
-        box.addView(section("Icon size"))
-        box.addView(chips(listOf("Small", "Medium", "Large"), HomeStore.savedIconSize(this)) { index ->
-            HomeStore.setIconSize(this, index)
-        })
-
-        box.addView(section("Apps"))
-        val count = hidden.size
-        box.addView(
-            row(
+        val view = when (stack.last()) {
+            HOME -> homePage()
+            APPS -> appsPage()
+            DOCK -> dockPage()
+            ICONS -> iconsPage()
+            LOOK -> lookPage()
+            GESTURES -> gesturesPage()
+            BADGES -> badgesPage()
+            EDGE -> edgePage()
+            HIDE -> pickerPage(
                 "Hide apps",
-                if (count == 0) "No app is hidden" else if (count == 1) "1 app is hidden" else "$count apps are hidden"
-            ) {
-                showPicker(
-                    "Hide apps",
-                    "Hidden apps disappear from the Home screen and the Apps screen. Switch an app off to get it back.",
-                    hidden, Int.MAX_VALUE
-                ) { HomeStore.setHidden(this, it) }
-            }
-        )
-
-        box.addView(section("Notification badges"))
-        box.addView(chips(listOf("Off", "Dot", "Number"), HomeStore.savedBadgeMode(this)) { index ->
-            HomeStore.setBadgeMode(this, index)
-            if (index != HomeStore.BADGE_OFF && !Badges.accessGranted(this)) {
-                // Step 11 (Play Store): say clearly what the access is for before the phone's own screen opens.
-                AlertDialog.Builder(this)
-                    .setTitle("Notification access")
-                    .setMessage(
-                        "To show badges, " + getString(R.string.app_name) + " needs Notification access. " +
-                            "It only counts the notifications of each app on this phone. It never reads, stores or sends " +
-                            "their content, and it has no internet access. Nothing is shown until you allow it. " +
-                            "You can turn it off at any time in the phone's settings."
-                    )
-                    .setPositiveButton("Continue") { _, _ -> Badges.openAccessSettings(this) }
-                    .setNegativeButton("Not now", null)
-                    .show()
-            }
-        })
-        box.addView(note("Shows a red dot or the number of notifications on an app's icon. Needs notification access in the phone's settings. The launcher only counts notifications; it never reads or stores them."))
-
-        box.addView(section("Edge panel"))
-        box.addView(chips(listOf("Off", "On"), if (HomeStore.savedEdgeOn(this)) 1 else 0) { index ->
-            HomeStore.setEdgeOn(this, index == 1)
-        })
-        val edgeCount = edgeApps.size
-        val edgeRow = row(
-            "Edge panel apps",
-            if (edgeCount == 0) "No app chosen" else if (edgeCount == 1) "1 app" else "$edgeCount apps"
-        ) {
-            showPicker(
+                "Hidden apps disappear from the Home screen and the Apps screen. Switch an app off to get it back.",
+                hidden, Int.MAX_VALUE
+            ) { HomeStore.setHidden(this, it) }
+            EDGE_APPS -> pickerPage(
                 "Edge panel apps",
                 "Pick up to ${HomeStore.EDGE_MAX_APPS} apps for the panel that slides in from the right edge.",
                 edgeApps, HomeStore.EDGE_MAX_APPS
             ) { HomeStore.setEdgeApps(this, it) }
+            ROTATION -> rotationPage()
+            BACKUP -> backupPage()
+            CONTACT -> contactPage()
+            PRIVACY -> privacyPage()
+            TERMS -> termsPage()
+            PERMISSIONS -> permissionsPage()
+            ABOUT -> aboutPage()
+            OPEN_SOURCE -> openSourcePage()
+            else -> mainPage()
         }
-        val edgeLp = LinearLayout.LayoutParams(MATCH, WRAP)
-        edgeLp.topMargin = dp(10)
-        box.addView(edgeRow, edgeLp)
-        box.addView(note("A thin handle appears on the right edge of the Home screen. Tap it or drag it to the left."))
+        holder.addView(view, FrameLayout.LayoutParams(MATCH, MATCH))
+        holder.requestApplyInsets()
+    }
 
-        box.addView(section("Screen turning"))
-        box.addView(chips(listOf("Portrait only", "Allow landscape"), if (HomeStore.savedLandscape(this)) 1 else 0) { index ->
-            HomeStore.setLandscape(this, index == 1)
+    private fun prefs() = getSharedPreferences("launcher", MODE_PRIVATE)
+
+    /** Something changed that the Home screen has to build again (it does so when it comes back to the front). */
+    private fun changed() {
+        Backup.reloadHome = true
+    }
+
+    private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()
+
+    // ------------------------------------------------------------------ main page
+
+    private fun mainPage(): View = kit.page("Settings", { goBack() }) { box ->
+        if (!isDefaultHome()) {
+            kit.space(box, 6)
+            kit.card(
+                box,
+                kit.row(SettingsTile.HOME, SettingsTile.ORANGE, "Make this your Home app", "It is not your default Home app yet") {
+                    requestDefaultHome()
+                }
+            )
+        }
+
+        kit.label(box, "Screens")
+        kit.card(
+            box,
+            kit.row(SettingsTile.HOME, SettingsTile.BLUE, "Home screen", homeSummary()) { go(HOME) },
+            kit.row(SettingsTile.APPS, SettingsTile.PURPLE, "Apps screen", appsSummary()) { go(APPS) },
+            kit.row(SettingsTile.DOCK, SettingsTile.TEAL, "Dock", "Background colour and opacity") { go(DOCK) }
+        )
+
+        kit.label(box, "Look")
+        kit.card(
+            box,
+            kit.row(SettingsTile.ICONS, SettingsTile.PINK, "Icons", IconPack.modeName() + " · Themed: " + IconTheme.choiceNames[IconTheme.savedMode(this)]) { go(ICONS) },
+            kit.row(SettingsTile.LOOK, SettingsTile.SLATE, "Look and feel", "Panels: " + panelModeName() + " · Blur " + onOff(prefs().getBoolean(K_BLUR, true))) { go(LOOK) }
+        )
+
+        kit.label(box, "Features")
+        kit.card(
+            box,
+            kit.row(SettingsTile.GESTURES, SettingsTile.GREEN, "Gestures", "Swipe down " + onOff(prefs().getBoolean(K_NOTIF_SWIPE, true)) + " · Double-tap lock " + onOff(prefs().getBoolean(K_LOCK_TAP, false))) { go(GESTURES) },
+            kit.row(SettingsTile.BADGES, SettingsTile.RED, "Notification badges", listOf("Off", "Dot", "Number")[HomeStore.savedBadgeMode(this)]) { go(BADGES) },
+            kit.row(SettingsTile.EDGE, SettingsTile.PURPLE, "Edge panel", onOff(HomeStore.savedEdgeOn(this))) { go(EDGE) },
+            kit.row(SettingsTile.HIDE, SettingsTile.SLATE, "Hide apps", countText(hidden.size, "No app is hidden", "app is hidden", "apps are hidden")) { go(HIDE) },
+            kit.row(SettingsTile.ROTATE, SettingsTile.TEAL, "Screen turning", if (HomeStore.savedLandscape(this)) "Landscape allowed" else "Portrait only") { go(ROTATION) }
+        )
+
+        kit.label(box, "Data")
+        kit.card(
+            box,
+            kit.row(SettingsTile.BACKUP, SettingsTile.BLUE, "Backup and restore", "Save or restore your layout and settings") { go(BACKUP) }
+        )
+
+        kit.label(box, "Contact and policies")
+        kit.card(
+            box,
+            kit.row(SettingsTile.MAIL, SettingsTile.BLUE, "Contact us", getString(R.string.contact_email)) { go(CONTACT) },
+            kit.row(SettingsTile.PRIVACY, SettingsTile.GREEN, "Privacy policy", "What the app does with your data") { go(PRIVACY) },
+            kit.row(SettingsTile.DOC, SettingsTile.ORANGE, "Terms of use", "The rules for using the app") { go(TERMS) },
+            kit.row(SettingsTile.LOCK, SettingsTile.PURPLE, "Permissions and data use", "What each permission is for") { go(PERMISSIONS) }
+        )
+
+        kit.label(box, "About")
+        kit.card(
+            box,
+            kit.row(SettingsTile.INFO, SettingsTile.SLATE, getString(R.string.app_name), "Version " + versionText()) { go(ABOUT) }
+        )
+        kit.note(box, "Changes apply when you go back to the Home screen.")
+    }
+
+    private fun onOff(on: Boolean) = if (on) "On" else "Off"
+
+    private fun countText(n: Int, none: String, one: String, many: String) =
+        if (n == 0) none else if (n == 1) "1 $one" else "$n $many"
+
+    private fun panelModeName() = listOf("Auto", "Light", "Dark")[Look.savedMode(this)]
+
+    private fun homeSummary(): String =
+        HomeStore.savedCols(this).toString() + " x " + HomeStore.savedRows(this) + " · " +
+            listOf("Small", "Medium", "Large")[HomeStore.savedIconSize(this)] + " icons"
+
+    private fun appsSummary(): String {
+        val cols = HomeStore.savedAppsCols(this)
+        val rows = HomeStore.savedAppsRows(this)
+        val grid = if (cols == 0 && rows == 0) "Auto grid" else (if (cols == 0) "Auto" else cols.toString()) + " x " + (if (rows == 0) "Auto" else rows.toString())
+        return grid + " · " + SortMode.from(prefs().getString(K_APPS_SORT, null)).title
+    }
+
+    // ------------------------------------------------------------------ Home screen
+
+    private fun homePage(): View = kit.page("Home screen", { goBack() }) { box ->
+        kit.label(box, "Grid")
+        val gridNames = HomeStore.GRIDS.map { "${it.first} x ${it.second}" }
+        val currentGrid = HomeStore.GRIDS.indexOfFirst {
+            it.first == HomeStore.savedCols(this) && it.second == HomeStore.savedRows(this)
+        }.coerceAtLeast(1)
+        kit.card(box, kit.chips("Home screen grid", gridNames, currentGrid) { index ->
+            HomeStore.setGrid(this, HomeStore.GRIDS[index].first, HomeStore.GRIDS[index].second)
         })
-        box.addView(note("In landscape the icons lose their labels so they fit the shorter page."))
+        kit.note(box, "Columns x rows of icons on every page. Icons and widgets that no longer fit move to free spots.")
 
-        box.addView(section("Backup and restore"))
-        box.addView(row("Back up layout and settings", "Saves a file; you choose where") { startBackup() })
-        val restoreRow = row("Restore from a backup", "Replaces your layout and settings") { startRestore() }
-        val restoreLp = LinearLayout.LayoutParams(MATCH, WRAP)
-        restoreLp.topMargin = dp(10)
-        box.addView(restoreRow, restoreLp)
-        box.addView(note("A backup holds the Home layout, folders, dock and all settings. Widgets are not included: add them again after a restore."))
+        kit.label(box, "Icons")
+        kit.card(box, kit.chips("Icon size", listOf("Small", "Medium", "Large"), HomeStore.savedIconSize(this)) { index ->
+            HomeStore.setIconSize(this, index)
+        })
 
-        box.addView(section("About"))
-        box.addView(row(getString(R.string.app_name), "Version " + versionText()) { showAbout() })
-        val linkLp = LinearLayout.LayoutParams(MATCH, WRAP)
-        linkLp.topMargin = dp(10)
-        box.addView(row("Privacy policy", "Opens in your browser") { openLink(R.string.privacy_url) }, linkLp)
-        val termsLp = LinearLayout.LayoutParams(MATCH, WRAP)
-        termsLp.topMargin = dp(10)
-        box.addView(row("Terms of use", "Opens in your browser") { openLink(R.string.terms_url) }, termsLp)
-
-        box.addView(note("Changes apply when you go back to the Home screen."))
-
-        holder.addView(scroll, FrameLayout.LayoutParams(MATCH, MATCH))
+        kit.label(box, "Search")
+        kit.card(
+            box,
+            kit.toggle(-1, 0, "Show search bar", "A search bar on the Home screen; tap it to search your apps", prefs().getBoolean(K_HOME_SEARCH, true)) { on ->
+                prefs().edit().putBoolean(K_HOME_SEARCH, on).apply()
+                changed()
+            }
+        )
     }
 
-    // ------------------------------------------------------------------ about (Step 10c)
+    // ------------------------------------------------------------------ Apps screen (Step 13)
 
-    @Suppress("DEPRECATION")
-    private fun versionText(): String = try {
-        val info = packageManager.getPackageInfo(packageName, 0)
-        (info.versionName ?: "?") + " (" + info.versionCode + ")"
-    } catch (e: Exception) {
-        "?"
-    }
+    private fun appsPage(): View = kit.page("Apps screen", { goBack() }) { box ->
+        var cols = HomeStore.savedAppsCols(this)
+        var rows = HomeStore.savedAppsRows(this)
 
-    // Step 11 (Play Store): the policy and terms pages live on the web; the addresses are in strings.xml.
-    private fun openLink(urlRes: Int) {
-        try {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(getString(urlRes))))
-        } catch (e: Exception) {
-            Toast.makeText(this, "No browser found", Toast.LENGTH_LONG).show()
+        val preview = GridPreview(this)
+        val info = TextView(this)
+        info.setTextColor(Look.textA(190))
+        info.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+        info.gravity = Gravity.CENTER
+        fun refreshPreview() {
+            preview.setGrid(cols, rows)
+            info.text = when {
+                cols > 0 && rows > 0 -> "$cols columns x $rows rows = ${cols * rows} apps per page"
+                cols == 0 && rows == 0 -> "Auto: the grid fits your screen"
+                else -> (if (cols == 0) "Auto" else "$cols") + " columns x " + (if (rows == 0) "Auto" else "$rows") + " rows"
+            }
         }
+        refreshPreview()
+        val previewBox = LinearLayout(this)
+        previewBox.orientation = LinearLayout.VERTICAL
+        previewBox.gravity = Gravity.CENTER_HORIZONTAL
+        previewBox.setPadding(dp(16), dp(16), dp(16), dp(14))
+        previewBox.addView(preview, LinearLayout.LayoutParams(dp(110), dp(150)))
+        val infoLp = LinearLayout.LayoutParams(WRAP, WRAP)
+        infoLp.topMargin = dp(12)
+        previewBox.addView(info, infoLp)
+        kit.card(box, previewBox)
+
+        kit.label(box, "Grid")
+        val colChoices = HomeStore.APPS_COL_CHOICES
+        val rowChoices = HomeStore.APPS_ROW_CHOICES
+        kit.card(
+            box,
+            kit.chips("Columns", colChoices.map { if (it == 0) "Auto" else it.toString() }, colChoices.indexOf(cols).coerceAtLeast(0)) { i ->
+                cols = colChoices[i]
+                HomeStore.setAppsCols(this, cols)
+                refreshPreview()
+            },
+            kit.chips("Rows", rowChoices.map { if (it == 0) "Auto" else it.toString() }, rowChoices.indexOf(rows).coerceAtLeast(0)) { i ->
+                rows = rowChoices[i]
+                HomeStore.setAppsRows(this, rows)
+                refreshPreview()
+            }
+        )
+        kit.note(box, "Auto picks what fits your screen. The Apps screen is in pages: swipe left and right. Icons shrink by themselves when the cells get small.")
+
+        kit.label(box, "Icons")
+        kit.card(
+            box,
+            kit.chips("Icon size", listOf("Small", "Medium", "Large"), HomeStore.savedAppsIconSize(this)) { HomeStore.setAppsIconSize(this, it) },
+            kit.toggle(-1, 0, "Show app names", "Names under the icons", HomeStore.savedAppsLabels(this)) { HomeStore.setAppsLabels(this, it) }
+        )
+
+        kit.label(box, "Order")
+        val modes = SortMode.values()
+        val currentMode = SortMode.from(prefs().getString(K_APPS_SORT, null))
+        kit.card(box, kit.value("Sort apps", currentMode.title) {
+            choose("Sort apps", modes.map { it.title }, modes.indexOf(currentMode)) { index ->
+                prefs().edit().putString(K_APPS_SORT, modes[index].key).apply()
+                changed()
+                show()
+            }
+        })
+        kit.card(
+            box,
+            kit.row(SettingsTile.HIDE, SettingsTile.SLATE, "Hide apps", countText(hidden.size, "No app is hidden", "app is hidden", "apps are hidden")) { go(HIDE) }
+        )
     }
 
-    private fun showAbout() {
-        onHiddenPage = true
-        holder.removeAllViews()
-        val page = LinearLayout(this)
-        page.orientation = LinearLayout.VERTICAL
-        page.gravity = Gravity.CENTER_HORIZONTAL
-        page.setPadding(dp(28), dp(72), dp(28), dp(28))
+    // ------------------------------------------------------------------ Dock
 
-        val icon = ImageView(this)
-        icon.setImageDrawable(applicationInfo.loadIcon(packageManager))
-        page.addView(icon, LinearLayout.LayoutParams(dp(96), dp(96)))
+    private fun dockPage(): View = kit.page("Dock", { goBack() }) { box ->
+        kit.card(
+            box,
+            kit.colorDots("Background colour", DockStyleSheet.COLORS, prefs().getInt(K_DOCK_COLOR, Color.WHITE)) { color ->
+                prefs().edit().putInt(K_DOCK_COLOR, color).apply()
+                changed()
+            },
+            kit.slider("Background opacity", 100, prefs().getInt(K_DOCK_OPACITY, DockStyleSheet.DEFAULT_OPACITY), { "$it%" }) { value ->
+                prefs().edit().putInt(K_DOCK_OPACITY, value).apply()
+                changed()
+            }
+        )
+        kit.note(box, "The dock is the bar of favourite apps at the bottom of the Home screen. To change its apps, long-press an empty spot > Edit Home screen.")
+    }
 
-        val name = TextView(this)
-        name.text = getString(R.string.app_name)
-        name.setTextColor(Look.text)
-        name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
-        name.gravity = Gravity.CENTER
-        val nameLp = LinearLayout.LayoutParams(WRAP, WRAP)
-        nameLp.topMargin = dp(18)
-        page.addView(name, nameLp)
+    // ------------------------------------------------------------------ Icons
 
-        val version = TextView(this)
-        version.text = "Version " + versionText()
-        version.setTextColor(Look.textA(160))
-        version.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-        page.addView(version, LinearLayout.LayoutParams(WRAP, WRAP))
+    private fun iconsPage(): View = kit.page("Icons", { goBack() }) { box ->
+        kit.card(
+            box,
+            kit.chips("Icon style", listOf("Colourful", "Original"), if (IconPack.enabled) 0 else 1) { index ->
+                IconPack.set(this, index == 0)
+                changed()
+            }
+        )
+        kit.note(
+            box,
+            "Colourful: the launcher's own icons replace the phone's Phone, Messages, Contacts, Camera, Gallery, Browser, Calendar, Clock, " +
+                "Calculator, Files, Settings, Weather, Mail, Music, Videos, Maps, Notes, Recorder, Downloads, Games and Store apps. " +
+                "Every other app keeps its own icon. Original: every app keeps its own icon."
+        )
+        kit.label(box, "Themed icons")
+        val names = IconTheme.choiceNames
+        kit.card(box, kit.value("Themed icons", names[IconTheme.savedMode(this)]) {
+            choose("Themed icons", names, IconTheme.savedMode(this)) { index ->
+                IconTheme.setMode(this, index)
+                changed()
+                show()
+            }
+        })
+        kit.note(box, "Draws every icon in one colour: from your wallpaper or a colour you pick. While it is on it replaces the Colourful icons.")
+    }
 
-        val about = TextView(this)
-        about.text = getString(R.string.app_tagline) + "\n\n" + getString(R.string.app_credits)
-        about.setTextColor(Look.textA(200))
-        about.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-        about.gravity = Gravity.CENTER
-        val aboutLp = LinearLayout.LayoutParams(WRAP, WRAP)
-        aboutLp.topMargin = dp(26)
-        page.addView(about, aboutLp)
+    // ------------------------------------------------------------------ Look and feel
 
-        holder.addView(page, FrameLayout.LayoutParams(MATCH, MATCH))
+    private fun lookPage(): View = kit.page("Look and feel", { goBack() }) { box ->
+        kit.card(
+            box,
+            kit.chips("Panels", listOf("Auto", "Light", "Dark"), Look.savedMode(this)) { index ->
+                Look.set(this, index)
+                changed()
+            }
+        )
+        kit.note(box, "Colours of the Apps screen, folders, menus and this Settings screen. Auto follows the phone's dark mode.")
+
+        kit.label(box, "Effects")
+        kit.card(
+            box,
+            kit.toggle(-1, 0, "Blur", "Blurs the wallpaper behind the Apps screen, folders and the widget picker (Android 12+)", prefs().getBoolean(K_BLUR, true)) { on ->
+                prefs().edit().putBoolean(K_BLUR, on).apply()
+                changed()
+            },
+            kit.toggle(-1, 0, "Wallpaper scroll", "The wallpaper slides a little when you swipe between pages", prefs().getBoolean(K_WALLPAPER_SCROLL, true)) { on ->
+                prefs().edit().putBoolean(K_WALLPAPER_SCROLL, on).apply()
+                changed()
+            }
+        )
+    }
+
+    // ------------------------------------------------------------------ Gestures
+
+    private fun gesturesPage(): View = kit.page("Gestures", { goBack() }) { box ->
+        kit.card(
+            box,
+            kit.toggle(-1, 0, "Swipe down for notifications", "Swipe down on the Home screen to open the notification panel", prefs().getBoolean(K_NOTIF_SWIPE, true)) { on ->
+                prefs().edit().putBoolean(K_NOTIF_SWIPE, on).apply()
+                changed()
+            },
+            kit.toggle(-1, 0, "Double-tap to lock", "Double-tap an empty spot on the Home screen to lock the screen", prefs().getBoolean(K_LOCK_TAP, false)) { on ->
+                if (!on) {
+                    prefs().edit().putBoolean(K_LOCK_TAP, false).apply()
+                    changed()
+                } else if (LockAdmin.isActive(this)) {
+                    prefs().edit().putBoolean(K_LOCK_TAP, true).apply()
+                    changed()
+                } else {
+                    askLockAccess()
+                }
+            }
+        )
+        kit.note(
+            box,
+            "Double-tap to lock needs Android's \"device administrator\" access with the single power \"lock the screen\". " +
+                "It cannot read, change or erase anything. You can switch it off here or in the phone's Settings > Security > Device admin apps."
+        )
+        kit.label(box, "Other gestures")
+        kit.card(
+            box,
+            kit.paragraph("Swipe up on the Home screen: opens the Apps screen.\nPinch on the Home screen: opens the edit screen.\nLong-press an empty spot: opens the Home menu.\nLong-press an icon: opens its quick menu.")
+        )
+    }
+
+    private fun askLockAccess() {
+        AlertDialog.Builder(this)
+            .setTitle("Allow \"lock the screen\"")
+            .setMessage(
+                "To lock the screen, Android needs you to make " + getString(R.string.app_name) + " a device administrator. " +
+                    "The only thing it can do with this is lock the screen when you double-tap an empty spot. " +
+                    "It cannot wipe data, change passwords or read anything. You can switch it off at any time."
+            )
+            .setPositiveButton("Continue") { _, _ ->
+                try {
+                    startActivityForResult(LockAdmin.requestIntent(this), REQ_LOCK)
+                } catch (e: Exception) {
+                    toast("Can't ask for this permission on this phone")
+                    show()
+                }
+            }
+            .setNegativeButton("Not now") { _, _ -> show() }
+            .setOnCancelListener { show() }
+            .show()
+    }
+
+    // ------------------------------------------------------------------ Notification badges
+
+    private fun badgesPage(): View = kit.page("Notification badges", { goBack() }) { box ->
+        kit.card(
+            box,
+            kit.chips("Badges on app icons", listOf("Off", "Dot", "Number"), HomeStore.savedBadgeMode(this)) { index ->
+                HomeStore.setBadgeMode(this, index)
+                if (index != HomeStore.BADGE_OFF && !Badges.accessGranted(this)) askNotificationAccess()
+            }
+        )
+        kit.note(box, "Shows a red dot or the number of notifications on an app's icon. The launcher only counts notifications; it never reads or stores them.")
+        kit.label(box, "Access")
+        kit.card(
+            box,
+            kit.row(
+                SettingsTile.BADGES, SettingsTile.RED, "Notification access",
+                if (Badges.accessGranted(this)) "Allowed" else "Not allowed yet"
+            ) { askNotificationAccess() }
+        )
+    }
+
+    private fun askNotificationAccess() {
+        // Play Store: say clearly what the access is for before the phone's own screen opens.
+        AlertDialog.Builder(this)
+            .setTitle("Notification access")
+            .setMessage(
+                "To show badges, " + getString(R.string.app_name) + " needs Notification access. " +
+                    "It only counts the notifications of each app on this phone. It never reads, stores or sends " +
+                    "their content, and it has no internet access. Nothing is shown until you allow it. " +
+                    "You can turn it off at any time in the phone's settings."
+            )
+            .setPositiveButton("Continue") { _, _ -> Badges.openAccessSettings(this) }
+            .setNegativeButton("Not now", null)
+            .show()
+    }
+
+    // ------------------------------------------------------------------ Edge panel
+
+    private fun edgePage(): View = kit.page("Edge panel", { goBack() }) { box ->
+        kit.card(
+            box,
+            kit.chips("Edge panel", listOf("Off", "On"), if (HomeStore.savedEdgeOn(this)) 1 else 0) { index ->
+                HomeStore.setEdgeOn(this, index == 1)
+            }
+        )
+        kit.note(box, "A thin handle appears on the right edge of the Home screen. Tap it or drag it to the left.")
+        kit.label(box, "Apps")
+        kit.card(
+            box,
+            kit.row(-1, 0, "Edge panel apps", countText(edgeApps.size, "No app chosen", "app", "apps")) { go(EDGE_APPS) }
+        )
+    }
+
+    // ------------------------------------------------------------------ Screen turning
+
+    private fun rotationPage(): View = kit.page("Screen turning", { goBack() }) { box ->
+        kit.card(
+            box,
+            kit.chips("Home screen", listOf("Portrait only", "Allow landscape"), if (HomeStore.savedLandscape(this)) 1 else 0) { index ->
+                HomeStore.setLandscape(this, index == 1)
+            }
+        )
+        kit.note(box, "In landscape the icons lose their labels so they fit the shorter page.")
     }
 
     // ------------------------------------------------------------------ backup and restore (Step 10b)
+
+    private fun backupPage(): View = kit.page("Backup and restore", { goBack() }) { box ->
+        kit.card(
+            box,
+            kit.row(SettingsTile.BACKUP, SettingsTile.BLUE, "Back up layout and settings", "Saves a file; you choose where") { startBackup() },
+            kit.row(SettingsTile.BACKUP, SettingsTile.GREEN, "Restore from a backup", "Replaces your layout and settings") { startRestore() }
+        )
+        kit.note(box, "A backup holds the Home layout, folders, dock and all settings. Widgets are not included: add them again after a restore. The file stays with you; the app never sends it anywhere.")
+    }
 
     private fun startBackup() {
         val stamp = SimpleDateFormat("yyyyMMdd", Locale.US).format(Date())
@@ -262,7 +552,7 @@ class HomeSettingsActivity : Activity() {
         try {
             startActivityForResult(intent, REQ_BACKUP)
         } catch (e: Exception) {
-            Toast.makeText(this, "This phone has no file picker", Toast.LENGTH_LONG).show()
+            toast("This phone has no file picker")
         }
     }
 
@@ -273,13 +563,21 @@ class HomeSettingsActivity : Activity() {
         try {
             startActivityForResult(intent, REQ_RESTORE)
         } catch (e: Exception) {
-            Toast.makeText(this, "This phone has no file picker", Toast.LENGTH_LONG).show()
+            toast("This phone has no file picker")
         }
     }
 
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQ_LOCK) {
+            if (LockAdmin.isActive(this)) {
+                prefs().edit().putBoolean(K_LOCK_TAP, true).apply()
+                changed()
+            }
+            show()
+            return
+        }
         val uri = data?.data
         if (resultCode != RESULT_OK || uri == null) return
         when (requestCode) {
@@ -289,7 +587,7 @@ class HomeSettingsActivity : Activity() {
                 } catch (e: Exception) {
                     false
                 }
-                Toast.makeText(this, if (saved) "Backup saved" else "Could not save the backup", Toast.LENGTH_LONG).show()
+                toast(if (saved) "Backup saved" else "Could not save the backup")
             }
             REQ_RESTORE -> {
                 val text = try {
@@ -299,7 +597,7 @@ class HomeSettingsActivity : Activity() {
                     null
                 }
                 if (text == null || !Backup.isBackup(text)) {
-                    Toast.makeText(this, "This is not a " + getString(R.string.app_name) + " backup", Toast.LENGTH_LONG).show()
+                    toast("This is not a " + getString(R.string.app_name) + " backup")
                     return
                 }
                 AlertDialog.Builder(this)
@@ -314,42 +612,329 @@ class HomeSettingsActivity : Activity() {
 
     private fun finishRestore(text: String) {
         if (Backup.restore(this, text) < 0) {
-            Toast.makeText(this, "Could not restore", Toast.LENGTH_LONG).show()
+            toast("Could not restore")
             return
         }
         hidden.clear()
         hidden.addAll(HomeStore.savedHidden(this))
         edgeApps.clear()
         edgeApps.addAll(HomeStore.savedEdgeApps(this))
-        showMain()
-        Toast.makeText(this, "Restored. Go back to the Home screen; add your widgets again.", Toast.LENGTH_LONG).show()
+        IconPack.load(this)
+        IconTheme.load(this)
+        Look.load(this)
+        show()
+        toast("Restored. Go back to the Home screen; add your widgets again.")
     }
 
-    // ------------------------------------------------------------------ hide apps
+    // ------------------------------------------------------------------ Contact us (Step 13)
 
-    private fun showPicker(titleText: String, noteText: String, set: HashSet<String>, max: Int, save: (Set<String>) -> Unit) {
+    private fun contactPage(): View = kit.page("Contact us", { goBack() }) { box ->
+        val email = getString(R.string.contact_email)
+        val head = LinearLayout(this)
+        head.orientation = LinearLayout.VERTICAL
+        head.setPadding(dp(18), dp(16), dp(18), dp(16))
+        head.addView(kit.paragraph(getString(R.string.developer_name), bold = true).also { it.setPadding(0, 0, 0, 0) })
+        head.addView(
+            kit.paragraph("Questions, bug reports, ideas and privacy requests are welcome at:\n$email").also { it.setPadding(0, dp(6), 0, 0) }
+        )
+        kit.card(box, head)
+
+        kit.label(box, "Write to us")
+        kit.card(
+            box,
+            kit.row(SettingsTile.MAIL, SettingsTile.BLUE, "Email us", "Feedback, questions, ideas") { composeEmail("Feedback", "") },
+            kit.row(SettingsTile.BUG, SettingsTile.ORANGE, "Report a problem", "Adds your app, Android and phone model") { composeEmail("Problem report", problemInfo()) },
+            kit.row(SettingsTile.PRIVACY, SettingsTile.GREEN, "Privacy question or request", "About your data and this app") { composeEmail("Privacy question", "") },
+            kit.row(SettingsTile.COPY, SettingsTile.SLATE, "Copy the email address", email) { copyEmail() }
+        )
+        kit.note(
+            box,
+            "These open your own email app with a message to $email. You can read and change it first; nothing is sent until you press Send. " +
+                "\"Report a problem\" fills in the app version, the Android version and the phone model to help find the bug; delete them if you prefer."
+        )
+
+        kit.label(box, "Policies")
+        kit.card(
+            box,
+            kit.row(SettingsTile.PRIVACY, SettingsTile.GREEN, "Privacy policy", "What the app does with your data") { go(PRIVACY) },
+            kit.row(SettingsTile.DOC, SettingsTile.ORANGE, "Terms of use", "The rules for using the app") { go(TERMS) },
+            kit.row(SettingsTile.LOCK, SettingsTile.PURPLE, "Permissions and data use", "What each permission is for") { go(PERMISSIONS) }
+        )
+
+        if (onlinePagesReady()) {
+            kit.label(box, "Online")
+            kit.card(
+                box,
+                kit.row(SettingsTile.GLOBE, SettingsTile.TEAL, "Privacy policy online", "Opens in your browser") { openLink(R.string.privacy_url) },
+                kit.row(SettingsTile.GLOBE, SettingsTile.TEAL, "Terms of use online", "Opens in your browser") { openLink(R.string.terms_url) }
+            )
+        }
+    }
+
+    /** The policy pages are online once YOUR_NAME in strings.xml is replaced (see PLAY_STORE.md). Until then the online rows stay hidden. */
+    private fun onlinePagesReady(): Boolean = !getString(R.string.privacy_url).contains("YOUR_NAME")
+
+    private fun openLink(urlRes: Int) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(getString(urlRes))))
+        } catch (e: Exception) {
+            toast("No browser found")
+        }
+    }
+
+    private fun problemInfo(): String =
+        "Describe the problem here:\n\n\n--- Added to help us find the bug (you can delete this) ---\n" +
+            getString(R.string.app_name) + " " + versionText() + "\n" +
+            "Android " + Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")\n" +
+            "Phone: " + Build.MANUFACTURER + " " + Build.MODEL + "\n"
+
+    private fun composeEmail(subject: String, body: String) {
+        val email = getString(R.string.contact_email)
+        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$email"))
+            .putExtra(Intent.EXTRA_EMAIL, arrayOf(email))
+            .putExtra(Intent.EXTRA_SUBJECT, getString(R.string.app_name) + ": " + subject)
+        if (body.isNotEmpty()) intent.putExtra(Intent.EXTRA_TEXT, body)
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            copyEmail()
+            toast("No email app found. The address was copied: $email")
+        }
+    }
+
+    private fun copyEmail() {
+        val clipboard = getSystemService(ClipboardManager::class.java)
+        clipboard?.setPrimaryClip(ClipData.newPlainText("Email", getString(R.string.contact_email)))
+        toast("Email address copied")
+    }
+
+    // ------------------------------------------------------------------ policies (Step 13)
+
+    private fun textBlock(section: LegalText.Section): LinearLayout {
+        val col = LinearLayout(this)
+        col.orientation = LinearLayout.VERTICAL
+        col.addView(kit.paragraph(LegalText.fill(this, section.heading), bold = true))
+        for (text in section.paragraphs) col.addView(kit.paragraph(LegalText.fill(this, text)))
+        return col
+    }
+
+    private fun legalIntro(box: LinearLayout, text: String) {
+        kit.note(box, LegalText.fill(this, text) + "\nEffective date: " + LegalText.EFFECTIVE)
+    }
+
+    private fun privacyPage(): View = kit.page("Privacy policy", { goBack() }) { box ->
+        legalIntro(box, "{app} by {company}")
+        for (section in LegalText.privacy) {
+            val block = textBlock(section)
+            if (section.heading.startsWith("4.")) {
+                for (permission in LegalText.permissions) block.addView(permissionView(permission))
+            }
+            kit.space(box, 10)
+            kit.card(box, block)
+        }
+        footer(box)
+    }
+
+    private fun termsPage(): View = kit.page("Terms of use", { goBack() }) { box ->
+        legalIntro(box, "{app} by {company}")
+        for (section in LegalText.terms) {
+            kit.space(box, 10)
+            kit.card(box, textBlock(section))
+        }
+        footer(box)
+    }
+
+    private fun permissionsPage(): View = kit.page("Permissions and data use", { goBack() }) { box ->
+        kit.note(box, "What {app} can access on this phone and why. It collects no data and has no internet access.".let { LegalText.fill(this, it) })
+        kit.label(box, "Always on")
+        kit.card(box, *LegalText.permissions.filter { !it.optional }.map { permissionView(it) }.toTypedArray())
+        kit.label(box, "Only if you turn the feature on")
+        kit.card(box, *LegalText.permissions.filter { it.optional }.map { permissionView(it) }.toTypedArray())
+        kit.label(box, "Data collected")
+        kit.card(box, kit.paragraph("None. Your layout and settings stay on this phone. You can erase them by clearing the app's storage or uninstalling it."))
+        footer(box)
+    }
+
+    private fun permissionView(permission: LegalText.Permission): View {
+        val col = LinearLayout(this)
+        col.orientation = LinearLayout.VERTICAL
+        col.addView(kit.paragraph(permission.name + if (permission.optional) " (optional)" else "", bold = true))
+        col.addView(kit.paragraph(permission.why))
+        return col
+    }
+
+    /** Contact line at the end of every policy page. */
+    private fun footer(box: LinearLayout) {
+        kit.space(box, 14)
+        kit.card(
+            box,
+            kit.row(SettingsTile.MAIL, SettingsTile.BLUE, "Questions about this?", getString(R.string.contact_email)) { go(CONTACT) }
+        )
+    }
+
+    // ------------------------------------------------------------------ About (Step 10c)
+
+    @Suppress("DEPRECATION")
+    private fun versionText(): String = try {
+        val info = packageManager.getPackageInfo(packageName, 0)
+        (info.versionName ?: "?") + " (" + info.versionCode + ")"
+    } catch (e: Exception) {
+        "?"
+    }
+
+    private fun aboutPage(): View = kit.page("About", { goBack() }) { box ->
+        val head = LinearLayout(this)
+        head.orientation = LinearLayout.VERTICAL
+        head.gravity = Gravity.CENTER_HORIZONTAL
+        head.setPadding(dp(16), dp(10), dp(16), dp(6))
+
+        val icon = ImageView(this)
+        icon.setImageDrawable(applicationInfo.loadIcon(packageManager))
+        head.addView(icon, LinearLayout.LayoutParams(dp(88), dp(88)))
+
+        val name = TextView(this)
+        name.text = getString(R.string.app_name)
+        name.setTextColor(Look.text)
+        name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f)
+        name.gravity = Gravity.CENTER
+        val nameLp = LinearLayout.LayoutParams(WRAP, WRAP)
+        nameLp.topMargin = dp(14)
+        head.addView(name, nameLp)
+
+        val version = TextView(this)
+        version.text = "Version " + versionText()
+        version.setTextColor(Look.textA(160))
+        version.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+        head.addView(version, LinearLayout.LayoutParams(WRAP, WRAP))
+
+        val about = TextView(this)
+        about.text = getString(R.string.app_tagline) + "\n" + getString(R.string.app_credits)
+        about.setTextColor(Look.textA(200))
+        about.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.5f)
+        about.gravity = Gravity.CENTER
+        val aboutLp = LinearLayout.LayoutParams(WRAP, WRAP)
+        aboutLp.topMargin = dp(16)
+        head.addView(about, aboutLp)
+        box.addView(head, LinearLayout.LayoutParams(MATCH, WRAP))
+
+        kit.space(box, 8)
+        kit.card(
+            box,
+            kit.row(SettingsTile.STAR, SettingsTile.YELLOW, "Rate this app", "Opens the store page") { rateApp() },
+            kit.row(SettingsTile.SHARE, SettingsTile.BLUE, "Share this app", "Send the store link to a friend") { shareApp() },
+            kit.row(SettingsTile.BUG, SettingsTile.ORANGE, "Report a problem", "Email " + getString(R.string.contact_email)) { composeEmail("Problem report", problemInfo()) }
+        )
+
+        kit.label(box, "Contact and policies")
+        kit.card(
+            box,
+            kit.row(SettingsTile.MAIL, SettingsTile.BLUE, "Contact us", getString(R.string.contact_email)) { go(CONTACT) },
+            kit.row(SettingsTile.PRIVACY, SettingsTile.GREEN, "Privacy policy", null) { go(PRIVACY) },
+            kit.row(SettingsTile.DOC, SettingsTile.ORANGE, "Terms of use", null) { go(TERMS) },
+            kit.row(SettingsTile.LOCK, SettingsTile.PURPLE, "Permissions and data use", null) { go(PERMISSIONS) },
+            kit.row(SettingsTile.INFO, SettingsTile.SLATE, "Code, icons and trademarks", null) { go(OPEN_SOURCE) }
+        )
+    }
+
+    private fun openSourcePage(): View = kit.page("Code, icons and trademarks", { goBack() }) { box ->
+        for (section in LegalText.openSource) {
+            kit.space(box, 10)
+            kit.card(box, textBlock(section))
+        }
+    }
+
+    private fun storeUrl() = "https://play.google.com/store/apps/details?id=$packageName"
+
+    private fun rateApp() {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$packageName")))
+        } catch (e: Exception) {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(storeUrl())))
+            } catch (e2: Exception) {
+                toast("No app can open the store page")
+            }
+        }
+    }
+
+    private fun shareApp() {
+        val send = Intent(Intent.ACTION_SEND)
+            .setType("text/plain")
+            .putExtra(Intent.EXTRA_TEXT, getString(R.string.app_name) + ": " + storeUrl())
+        try {
+            startActivity(Intent.createChooser(send, "Share " + getString(R.string.app_name)))
+        } catch (e: Exception) {
+            toast("Nothing to share with")
+        }
+    }
+
+    // ------------------------------------------------------------------ default Home app
+
+    private fun isDefaultHome(): Boolean {
+        if (Build.VERSION.SDK_INT >= 29) {
+            val roles = getSystemService(RoleManager::class.java)
+            if (roles != null && roles.isRoleAvailable(RoleManager.ROLE_HOME)) {
+                return roles.isRoleHeld(RoleManager.ROLE_HOME)
+            }
+        }
+        val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        val pkg = packageManager.resolveActivity(home, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName
+        return pkg == packageName
+    }
+
+    private fun requestDefaultHome() {
+        try {
+            startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
+        } catch (e: Exception) {
+            try {
+                startActivity(Intent(Settings.ACTION_SETTINGS))
+            } catch (e2: Exception) {
+                toast("Open Settings > Apps > Default apps > Home app")
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ choose from a list
+
+    private fun choose(title: String, names: List<String>, selected: Int, onPick: (Int) -> Unit) {
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setSingleChoiceItems(names.toTypedArray(), selected) { dialog, which ->
+                dialog.dismiss()
+                onPick(which)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    // ------------------------------------------------------------------ hide apps / edge panel apps
+
+    private fun pickerPage(titleText: String, noteText: String, set: HashSet<String>, max: Int, save: (Set<String>) -> Unit): View {
         pickerSet = set
         pickerMax = max
         pickerSave = save
-        onHiddenPage = true
-        holder.removeAllViews()
+
         val page = LinearLayout(this)
         page.orientation = LinearLayout.VERTICAL
-        page.setPadding(dp(20), dp(16), dp(20), 0)
-
-        page.addView(title(titleText))
-        page.addView(note(noteText))
+        page.addView(kit.topBar(titleText) { goBack() }, LinearLayout.LayoutParams(MATCH, WRAP))
+        val note = TextView(this)
+        note.text = noteText
+        note.setTextColor(Look.textA(140))
+        note.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
+        note.setPadding(dp(24), dp(4), dp(24), dp(4))
+        page.addView(note, LinearLayout.LayoutParams(MATCH, WRAP))
 
         val list = ListView(this)
         list.divider = null
         list.isVerticalScrollBarEnabled = false
+        list.setPadding(dp(20), 0, dp(20), 0)
+        list.clipToPadding = false
         val listAdapter = HiddenAdapter()
         adapter = listAdapter
         list.adapter = listAdapter
         val lp = LinearLayout.LayoutParams(MATCH, 0, 1f)
         lp.topMargin = dp(8)
         page.addView(list, lp)
-        holder.addView(page, FrameLayout.LayoutParams(MATCH, MATCH))
 
         val loaded = appList
         if (loaded != null) {
@@ -362,6 +947,7 @@ class HomeSettingsActivity : Activity() {
                 adapter?.set(sorted)
             }
         }
+        return page
     }
 
     private inner class HiddenAdapter : BaseAdapter() {
@@ -423,98 +1009,9 @@ class HomeSettingsActivity : Activity() {
         }
     }
 
-    // ------------------------------------------------------------------ small building blocks
+    // ------------------------------------------------------------------ small helpers
 
-    private fun title(text: String): TextView {
-        val view = TextView(this)
-        view.text = text
-        view.setTextColor(Look.text)
-        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
-        view.setPadding(0, dp(8), 0, dp(8))
-        return view
-    }
-
-    private fun section(text: String): TextView {
-        val view = TextView(this)
-        view.text = text
-        view.setTextColor(Look.textA(170))
-        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-        view.setPadding(dp(2), dp(22), 0, dp(8))
-        return view
-    }
-
-    private fun note(text: String): TextView {
-        val view = TextView(this)
-        view.text = text
-        view.setTextColor(Look.textA(140))
-        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
-        view.setPadding(dp(2), dp(8), dp(2), 0)
-        return view
-    }
-
-    /** A line of choices; the picked one is filled. [onPick] gets the index and the choice is shown at once. */
-    private fun chips(names: List<String>, selected: Int, onPick: (Int) -> Unit): View {
-        val line = LinearLayout(this)
-        line.orientation = LinearLayout.HORIZONTAL
-        val views = ArrayList<TextView>()
-        fun paint(current: Int) {
-            for ((i, view) in views.withIndex()) {
-                val on = i == current
-                view.setTextColor(if (on) Look.panel(255) else Look.text)
-                view.background = roundRect(if (on) Look.text else Look.inkA(32), dpf(22f))
-            }
-        }
-        for ((i, name) in names.withIndex()) {
-            val view = TextView(this)
-            view.text = name
-            view.gravity = Gravity.CENTER
-            view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-            view.setPadding(dp(6), dp(12), dp(6), dp(12))
-            view.isClickable = true
-            view.setOnClickListener {
-                paint(i)
-                onPick(i)
-            }
-            val lp = LinearLayout.LayoutParams(0, WRAP, 1f)
-            if (i > 0) lp.leftMargin = dp(8)
-            line.addView(view, lp)
-            views.add(view)
-        }
-        paint(selected)
-        return line
-    }
-
-    /** A tappable line with a title, a small second line and an arrow. */
-    private fun row(title: String, subtitle: String, onTap: () -> Unit): View {
-        val line = LinearLayout(this)
-        line.orientation = LinearLayout.HORIZONTAL
-        line.gravity = Gravity.CENTER_VERTICAL
-        line.setPadding(dp(18), dp(14), dp(18), dp(14))
-        line.background = roundRect(Look.inkA(24), dpf(20f))
-        line.isClickable = true
-        line.setOnClickListener { onTap() }
-
-        val texts = LinearLayout(this)
-        texts.orientation = LinearLayout.VERTICAL
-        val main = TextView(this)
-        main.text = title
-        main.setTextColor(Look.text)
-        main.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-        texts.addView(main, LinearLayout.LayoutParams(WRAP, WRAP))
-        val sub = TextView(this)
-        sub.text = subtitle
-        sub.setTextColor(Look.textA(150))
-        sub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-        texts.addView(sub, LinearLayout.LayoutParams(WRAP, WRAP))
-        line.addView(texts, LinearLayout.LayoutParams(0, WRAP, 1f))
-
-        val arrow = TextView(this)
-        arrow.text = "\u203A"
-        arrow.setTextColor(Look.textA(150))
-        arrow.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
-        line.addView(arrow, LinearLayout.LayoutParams(WRAP, WRAP))
-        return line
-    }
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density + 0.5f).toInt()
 
     /** Dark (true) or light (false) icons in the status and navigation bar. */
     @Suppress("DEPRECATION")
@@ -532,9 +1029,48 @@ class HomeSettingsActivity : Activity() {
         }
     }
 
-    private companion object {
-        const val REQ_BACKUP = 2001
-        const val REQ_RESTORE = 2002
-        const val MAX_BACKUP_BYTES = 2 * 1024 * 1024
+    companion object {
+        /** Start Settings on a page other than the main one, e.g. "apps" (used by the Apps screen's menu and the icon shortcut). */
+        const val EXTRA_PAGE = "page"
+
+        private const val MAIN = "main"
+        private const val HOME = "home"
+        private const val APPS = "apps"
+        private const val DOCK = "dock"
+        private const val ICONS = "icons"
+        private const val LOOK = "look"
+        private const val GESTURES = "gestures"
+        private const val BADGES = "badges"
+        private const val EDGE = "edge"
+        private const val HIDE = "hide"
+        private const val EDGE_APPS = "edgeapps"
+        private const val ROTATION = "rotation"
+        private const val BACKUP = "backup"
+        private const val CONTACT = "contact"
+        private const val PRIVACY = "privacy"
+        private const val TERMS = "terms"
+        private const val PERMISSIONS = "permissions"
+        private const val ABOUT = "about"
+        private const val OPEN_SOURCE = "opensource"
+
+        /** Pages a caller may ask for with [EXTRA_PAGE]. */
+        private val PAGES = setOf(
+            HOME, APPS, DOCK, ICONS, LOOK, GESTURES, BADGES, EDGE, HIDE, ROTATION, BACKUP, CONTACT, PRIVACY, TERMS, PERMISSIONS, ABOUT
+        )
+
+        // The launcher's saved settings (same keys the Home screen reads).
+        private const val K_HOME_SEARCH = "home_search"
+        private const val K_NOTIF_SWIPE = "notif_swipe"
+        private const val K_LOCK_TAP = "lock_tap"
+        private const val K_BLUR = "blur"
+        private const val K_WALLPAPER_SCROLL = "wallpaper_scroll"
+        private const val K_DOCK_COLOR = "dock_color"
+        private const val K_DOCK_OPACITY = "dock_opacity"
+        private const val K_APPS_SORT = "apps_sort"
+
+        private const val REQ_BACKUP = 2001
+        private const val REQ_RESTORE = 2002
+        private const val REQ_LOCK = 2003
+        private const val MAX_BACKUP_BYTES = 2 * 1024 * 1024
     }
 }

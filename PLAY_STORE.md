@@ -153,3 +153,13 @@ No login is needed.
 
 - Reply to reviews and keep the email above working; Play requires a monitored contact address.
 - Any new permission or any internet feature means: update the privacy policy page, the Data safety form and the declarations before releasing.
+
+## Step 13 additions (read before you upload)
+
+- **Policies and contact are now inside the app** (Settings > Contact us / Privacy policy / Terms of use / Permissions and data use). Play wants the privacy policy
+  reachable inside the app and on a public URL: you now have both. Put `docs/` online (section 1) and replace `YOUR_NAME` in `privacy_url`, `terms_url` and `website_url`
+  in `strings.xml`; until then the "online" rows in Contact us are hidden.
+- **Contact address** is `contact_email` in `strings.xml` (currently the address at the top of this file). Change it there and in `docs/*.html`.
+- **Data safety form:** still "no data collected, no data shared". "Report a problem" only opens the user's own email app with a message the user can edit and sends nothing by itself.
+- **Icons:** the new icons are original drawings for generic system apps. Do not add logos of other companies (Facebook, WhatsApp, Instagram, Chrome, YouTube, Gmail...) to the pack:
+  that is a trademark / impersonation problem for a Play listing.

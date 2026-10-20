@@ -179,7 +179,9 @@ class AppsScreen(
         pill.addView(clearButton, LinearLayout.LayoutParams(dp(40), dp(40)))
     }
 
+    /** Step 13: the number chosen in Settings > Apps screen, or (Auto) as many 84 dp columns as fit. */
     private fun columnCount(): Int {
+        if (HomeStore.appsCols > 0) return HomeStore.appsCols
         val metrics = resources.displayMetrics
         val widthDp = metrics.widthPixels / metrics.density
         return (widthDp / 84f).toInt().coerceIn(4, 8)
@@ -246,8 +248,9 @@ class AppsScreen(
         val h = pager.height
         if (w <= 0 || h <= 0) return // the layout listener calls this again once the size is known
         val cols = columnCount()
-        val rows = (h / dp(CELL_DP)).coerceIn(2, MAX_ROWS)
+        val rows = if (HomeStore.appsRows > 0) HomeStore.appsRows else (h / dp(CELL_DP)).coerceIn(2, MAX_ROWS)
         val perPage = cols * rows
+        iconDp = fitIconDp(w / cols, h / rows)
 
         rebuilding = true
         val pages = ArrayList<View>()
@@ -263,8 +266,19 @@ class AppsScreen(
         rebuilding = false
     }
 
+    /** Icon size of the current page layout: the size chosen in Settings, shrunk when the cells are too small for it. */
+    private var iconDp = ICON_DP
+
+    private fun fitIconDp(cellWpx: Int, cellHpx: Int): Int {
+        val density = resources.displayMetrics.density
+        val chosen = HomeStore.APPS_ICON_DP[HomeStore.appsIconSize]
+        val byWidth = cellWpx / density - 8f
+        val byHeight = cellHpx / density - (if (HomeStore.appsLabels) 34f else 14f)
+        return minOf(chosen.toFloat(), byWidth, byHeight).toInt().coerceAtLeast(32)
+    }
+
     private fun makeIcon(app: AppEntry): View {
-        val view = AppIconView(context, app.icon, app.label, ICON_DP, Look.text)
+        val view = AppIconView(context, app.icon, if (HomeStore.appsLabels) app.label else null, iconDp, Look.text)
         view.setPadding(dp(2), dp(6), dp(2), dp(6))
         view.gravity = Gravity.CENTER
         view.badgePackage = app.packageName
@@ -287,8 +301,17 @@ class AppsScreen(
             item.isChecked = mode == sortMode
         }
         popup.menu.setGroupCheckable(0, true, true)
+        val gridId = SortMode.values().size
+        popup.menu.add(1, gridId, gridId, "Apps screen grid\u2026")
         popup.setOnMenuItemClickListener { item ->
-            setSort(SortMode.values()[item.itemId])
+            if (item.itemId == gridId) {
+                // Step 13: the grid (columns / rows / icon size / names) lives in Settings > Apps screen.
+                context.startActivity(
+                    Intent(context, HomeSettingsActivity::class.java).putExtra(HomeSettingsActivity.EXTRA_PAGE, "apps")
+                )
+            } else {
+                setSort(SortMode.values()[item.itemId])
+            }
             true
         }
         popup.show()
@@ -420,6 +443,9 @@ class AppsScreen(
 
     companion object {
         const val ICON_DP = 58
+
+        /** The icon pictures are made this big (Settings > Apps screen > Icon size: Large); smaller sizes just scale them down. */
+        const val ICON_LOAD_DP = 64
         private const val PILL_HEIGHT_DP = 48
         private const val CELL_DP = 112
         private const val MAX_ROWS = 5

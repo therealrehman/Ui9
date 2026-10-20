@@ -42,6 +42,16 @@ object Look {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt(KEY, mode).apply()
     }
 
+    /** Step 13: Settings > Look and feel sets the mode directly ([AUTO], [LIGHT] or [DARK]). */
+    fun set(context: Context, newMode: Int) {
+        mode = newMode.coerceIn(AUTO, DARK)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt(KEY, mode).apply()
+    }
+
+    /** The saved mode (for the Settings chips). */
+    fun savedMode(context: Context): Int =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KEY, AUTO).coerceIn(AUTO, DARK)
+
     fun modeName(): String = when (mode) {
         LIGHT -> "Light"
         DARK -> "Dark"
