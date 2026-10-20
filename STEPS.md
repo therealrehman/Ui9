@@ -427,6 +427,7 @@ Each new step ships as a full project zip. Use the same command with the new zip
   The text is in `LegalText.kt` and says the same as `docs/privacy-policy.html` and `docs/terms.html`. New page `docs/contact.html`.
   The contact address, developer name and website are in `strings.xml` (`contact_email`, `developer_name`, `website_url`): change them there once.
   The "online" rows stay hidden until `YOUR_NAME` in `privacy_url` / `terms_url` / `website_url` is replaced (see PLAY_STORE.md).
+- **Crash note.** If the app ever crashes, the error is saved on the phone and shown on the next Settings start (Copy / Email / Clear). Never sent by the app.
 - Version 1.0.3 (code 113).
 
 ## Cloud build (Bitrise) - no Termux build needed

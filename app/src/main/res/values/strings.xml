@@ -4,6 +4,9 @@
     <!-- Step 10c: branding. app_name is the only place the name is written; every message in the app reads it from here. -->
     <string name="app_tagline">A clean, modern home screen, written from scratch.</string>
     <string name="app_credits">Original code and icons.</string>
+    <!-- Not used any more (the icon shortcut was removed); kept so an old res/xml/shortcuts.xml left over from an earlier unzip still builds. -->
+    <string name="shortcut_settings">Settings</string>
+    <string name="shortcut_settings_long">Settings</string>
     <!-- Step 13: who to contact. Change the address here and it changes everywhere in the app (Settings > Contact us, the policies, Report a problem). -->
     <string name="developer_name" translatable="false">Ok Labs</string>
     <string name="contact_email" translatable="false">a.rehmanmazher11@gmail.com</string>

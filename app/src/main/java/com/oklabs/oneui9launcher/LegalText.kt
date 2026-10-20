@@ -47,6 +47,7 @@ object LegalText {
                 "• your Home screen layout (which apps, folders and widgets are on which page, the dock);",
                 "• your settings (grid sizes, icon sizes, themes, hidden apps, Edge panel apps, widget style and similar choices);",
                 "• a small in-memory cache of app icons, which is cleared when the app closes.",
+                "• a short crash note, only if the app crashes (the error, app and Android version, phone model). It is shown in Settings so you can email it to us if you want; the app never sends it.",
                 "This data never leaves your phone through the app. It is deleted when you uninstall the app or clear its storage in Android settings.",
                 "Backups. “Back up layout and settings” writes a text file to a place you choose (for example Downloads or a cloud drive). " +
                     "That file is created and held by you; we never receive it. Separately, Android’s own system backup may include the app’s saved settings " +

@@ -63,6 +63,16 @@ class HomeSettingsActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        try {
+            setup()
+        } catch (e: Throwable) {
+            // Never leave the person with a window that does not open: show what went wrong instead.
+            CrashLog.save(this, e)
+            setContentView(crashView(), ViewGroup.LayoutParams(MATCH, MATCH))
+        }
+    }
+
+    private fun setup() {
         Look.load(this)
         IconPack.load(this)
         IconTheme.load(this)
@@ -70,7 +80,6 @@ class HomeSettingsActivity : Activity() {
         edgeApps.addAll(HomeStore.savedEdgeApps(this))
 
         window.setBackgroundDrawable(ColorDrawable(Look.panel(255)))
-        setDarkBarIcons(!Look.dark)
         kit = SettingsKit(this)
         holder = FrameLayout(this)
         // Android 15+ draws apps edge to edge: keep the pages clear of the status and navigation bars.
@@ -80,6 +89,11 @@ class HomeSettingsActivity : Activity() {
             insets
         }
         setContentView(holder, ViewGroup.LayoutParams(MATCH, MATCH))
+        try {
+            setDarkBarIcons(!Look.dark)
+        } catch (e: Throwable) {
+            // only the colour of the status bar icons
+        }
 
         stack.add(MAIN)
         val first = intent?.getStringExtra(EXTRA_PAGE)
@@ -122,7 +136,22 @@ class HomeSettingsActivity : Activity() {
     /** Draws the page on top of the stack. */
     private fun show() {
         holder.removeAllViews()
-        val view = when (stack.last()) {
+        val view = try {
+            if (CrashLog.read(this) != null && !crashSeen) crashView() else buildPage()
+        } catch (e: Throwable) {
+            CrashLog.save(this, e)
+            crashSeen = false
+            crashView()
+        }
+        holder.addView(view, FrameLayout.LayoutParams(MATCH, MATCH))
+        holder.requestApplyInsets()
+    }
+
+    /** True once the person has seen the saved crash note this time and chose to continue. */
+    private var crashSeen = false
+
+    private fun buildPage(): View {
+        return when (stack.last()) {
             HOME -> homePage()
             APPS -> appsPage()
             DOCK -> dockPage()
@@ -151,8 +180,69 @@ class HomeSettingsActivity : Activity() {
             OPEN_SOURCE -> openSourcePage()
             else -> mainPage()
         }
-        holder.addView(view, FrameLayout.LayoutParams(MATCH, MATCH))
-        holder.requestApplyInsets()
+    }
+
+    /** Plain views only (no Settings building blocks), so it can show even when those are what failed. */
+    private fun crashView(): View {
+        val note = CrashLog.read(this) ?: "No details were saved."
+        val dark = Look.dark
+        val fg = if (dark) Color.WHITE else Color.rgb(22, 24, 30)
+        val page = LinearLayout(this)
+        page.orientation = LinearLayout.VERTICAL
+        page.setBackgroundColor(if (dark) Color.rgb(34, 36, 44) else Color.rgb(250, 251, 254))
+        page.setPadding(dp(18), dp(40), dp(18), dp(18))
+
+        val title = TextView(this)
+        title.text = "Something went wrong last time"
+        title.setTextColor(fg)
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
+        page.addView(title, LinearLayout.LayoutParams(MATCH, WRAP))
+        val hint = TextView(this)
+        hint.text = "Please send this text to " + getString(R.string.contact_email) + " (the button below opens your email app). It stays on your phone until you send it."
+        hint.setTextColor(fg)
+        hint.alpha = 0.7f
+        hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+        hint.setPadding(0, dp(8), 0, dp(10))
+        page.addView(hint, LinearLayout.LayoutParams(MATCH, WRAP))
+
+        val scroll = android.widget.ScrollView(this)
+        val text = TextView(this)
+        text.text = note
+        text.setTextIsSelectable(true)
+        text.setTextColor(fg)
+        text.typeface = android.graphics.Typeface.MONOSPACE
+        text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+        scroll.addView(text, FrameLayout.LayoutParams(MATCH, WRAP))
+        page.addView(scroll, LinearLayout.LayoutParams(MATCH, 0, 1f))
+
+        fun button(label: String, onTap: () -> Unit) {
+            val b = android.widget.Button(this)
+            b.text = label
+            b.setOnClickListener { onTap() }
+            page.addView(b, LinearLayout.LayoutParams(MATCH, WRAP))
+        }
+        button("Email this to the developer") {
+            val email = getString(R.string.contact_email)
+            val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$email"))
+                .putExtra(Intent.EXTRA_EMAIL, arrayOf(email))
+                .putExtra(Intent.EXTRA_SUBJECT, getString(R.string.app_name) + ": crash note")
+                .putExtra(Intent.EXTRA_TEXT, note)
+            try {
+                startActivity(intent)
+            } catch (e: Exception) {
+                toast("No email app found. Use Copy instead.")
+            }
+        }
+        button("Copy") {
+            getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("Crash note", note))
+            toast("Copied")
+        }
+        button("Clear and continue") {
+            CrashLog.clear(this)
+            crashSeen = true
+            if (::holder.isInitialized) show() else recreate()
+        }
+        return page
     }
 
     private fun prefs() = getSharedPreferences("launcher", MODE_PRIVATE)

@@ -50,6 +50,7 @@
     </queries>
 
     <application
+        android:name=".App"
         android:allowBackup="true"
         android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/ic_launcher"
