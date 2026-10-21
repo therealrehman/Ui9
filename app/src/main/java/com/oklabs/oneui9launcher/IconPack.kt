@@ -33,7 +33,9 @@ object IconPack {
     enum class Style {
         PHONE, MESSAGES, CONTACTS, CAMERA, GALLERY, BROWSER, CALENDAR, CLOCK, CALCULATOR, FILES, SETTINGS, WEATHER,
         // Step 13: more generic system apps
-        MAIL, MUSIC, VIDEOS, MAPS, NOTES, RECORDER, DOWNLOADS, GAMES, STORE
+        MAIL, MUSIC, VIDEOS, MAPS, NOTES, RECORDER, DOWNLOADS, GAMES, STORE,
+        // Step 19: more of the reference icon set
+        HEALTH, WALLET, TIPS, THEMES
     }
 
     @Volatile
@@ -82,7 +84,9 @@ object IconPack {
         "voice recorder" to Style.RECORDER, "recorder" to Style.RECORDER, "sound recorder" to Style.RECORDER,
         "downloads" to Style.DOWNLOADS, "download" to Style.DOWNLOADS,
         "games" to Style.GAMES,
-        "store" to Style.STORE, "app store" to Style.STORE
+        "store" to Style.STORE, "app store" to Style.STORE,
+        // Step 19
+        "health" to Style.HEALTH, "wallet" to Style.WALLET, "tips" to Style.TIPS, "themes" to Style.THEMES, "theme store" to Style.THEMES
     )
 
     /** Packages that answer Dial / SMS / Camera / Settings on this phone (label-independent, helps with other languages). */
@@ -112,6 +116,19 @@ object IconPack {
     // ------------------------------------------------------------------ drawing (a full square; the caller cuts the squircle)
 
     fun draw(canvas: Canvas, style: Style, size: Int) {
+        drawStyle(canvas, style, size)
+        gloss(canvas, size)
+    }
+
+    /** Step 19: a soft light from the top, like the glossy icons of the reference icon set. */
+    private fun gloss(canvas: Canvas, size: Int) {
+        val s = size.toFloat()
+        val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        p.shader = LinearGradient(0f, 0f, 0f, s * 0.62f, Color.argb(58, 255, 255, 255), Color.argb(0, 255, 255, 255), Shader.TileMode.CLAMP)
+        canvas.drawRect(0f, 0f, s, s * 0.62f, p)
+    }
+
+    private fun drawStyle(canvas: Canvas, style: Style, size: Int) {
         val s = size.toFloat()
         val p = Paint(Paint.ANTI_ALIAS_FLAG)
         when (style) {
@@ -136,6 +153,10 @@ object IconPack {
             Style.DOWNLOADS -> downloads(canvas, p, s)
             Style.GAMES -> games(canvas, p, s)
             Style.STORE -> store(canvas, p, s)
+            Style.HEALTH -> health(canvas, p, s)
+            Style.WALLET -> wallet(canvas, p, s)
+            Style.TIPS -> tips(canvas, p, s)
+            Style.THEMES -> themes(canvas, p, s)
         }
     }
 
@@ -482,5 +503,71 @@ object IconPack {
         p.color = Color.rgb(238, 84, 96)
         p.strokeWidth = s * 0.04f
         c.drawArc(RectF(s * 0.4f, s * 0.46f, s * 0.6f, s * 0.66f), 20f, 140f, false, p)
+    }
+
+    private fun health(c: Canvas, p: Paint, s: Float) {
+        plate(c, p, s, Color.rgb(62, 220, 172), Color.rgb(14, 156, 124))
+        // a heart (two round lobes and a point) with a pulse line across it
+        white(p)
+        c.drawCircle(s * 0.395f, s * 0.42f, s * 0.14f, p)
+        c.drawCircle(s * 0.605f, s * 0.42f, s * 0.14f, p)
+        val point = Path()
+        point.moveTo(s * 0.265f, s * 0.48f)
+        point.lineTo(s * 0.735f, s * 0.48f)
+        point.lineTo(s * 0.5f, s * 0.77f)
+        point.close()
+        c.drawPath(point, p)
+        p.style = Paint.Style.STROKE
+        p.color = Color.rgb(16, 150, 120)
+        p.strokeCap = Paint.Cap.ROUND
+        p.strokeJoin = Paint.Join.ROUND
+        p.strokeWidth = s * 0.035f
+        val pulse = Path()
+        pulse.moveTo(s * 0.29f, s * 0.50f)
+        pulse.lineTo(s * 0.42f, s * 0.50f)
+        pulse.lineTo(s * 0.47f, s * 0.39f)
+        pulse.lineTo(s * 0.54f, s * 0.60f)
+        pulse.lineTo(s * 0.59f, s * 0.50f)
+        pulse.lineTo(s * 0.71f, s * 0.50f)
+        c.drawPath(pulse, p)
+    }
+
+    private fun wallet(c: Canvas, p: Paint, s: Float) {
+        plate(c, p, s, Color.rgb(84, 150, 255), Color.rgb(38, 84, 226))
+        white(p)
+        c.drawRoundRect(RectF(s * 0.2f, s * 0.31f, s * 0.8f, s * 0.71f), s * 0.09f, s * 0.09f, p)
+        // a darker strip along the top (the flap) and the clasp
+        p.color = Color.argb(70, 20, 50, 160)
+        c.drawRoundRect(RectF(s * 0.2f, s * 0.31f, s * 0.8f, s * 0.42f), s * 0.07f, s * 0.07f, p)
+        p.color = Color.rgb(46, 98, 232)
+        c.drawCircle(s * 0.67f, s * 0.555f, s * 0.045f, p)
+    }
+
+    private fun tips(c: Canvas, p: Paint, s: Float) {
+        plate(c, p, s, Color.rgb(255, 205, 64), Color.rgb(250, 140, 18))
+        white(p)
+        c.drawCircle(s * 0.5f, s * 0.42f, s * 0.17f, p)
+        c.drawRoundRect(RectF(s * 0.42f, s * 0.54f, s * 0.58f, s * 0.68f), s * 0.03f, s * 0.03f, p)
+        c.drawRoundRect(RectF(s * 0.43f, s * 0.7f, s * 0.57f, s * 0.77f), s * 0.035f, s * 0.035f, p)
+        p.style = Paint.Style.STROKE
+        p.color = Color.rgb(250, 150, 30)
+        p.strokeCap = Paint.Cap.ROUND
+        p.strokeWidth = s * 0.03f
+        c.drawLine(s * 0.45f, s * 0.60f, s * 0.55f, s * 0.60f, p)
+    }
+
+    private fun themes(c: Canvas, p: Paint, s: Float) {
+        plate(c, p, s, Color.rgb(236, 96, 255), Color.rgb(132, 66, 238))
+        white(p)
+        c.drawCircle(s * 0.5f, s * 0.5f, s * 0.25f, p)
+        // paint dots and a thumb hole
+        p.color = Color.rgb(255, 82, 96)
+        c.drawCircle(s * 0.40f, s * 0.42f, s * 0.04f, p)
+        p.color = Color.rgb(255, 196, 40)
+        c.drawCircle(s * 0.52f, s * 0.35f, s * 0.04f, p)
+        p.color = Color.rgb(54, 140, 255)
+        c.drawCircle(s * 0.63f, s * 0.46f, s * 0.04f, p)
+        p.color = Color.rgb(170, 78, 240)
+        c.drawCircle(s * 0.57f, s * 0.64f, s * 0.05f, p)
     }
 }

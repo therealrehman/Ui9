@@ -79,19 +79,25 @@ class PillSlider(context: Context, glyphKind: Int) : FrameLayout(context) {
         layoutFill()
     }
 
+    /**
+     * Step 19: the bar is placed in [onLayout] (and whenever [progress] changes), not through layout parameters. A panel that is
+     * built while it is still hidden is measured later, and the level used to stay invisible after the second opening.
+     */
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        layoutFill()
+    }
+
     private fun layoutFill() {
         val w = width
-        val h = if (height > 0) height else context.dp(HEIGHT_DP)
-        if (w <= 0) return
+        val h = height
+        if (w <= 0 || h <= 0) return
         val fillWidth = (h + progress * (w - h)).toInt()
-        val lp = fill.layoutParams
-        if (lp.width != fillWidth) {
-            lp.width = fillWidth
-            fill.layoutParams = lp
-        }
+        fill.layout(0, 0, fillWidth, h)
         // The icon is dark on the light bar and light on the empty track.
         val over = fillWidth > context.dp(46)
         glyph.tint = if (over) (if (Look.dark) Color.rgb(24, 26, 32) else Color.WHITE) else Look.text
+        invalidate()
     }
 
     private fun valueAt(x: Float): Float {
@@ -274,8 +280,16 @@ class QuickPanel(
         wideParams.topMargin = c.dp(14)
         content.addView(wideRow, wideParams)
 
-        // The rest: round buttons, four to a row.
+        // The rest: round buttons, four to a row, all inside ONE dark frosted rectangle (like the reference phone).
         val rest = order.drop(2)
+        val grid = LinearLayout(c)
+        grid.orientation = LinearLayout.VERTICAL
+        grid.setPadding(c.dp(6), c.dp(6), c.dp(6), c.dp(12))
+        grid.background = GradientDrawable().apply {
+            setColor(Look.glass(80))
+            cornerRadius = c.dpf(30f)
+            setStroke(c.dp(1), Look.inkA(22))
+        }
         var index = 0
         while (index < rest.size) {
             val row = LinearLayout(c)
@@ -292,9 +306,14 @@ class QuickPanel(
                 wire(def.id, tile)
             }
             val rp = LinearLayout.LayoutParams(MATCH, WRAP)
-            rp.topMargin = c.dp(12)
-            content.addView(row, rp)
+            rp.topMargin = c.dp(if (index == 0) 6 else 12)
+            grid.addView(row, rp)
             index += COLUMNS
+        }
+        if (rest.isNotEmpty()) {
+            val gp = LinearLayout.LayoutParams(MATCH, WRAP)
+            gp.topMargin = c.dp(14)
+            content.addView(grid, gp)
         }
 
         if (!brightnessOnTop()) addBrightness(c, 18)

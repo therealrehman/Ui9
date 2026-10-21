@@ -10,7 +10,7 @@ cd ~/storage/downloads && unzip -oq "$(ls -t OneUI9Launcher-step01*.zip | head -
 ```
 
 Each new step ships as a full project zip. Use the same command with the new zip name
-(step02, step03, step04, step05a, step05b, step05c, step06a, step06b1, step06b2, step06c1, step06c2, step07a, step07b, step07c, step08a, step08b, step08c, step08d, step09a, step09b, step10a, step10b, step10c, step10d, step11, step12, step13, step14, step15, step16a, step16b, step16c, step16d, step16e, step17a, step17b, step17c, step18). Your `local.properties` is kept between steps.
+(step02, step03, step04, step05a, step05b, step05c, step06a, step06b1, step06b2, step06c1, step06c2, step07a, step07b, step07c, step08a, step08b, step08c, step08d, step09a, step09b, step10a, step10b, step10c, step10d, step11, step12, step13, step14, step15, step16a, step16b, step16c, step16d, step16e, step17a, step17b, step17c, step18, step19). Your `local.properties` is kept between steps.
 
 ## Status
 
@@ -65,6 +65,7 @@ Each new step ships as a full project zip. Use the same command with the new zip
 | 17b | Quick panel full-screen look: header (time + date, pencil / power / gear), wide Wi-Fi + Bluetooth tiles, round buttons, sliders with a moon / speaker button, cards | DONE |
 | 17c | Panel edit look ("Panel settings - Touch and hold to change order - Done") and swipe between the Quick panel and the Notifications page | DONE |
 | 18 | Fixes after testing: crash on opening the Notifications page twice, blurred Home screen behind the panels, dark frosted buttons and cards | DONE |
+| 19 | Fixes after testing 2: slider levels on reopening, one frosted rectangle behind the round buttons, more icons in the icon set | DONE |
 
 ## Step 1 - what is in it
 
@@ -600,6 +601,19 @@ Under the brightness slider (above the notifications) the panel now has three mo
 - **Dark frosted look like the reference**: the buttons that are off, the sliders' empty track, the volume / media cards, the notification
   cards and the pills are now dark translucent glass (white / milky in light mode); buttons that are on stay bright.
 - Not tested on a real phone: compile-checked only. Version 1.0.14 (code 124).
+
+## Step 19 - fixes after testing 2 (slider levels, one rectangle, icon set)
+
+- **Brightness and sound levels now show every time the panel opens.** The bar used to be placed through layout parameters while the
+  panel was still hidden, and after the second opening it stayed invisible. It is now placed during the layout itself.
+- **One dark frosted rectangle behind the round buttons** (the two rows of four), like the reference; the wide Wi-Fi / Bluetooth buttons stay
+  outside it. The sliders keep their dark frosted track with the light bar on top.
+- **More icons in the icon set** (Settings > Icons > Colourful): Health, Wallet, Tips and Themes join Phone, Messages, Contacts, Camera, Gallery,
+  Browser, Calendar, Clock, Calculator, Files, Settings, Weather, Mail, Music, Videos, Maps, Notes, Recorder, Downloads, Games and Store.
+  Every icon now has a soft light from the top (glossy, like the reference set). They are drawn in code from simple shapes: original art in the
+  same style, not Samsung's pictures. Only apps that came with the phone and have a plain name get one; every other app keeps its own icon.
+- Not done: the extra quick buttons of the reference (Power saving, Screen record, Dark mode, Eye comfort, Share); say so if you want them next.
+- Compile-checked only; not tested on a real phone. Version 1.0.15 (code 125).
 
 ## Cloud build (Bitrise) - no Termux build needed
 
