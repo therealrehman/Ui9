@@ -10,7 +10,7 @@ cd ~/storage/downloads && unzip -oq "$(ls -t OneUI9Launcher-step01*.zip | head -
 ```
 
 Each new step ships as a full project zip. Use the same command with the new zip name
-(step02, step03, step04, step05a, step05b, step05c, step06a, step06b1, step06b2, step06c1, step06c2, step07a, step07b, step07c, step08a, step08b, step08c, step08d, step09a, step09b, step10a, step10b, step10c, step10d, step11, step12, step13, step14, step15, step16a, step16b, step16c, step16d, step16e, step17a, step17b, step17c, step18, step19). Your `local.properties` is kept between steps.
+(step02, step03, step04, step05a, step05b, step05c, step06a, step06b1, step06b2, step06c1, step06c2, step07a, step07b, step07c, step08a, step08b, step08c, step08d, step09a, step09b, step10a, step10b, step10c, step10d, step11, step12, step13, step14, step15, step16a, step16b, step16c, step16d, step16e, step17a, step17b, step17c, step18, step19, step20, step21a). Your `local.properties` is kept between steps.
 
 ## Status
 
@@ -66,6 +66,10 @@ Each new step ships as a full project zip. Use the same command with the new zip
 | 17c | Panel edit look ("Panel settings - Touch and hold to change order - Done") and swipe between the Quick panel and the Notifications page | DONE |
 | 18 | Fixes after testing: crash on opening the Notifications page twice, blurred Home screen behind the panels, dark frosted buttons and cards | DONE |
 | 19 | Fixes after testing 2: slider levels on reopening, one frosted rectangle behind the round buttons, more icons in the icon set | DONE |
+| 21 | Own lock screen (replaces the phone's, like the reference) + fixes: 3 parts | in progress |
+| 21a | Part 1 - fixes: Quick panel bottom stops above the navigation bar, compact music card, notification taps open (Android 14+ opt-in, fallbacks, message) | DONE |
+| 21b | Part 2 - lock screen: own screen over the system lock, always shown when the screen turns on, clock + date, swipe up to unlock, Phone / Camera shortcuts, on / off in Settings | todo |
+| 21c | Part 3 - lock screen: music card like the reference, notification cards (tap opens after unlock), app shortcuts | todo |
 
 ## Step 1 - what is in it
 
@@ -637,3 +641,12 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
   The panel is now as tall as the screen; the Media output / Devices row and the volume card stay above it. Switch the player off with Settings > Gestures > Volume and media.
 - The old media card between Media output and the volume card is gone (the player replaces it).
 - Compile-checked only by reading; not built or tested on a real phone. Version 1.0.16 (code 126).
+
+## Step 21b - own lock screen, part 1 of 2
+
+- **Settings > Lock screen** (switch): the launcher shows its own lock screen above the phone's one whenever the screen turns off. Clock, date, padlock, "Swipe up to unlock", Phone and Camera buttons. Wallpaper behind it (blurred when Settings > Look and feel > Blur is on).
+- **Unlock:** drag or flick up. Android then unlocks (PIN / pattern / fingerprint once, if the phone has one). The Phone / Camera buttons unlock first, then open the app.
+- **How it works:** `LockService` (foreground service, small silent notification) waits for "screen off" and opens `LockScreenActivity` (shows when locked, turns the screen on). Needs "Display over other apps" (the switch asks for it). `LockBootReceiver` restarts it after a reboot.
+- Android can not remove the system lock screen: this one is drawn on top of it.
+- Not in this part: music card, notification cards, app shortcuts (part 2 of 2, Step 21c).
+- Compile-checked by reading only; not built or tested on a phone. Version 1.0.18 (code 128).

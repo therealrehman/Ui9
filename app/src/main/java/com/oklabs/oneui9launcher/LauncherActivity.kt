@@ -310,6 +310,7 @@ class LauncherActivity : Activity() {
             return
         }
         defaultChip.visibility = if (isDefaultHome()) View.GONE else View.VISIBLE
+        if (LockScreen.isOn(this)) LockScreen.sync(this) // keeps the lock screen service running
         updateWallpaperOffset(pager.scrollFraction())
         if (IconTheme.refresh(this)) loadApps() // the wallpaper changed: the themed icons follow its colour
     }
@@ -748,7 +749,7 @@ class LauncherActivity : Activity() {
 
         if (::apps.isInitialized) apps.setInsets(insetTop, maxOf(insetBottom, imeBottom))
         if (::folderLayer.isInitialized) folderLayer.setInsets(insetTop, maxOf(insetBottom, imeBottom))
-        if (::quickPanel.isInitialized) quickPanel.setInsets(insetTop)
+        if (::quickPanel.isInitialized) quickPanel.setInsets(insetTop, insetBottom)
         if (::notifPage.isInitialized) notifPage.setInsets(insetTop, insetBottom)
         if (::widgetPicker.isInitialized) widgetPicker.setInsets(insetTop, maxOf(insetBottom, imeBottom))
         if (::editPanel.isInitialized) {
@@ -1173,7 +1174,7 @@ class LauncherActivity : Activity() {
             quickPanel,
             FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         )
-        quickPanel.setInsets(insetTop)
+        quickPanel.setInsets(insetTop, insetBottom)
     }
 
     private fun openQuickPanel() {

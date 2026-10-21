@@ -1,5 +1,6 @@
 package com.oklabs.oneui9launcher
 
+import android.app.ActivityOptions
 import android.app.PendingIntent
 import android.content.Context
 import android.graphics.Rect
@@ -219,27 +220,53 @@ class QuickNotifs(
         }
     }
 
+    /**
+     * Step 21a: sends the notification's own intent. Android 14+ only lets a PendingIntent start an activity when the sender opts in,
+     * which is why taps did nothing before. Returns true when the phone accepted it.
+     */
+    private fun send(pi: PendingIntent): Boolean {
+        val options = ActivityOptions.makeBasic()
+        try {
+            // MODE_BACKGROUND_ACTIVITY_START_ALLOWED = 1 (Android 14+). Looked up by name so older SDKs still compile.
+            ActivityOptions::class.java.getMethod("setPendingIntentBackgroundActivityStartMode", Int::class.javaPrimitiveType)
+                .invoke(options, 1)
+        } catch (e: Throwable) {
+            // older Android: not needed
+        }
+        try {
+            pi.send(context, 0, null, null, null, null, options.toBundle())
+            return true
+        } catch (e: Exception) {
+            // cancelled or refused: try plainly, then the app itself
+        }
+        return try {
+            pi.send()
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     /** What a tap does: the app's own intent, or else just open the app. Then the card goes if the app asked for that. */
     private fun open(item: NotifItem) {
         var started = false
         val intent: PendingIntent? = item.intent
-        if (intent != null) {
-            try {
-                intent.send()
-                started = true
-            } catch (e: Exception) {
-                // cancelled or refused: fall back to opening the app
-            }
-        }
+        if (intent != null) started = send(intent)
         if (!started) {
             try {
-                context.packageManager.getLaunchIntentForPackage(item.pkg)?.let {
-                    it.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(it)
+                val launch = context.packageManager.getLaunchIntentForPackage(item.pkg)
+                if (launch != null) {
+                    launch.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(launch)
+                    started = true
                 }
             } catch (e: Exception) {
                 // nothing to open
             }
+        }
+        if (!started) {
+            android.widget.Toast.makeText(context, "Can not open this notification", android.widget.Toast.LENGTH_SHORT).show()
+            return
         }
         if (item.autoCancel && item.clearable) Notifs.dismiss(item.key)
         onLeave()

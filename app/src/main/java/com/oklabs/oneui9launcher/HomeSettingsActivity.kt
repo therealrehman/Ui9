@@ -57,6 +57,9 @@ class HomeSettingsActivity : Activity() {
     private val hidden = HashSet<String>()
     private val edgeApps = HashSet<String>()
 
+    /** The person went to Android's "Display over other apps" screen to turn the lock screen on; finish it when they come back. */
+    private var pendingLockScreen = false
+
     // The app list page is shared by "Hide apps" and "Edge panel apps": which set it edits and where it saves it.
     private var pickerSet: HashSet<String> = hidden
     private var pickerMax = Int.MAX_VALUE
@@ -114,7 +117,11 @@ class HomeSettingsActivity : Activity() {
     override fun onResume() {
         super.onResume()
         // Back from the phone's own settings screens (default Home app, notification access): show the new state.
-        if (::holder.isInitialized && (stack.last() == MAIN || stack.last() == BADGES)) show()
+        if (pendingLockScreen) {
+            pendingLockScreen = false
+            if (LockScreen.canShow(this)) LockScreen.setOn(this, true)
+        }
+        if (::holder.isInitialized && (stack.last() == MAIN || stack.last() == BADGES || stack.last() == LOCKSCREEN)) show()
     }
 
     @Deprecated("Deprecated in Java")
@@ -165,6 +172,7 @@ class HomeSettingsActivity : Activity() {
             GESTURES -> gesturesPage()
             BADGES -> badgesPage()
             EDGE -> edgePage()
+            LOCKSCREEN -> lockScreenPage()
             HIDE -> pickerPage(
                 "Hide apps",
                 "Hidden apps disappear from the Home screen and the Apps screen. Switch an app off to get it back.",
@@ -293,6 +301,7 @@ class HomeSettingsActivity : Activity() {
             box,
             kit.row(SettingsTile.GESTURES, SettingsTile.TEAL, "Quick panel", "Side, slider, notifications, media and volume") { go(QUICK) },
             kit.row(SettingsTile.GESTURES, SettingsTile.GREEN, "Gestures", "Swipe down " + onOff(prefs().getBoolean(K_NOTIF_SWIPE, true)) + " · Double-tap lock " + onOff(prefs().getBoolean(K_LOCK_TAP, false))) { go(GESTURES) },
+            kit.row(SettingsTile.LOCK, SettingsTile.BLUE, "Lock screen", onOff(LockScreen.isOn(this) && LockScreen.canShow(this))) { go(LOCKSCREEN) },
             kit.row(SettingsTile.BADGES, SettingsTile.RED, "Notification badges", listOf("Off", "Dot", "Number")[HomeStore.savedBadgeMode(this)]) { go(BADGES) },
             kit.row(SettingsTile.EDGE, SettingsTile.PURPLE, "Edge panel", onOff(HomeStore.savedEdgeOn(this))) { go(EDGE) },
             kit.row(SettingsTile.HIDE, SettingsTile.SLATE, "Hide apps", countText(hidden.size, "No app is hidden", "app is hidden", "apps are hidden")) { go(HIDE) },
@@ -839,6 +848,66 @@ class HomeSettingsActivity : Activity() {
             .setPositiveButton("Continue") { _, _ -> Badges.openAccessSettings(this) }
             .setNegativeButton("Not now", null)
             .show()
+    }
+
+    // ------------------------------------------------------------------ Lock screen
+
+    private fun lockScreenPage(): View = kit.page("Lock screen", { goBack() }) { box ->
+        kit.card(
+            box,
+            kit.toggle(-1, 0, "Use this lock screen", "Shown above the phone's lock screen when the screen turns off", LockScreen.isOn(this) && LockScreen.canShow(this)) { on ->
+                if (!on) {
+                    LockScreen.setOn(this, false)
+                    show()
+                } else if (LockScreen.canShow(this)) {
+                    LockScreen.setOn(this, true)
+                    show()
+                } else {
+                    askOverlayAccess()
+                }
+            }
+        )
+        kit.note(
+            box,
+            "Clock and date, swipe up to unlock, and Phone and Camera buttons. Music and notification cards come in the next update."
+        )
+        kit.note(
+            box,
+            "Android does not let any app remove the phone's own lock screen, so this one is drawn on top of it. If your phone has a PIN, pattern or fingerprint, " +
+                "Android asks for it once after you swipe up. To show it, the app needs \"Display over other apps\" and keeps a small silent notification running. " +
+                "Turn the switch off any time."
+        )
+        kit.card(
+            box,
+            kit.row(-1, 0, "Display over other apps", if (LockScreen.canShow(this)) "Allowed" else "Not allowed yet · tap to allow") {
+                pendingLockScreen = false
+                openOverlaySettings()
+            }
+        )
+    }
+
+    private fun askOverlayAccess() {
+        AlertDialog.Builder(this)
+            .setTitle("Allow \"Display over other apps\"")
+            .setMessage(
+                "Android only lets an app open its own screen when the phone locks if you allow \"Display over other apps\". " +
+                    "The app uses it only for the lock screen. Switch " + getString(R.string.app_name) + " on in the list that opens, then come back."
+            )
+            .setPositiveButton("Continue") { _, _ ->
+                pendingLockScreen = true
+                openOverlaySettings()
+            }
+            .setNegativeButton("Not now") { _, _ -> show() }
+            .show()
+    }
+
+    private fun openOverlaySettings() {
+        try {
+            startActivity(LockScreen.permissionIntent(this))
+        } catch (e: Exception) {
+            pendingLockScreen = false
+            toast("Can't open this setting on this phone")
+        }
     }
 
     // ------------------------------------------------------------------ Edge panel
@@ -1388,6 +1457,7 @@ class HomeSettingsActivity : Activity() {
         private const val GESTURES = "gestures"
         private const val BADGES = "badges"
         private const val EDGE = "edge"
+        private const val LOCKSCREEN = "lockscreen"
         private const val HIDE = "hide"
         private const val EDGE_APPS = "edgeapps"
         private const val ROTATION = "rotation"
@@ -1401,7 +1471,7 @@ class HomeSettingsActivity : Activity() {
 
         /** Pages a caller may ask for with [EXTRA_PAGE]. */
         private val PAGES = setOf(
-            HOME, APPS, DOCK, WALLPAPER, QUICK, ICONS, LOOK, GESTURES, BADGES, EDGE, HIDE, ROTATION, BACKUP, CONTACT, PRIVACY, TERMS, PERMISSIONS, ABOUT
+            HOME, APPS, DOCK, WALLPAPER, QUICK, ICONS, LOOK, GESTURES, BADGES, EDGE, LOCKSCREEN, HIDE, ROTATION, BACKUP, CONTACT, PRIVACY, TERMS, PERMISSIONS, ABOUT
         )
 
         // The launcher's saved settings (same keys the Home screen reads).

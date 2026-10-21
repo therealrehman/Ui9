@@ -225,6 +225,13 @@ object LegalText {
             true
         ),
         Permission(
+            "Display over other apps, foreground service, start after restart",
+            "Only if you turn on “Lock screen”. Android only lets an app open its own screen when the phone locks if you allow “Display over other apps”. " +
+                "A small silent notification keeps the lock screen ready while it is on, and it starts again after the phone restarts. " +
+                "It only listens for the screen turning off and reads nothing. Switch it off in Settings > Lock screen.",
+            true
+        ),
+        Permission(
             "Expand status bar",
             "To open the notification panel when you swipe down on the Home screen.",
             false

@@ -254,11 +254,13 @@ class QuickPanel(
     }
 
     /** The status bar height, so the clock sits below it. */
-    fun setInsets(top: Int) {
+    fun setInsets(top: Int, bottom: Int = 0) {
         insetTop = top
-        card.setPadding(context.dp(18), top + context.dp(12), context.dp(18), context.dp(26))
+        // Step 21a: the bottom of the panel stops above the navigation bar (it used to run under it).
+        val floor = maxOf(bottom, context.dp(12)) + context.dp(10)
+        card.setPadding(context.dp(18), top + context.dp(12), context.dp(18), floor)
         // the panel never grows past the screen: below this it scrolls
-        body.maxPx = (context.resources.displayMetrics.heightPixels - top - context.dp(64)).coerceAtLeast(context.dp(200))
+        body.maxPx = (context.resources.displayMetrics.heightPixels - top - floor).coerceAtLeast(context.dp(200))
     }
 
     // ------------------------------------------------------------------ building
@@ -344,7 +346,7 @@ class QuickPanel(
         val lower = LinearLayout(c)
         lower.orientation = LinearLayout.VERTICAL
         lower.setPadding(c.dp(10), c.dp(10), c.dp(10), c.dp(10))
-        lower.minimumHeight = c.dp(240)
+        // Step 21a: the box is only as tall as what is in it (no empty stretch under the player that ran off the screen).
         lower.background = GradientDrawable().apply {
             setColor(Look.glass(70))
             cornerRadius = c.dpf(30f)
@@ -365,8 +367,8 @@ class QuickPanel(
             lower.addView(n, np)
         }
         if (lower.childCount > 0) {
-            val lp = LinearLayout.LayoutParams(MATCH, WRAP, 1f)
-            lp.topMargin = c.dp(14)
+            val lp = LinearLayout.LayoutParams(MATCH, WRAP, if (notifs != null) 1f else 0f)
+            lp.topMargin = c.dp(12)
             content.addView(lower, lp)
         }
 
@@ -375,8 +377,8 @@ class QuickPanel(
         bar.background = roundRect(Look.inkA(70), c.dpf(2f))
         val barParams = LinearLayout.LayoutParams(c.dp(44), c.dp(4))
         barParams.gravity = Gravity.CENTER_HORIZONTAL
-        barParams.topMargin = c.dp(16)
-        barParams.bottomMargin = c.dp(2)
+        barParams.topMargin = c.dp(10)
+        barParams.bottomMargin = c.dp(0)
         content.addView(bar, barParams)
 
         refresh()
