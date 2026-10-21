@@ -26,11 +26,17 @@ import kotlin.math.abs
  * Without notification access it shows one card that opens the phone's access screen.
  * [onLeave] is called when the panel should close (after a tap that opened an app or the access screen).
  */
-class QuickNotifs(context: Context, private val onLeave: () -> Unit) : LinearLayout(context) {
+class QuickNotifs(
+    context: Context,
+    /** Step 17a: true on the full-screen Notifications page (no heading, the list fills the space, a big centred "No notifications"). */
+    private val fullPage: Boolean = false,
+    private val onLeave: () -> Unit
+) : LinearLayout(context) {
 
     private val clearAll = TextView(context)
     private val list = LinearLayout(context)
-    private val scroller = CappedScroll(context, (context.resources.displayMetrics.heightPixels * 0.34f).toInt())
+    private val scroller: ScrollView =
+        if (fullPage) ScrollView(context) else CappedScroll(context, (context.resources.displayMetrics.heightPixels * 0.34f).toInt())
     private val labels = HashMap<String, String>()
     private val icons = HashMap<String, Drawable?>()
 
@@ -54,15 +60,21 @@ class QuickNotifs(context: Context, private val onLeave: () -> Unit) : LinearLay
         clearAll.isClickable = true
         clearAll.setOnClickListener { Notifs.clearAll() }
         head.addView(clearAll, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        if (fullPage) head.visibility = GONE // the page has its own header and its own Clear all
         addView(head, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         list.orientation = VERTICAL
         scroller.isVerticalScrollBarEnabled = false
         scroller.overScrollMode = OVER_SCROLL_NEVER
         scroller.addView(list, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        val sp = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        sp.topMargin = context.dp(8)
-        addView(scroller, sp)
+        if (fullPage) {
+            scroller.isFillViewport = true
+            addView(scroller, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        } else {
+            val sp = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            sp.topMargin = context.dp(8)
+            addView(scroller, sp)
+        }
     }
 
     /** True when a vertical touch at ([x], [y]) (in this view's parent's coordinates) is on a list that can scroll: the panel must not take it as "swipe up to close". */
@@ -73,12 +85,23 @@ class QuickNotifs(context: Context, private val onLeave: () -> Unit) : LinearLay
         return r.contains(x.toInt(), y.toInt()) && (scroller.canScrollVertically(1) || scroller.canScrollVertically(-1))
     }
 
+    /** True when ([x], [y]) is on the list while it holds cards: a sideways swipe there removes a card, so it must not switch panels. */
+    fun cardsAt(x: Float, y: Float): Boolean {
+        if (Notifs.current().isEmpty() || !Badges.accessGranted(context)) return false
+        val r = Rect()
+        scroller.getHitRect(r)
+        r.offset(left, top)
+        return r.contains(x.toInt(), y.toInt())
+    }
+
     /** Draws the list again from [Notifs] (and the access state). */
     fun bind() {
         list.removeAllViews()
+        list.gravity = Gravity.TOP
         val c = context
         if (!Badges.accessGranted(c)) {
             clearAll.visibility = GONE
+            if (fullPage) list.gravity = Gravity.CENTER
             list.addView(
                 note("Allow notification access to see your notifications here.", "Allow") {
                     Badges.openAccessSettings(c)
@@ -90,6 +113,7 @@ class QuickNotifs(context: Context, private val onLeave: () -> Unit) : LinearLay
         val items = Notifs.current()
         clearAll.visibility = if (items.any { it.clearable }) VISIBLE else GONE
         if (items.isEmpty()) {
+            if (fullPage) list.gravity = Gravity.CENTER
             list.addView(note("No notifications", null) {})
             return
         }
@@ -103,6 +127,7 @@ class QuickNotifs(context: Context, private val onLeave: () -> Unit) : LinearLay
     }
 
     private fun note(text: String, action: String?, onAction: () -> Unit): View {
+        if (fullPage) return pageNote(text, action, onAction)
         val c = context
         val row = LinearLayout(c)
         row.orientation = HORIZONTAL
@@ -126,6 +151,34 @@ class QuickNotifs(context: Context, private val onLeave: () -> Unit) : LinearLay
             row.setOnClickListener { onAction() }
         }
         return row
+    }
+
+    /** The full-page version of [note]: plain big centred text (and a button), no card. */
+    private fun pageNote(text: String, action: String?, onAction: () -> Unit): View {
+        val c = context
+        val box = LinearLayout(c)
+        box.orientation = VERTICAL
+        box.gravity = Gravity.CENTER
+        val label = TextView(c)
+        label.text = text
+        label.setTextColor(Look.textA(215))
+        label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+        label.gravity = Gravity.CENTER
+        box.addView(label, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        if (action != null) {
+            val button = TextView(c)
+            button.text = action
+            button.setTextColor(if (Look.dark) android.graphics.Color.rgb(24, 26, 32) else android.graphics.Color.WHITE)
+            button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            button.setPadding(c.dp(20), c.dp(10), c.dp(20), c.dp(10))
+            button.background = roundRect(Look.text, c.dpf(22f))
+            button.isClickable = true
+            button.setOnClickListener { onAction() }
+            val bp = LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            bp.topMargin = c.dp(14)
+            box.addView(button, bp)
+        }
+        return box
     }
 
     private fun labelOf(pkg: String): String = labels.getOrPut(pkg) {

@@ -10,7 +10,7 @@ cd ~/storage/downloads && unzip -oq "$(ls -t OneUI9Launcher-step01*.zip | head -
 ```
 
 Each new step ships as a full project zip. Use the same command with the new zip name
-(step02, step03, step04, step05a, step05b, step05c, step06a, step06b1, step06b2, step06c1, step06c2, step07a, step07b, step07c, step08a, step08b, step08c, step08d, step09a, step09b, step10a, step10b, step10c, step10d, step11, step12, step13, step14, step15, step16a, step16b, step16c, step16d, step16e). Your `local.properties` is kept between steps.
+(step02, step03, step04, step05a, step05b, step05c, step06a, step06b1, step06b2, step06c1, step06c2, step07a, step07b, step07c, step08a, step08b, step08c, step08d, step09a, step09b, step10a, step10b, step10c, step10d, step11, step12, step13, step14, step15, step16a, step16b, step16c, step16d, step16e, step17a, step17b, step17c). Your `local.properties` is kept between steps.
 
 ## Status
 
@@ -59,7 +59,11 @@ Each new step ships as a full project zip. Use the same command with the new zip
 | 16b | Quick panel part 2: edit the buttons (Done / Reset, active buttons + Available buttons, drag to add / remove / reorder, more buttons) | DONE |
 | 16c | Quick panel part 3: notifications list inside the panel (swipe away, clear all, tap to open) | todo |
 | 16d | Quick panel part 4: volume + media cards, Media output, Device control row | todo |
-| 16e | Quick panel part 5: Panel settings (left-side panel, brightness position, reset layout), polish, optional system-wide mode | todo |
+| 16e | Quick panel part 5: Panel settings (left-side panel, brightness position, reset layout), polish, optional system-wide mode | DONE |
+| 17 | Notification panel like the reference video: 3 parts | DONE |
+| 17a | Notifications page: full-screen page over the blurred wallpaper, time + date top left, cards, centred "No notifications", Notification settings + Clear all at the bottom | DONE |
+| 17b | Quick panel full-screen look: header (time + date, pencil / power / gear), wide Wi-Fi + Bluetooth tiles, round buttons, sliders with a moon / speaker button, cards | DONE |
+| 17c | Panel edit look ("Panel settings - Touch and hold to change order - Done") and swipe between the Quick panel and the Notifications page | DONE |
 
 ## Step 1 - what is in it
 
@@ -554,6 +558,34 @@ Under the brightness slider (above the notifications) the panel now has three mo
   - **Finger-follow pull-down** (the panel following your finger while you drag): the panel opens with a short slide after the swipe is recognised. Needs touch handling in `LauncherRoot`; left out to avoid breaking page swipes.
   - Separate pages of buttons (swipe sideways), reply buttons on notifications, real smart-home device controls.
 - Quick panel is now **complete for this plan (16a-16e)**. Version 1.0.10 (code 120). Compile-checked; not tested on a real phone.
+
+## Step 17a - Notifications page (reference video), part 1 of 3
+
+- A swipe down on the Home screen (left half in Split mode, or always when "Swipe down opens" = Notifications) now opens the launcher's **own full-screen Notifications page**
+  instead of the phone's panel: the wallpaper blurred behind a soft veil, **time and date** at the top left, then your notifications as glass cards (newest first;
+  swipe a card sideways to remove it, tap it to open the app), or a big centred **No notifications**. At the bottom: **Notification settings** (left) and **Clear all** (right, only when something can be cleared).
+- Tap an empty spot, swipe up, Back or Home closes it. A long list scrolls by itself first.
+- Without Notification access the page shows one centred message with an **Allow** button.
+- Settings > Quick panel > **Notification panel**: *Launcher's page* (default) or *Phone's panel* (the old behaviour). Saved key: `np_own`.
+- Not in this part: the Quick panel's new look (17b) and swiping between the two pages (17c).
+- Compile-checked only; not tested on a real phone. Version 1.0.11 (code 121).
+
+## Step 17b - Quick panel look (reference video), part 2 of 3
+
+- **No card any more:** the Quick panel's buttons float over the blurred wallpaper under the same soft veil as the Notifications page (no rounded white box).
+- **Header like the reference:** time and date on one line at the left (time big, date small), and **pencil (edit) - power - gear (settings)** at the right.
+  The **power** icon locks the screen (the phone's own power menu is not open to launchers); it works once "Double-tap to lock" is allowed (long-press an empty spot on Home), else it says how to turn it on.
+- **Brightness** slider has a round **moon** button at its right end: it opens the phone's Display settings (dark mode). **Volume** slider has a round **speaker** button at its right end: it opens / closes the Ring and Alarm sliders.
+- Wide Wi-Fi and Bluetooth buttons, the round button grid, Media output / Devices and the media card stay as they were (they already matched the reference).
+- Not in this part: the edit look ("Panel settings - Touch and hold to change order - Done") and swiping between the Quick panel and the Notifications page (17c).
+- Compile-checked only; not tested on a real phone. Version 1.0.12 (code 122).
+
+## Step 17c - edit look and swiping between the panels (reference video), part 3 of 3
+
+- **Edit look:** the button editor (pencil in the Quick panel) now has the reference header: **Panel settings** with *Touch and hold to change order* under it, and **Reset** / **Done** as plain words at the right (no more pills).
+- **Swipe between the two panels:** on the Quick panel swipe **left** to go to the Notifications page; on the Notifications page swipe **right** to come back. No trip through the Home screen in between.
+  A sideways swipe that starts on a notification card still just removes that card, and a swipe on a slider moves the slider. The swipe to the Notifications page only works when "Notification panel" is *Launcher's page* (Settings > Quick panel).
+- The Quick panel and Notifications page plan (Step 17) is **complete**. Not done: a finger-follow pull-down, the second page of buttons. Compile-checked only; not tested on a real phone. Version 1.0.13 (code 123).
 
 ## Cloud build (Bitrise) - no Termux build needed
 

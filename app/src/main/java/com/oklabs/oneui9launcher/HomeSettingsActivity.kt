@@ -631,9 +631,14 @@ class HomeSettingsActivity : Activity() {
             kit.chips("Quick panel side (Split)", listOf("Right half", "Left half"), if (prefs().getBoolean(K_QP_LEFT, false)) 1 else 0) { i ->
                 prefs().edit().putBoolean(K_QP_LEFT, i == 1).apply()
                 changed()
+            },
+            kit.chips("Notification panel", listOf("Launcher's page", "Phone's panel"), if (prefs().getBoolean(NotificationPage.PREF_KEY, true)) 0 else 1) { i ->
+                prefs().edit().putBoolean(NotificationPage.PREF_KEY, i == 0).apply()
+                changed()
+                if (i == 0 && !Badges.accessGranted(this)) askNotificationAccess()
             }
         )
-        kit.note(box, "Split: a swipe down on one half of the Home screen opens the Quick panel and on the other half the phone's notifications.")
+        kit.note(box, "Split: a swipe down on one half of the Home screen opens the Quick panel and on the other half the notifications. Notification panel: the launcher's own full-screen page (needs Notification access) or the phone's own panel.")
 
         kit.label(box, "Layout")
         kit.card(

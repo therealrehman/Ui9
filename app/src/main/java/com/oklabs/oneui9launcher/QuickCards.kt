@@ -59,7 +59,7 @@ class QuickCards(context: Context, private val say: (String) -> Unit, private va
     private val playGlyph = QuickGlyph(context, QuickGlyph.PLAY)
     private val sliders = ArrayList<Triple<Int, PillSlider, Int>>() // stream, slider, (unused)
     private val extraSliders = ArrayList<View>()
-    private val chevron = QuickGlyph(context, QuickGlyph.CHEVRON_DOWN)
+    private val chevron = QuickGlyph(context, QuickGlyph.SOUND)
 
     private val sessionsListener = MediaSessionManager.OnActiveSessionsChangedListener { list -> pick(list ?: emptyList()) }
 
@@ -369,11 +369,10 @@ class QuickCards(context: Context, private val say: (String) -> Unit, private va
         top.orientation = HORIZONTAL
         top.gravity = Gravity.CENTER_VERTICAL
         top.addView(volumeSlider(AudioManager.STREAM_MUSIC, QuickGlyph.SOUND, "Media volume"), LayoutParams(0, c.dp(PillSlider.HEIGHT_DP), 1f))
-        chevron.tint = Look.text
-        chevron.contentDescription = "More volume sliders"
-        chevron.isClickable = true
-        chevron.setOnClickListener { toggleExpanded() }
-        top.addView(chevron, LayoutParams(c.dp(44), c.dp(44)))
+        val speaker = roundGlyphButton(c, chevron, "More volume sliders") { toggleExpanded() }
+        val speakerLp = LayoutParams(c.dp(52), c.dp(52))
+        speakerLp.leftMargin = c.dp(10)
+        top.addView(speaker, speakerLp)
         card.addView(top, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         for ((stream, glyph, name) in listOf(
@@ -384,7 +383,7 @@ class QuickCards(context: Context, private val say: (String) -> Unit, private va
             s.visibility = GONE
             val lp = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, c.dp(PillSlider.HEIGHT_DP))
             lp.topMargin = c.dp(8)
-            lp.rightMargin = c.dp(44)
+            lp.rightMargin = c.dp(62)
             card.addView(s, lp)
             extraSliders.add(s)
         }
@@ -412,7 +411,6 @@ class QuickCards(context: Context, private val say: (String) -> Unit, private va
     private fun toggleExpanded() {
         expanded = !expanded
         for (v in extraSliders) v.visibility = if (expanded) VISIBLE else GONE
-        chevron.show(if (expanded) QuickGlyph.CHEVRON_UP else QuickGlyph.CHEVRON_DOWN)
     }
 
     /** Moves the sliders to the phone's volumes (never one that is being dragged). */

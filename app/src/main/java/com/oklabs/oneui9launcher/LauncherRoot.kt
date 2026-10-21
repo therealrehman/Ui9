@@ -35,6 +35,9 @@ class LauncherRoot(context: Context) : FrameLayout(context) {
     /** Set by the activity right after it creates the Quick panel (Step 16a). While it is open it owns the screen. */
     lateinit var quick: QuickPanel
 
+    /** Set by the activity: the full-screen Notifications page (Step 17a). */
+    lateinit var notifPage: NotificationPage
+
     /** Where across the screen (0 = left edge, 1 = right edge) the latest touch went down: a swipe down on the right half opens the Quick panel. */
     var downFraction = 0.5f
         private set
@@ -127,6 +130,7 @@ class LauncherRoot(context: Context) : FrameLayout(context) {
         if (::picker.isInitialized && picker.isOpen) return false
         if (::edge.isInitialized && edge.isOpen) return false
         if (::quick.isInitialized && quick.isOpen) return false
+        if (::notifPage.isInitialized && notifPage.isOpen) return false
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 downX = ev.x

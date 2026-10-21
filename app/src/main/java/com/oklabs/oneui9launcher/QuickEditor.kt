@@ -142,16 +142,43 @@ internal class QuickEditor(
     }
 
     private fun buildHeader() {
+        // Step 17c, like the reference: "Panel settings" with "Touch and hold to change order" under it, and Reset / Done as plain words at the right.
         val row = LinearLayout(context)
         row.orientation = LinearLayout.HORIZONTAL
         row.gravity = Gravity.CENTER_VERTICAL
-        row.addView(pill("Reset", false) {
+        val texts = LinearLayout(context)
+        texts.orientation = LinearLayout.VERTICAL
+        val title = TextView(context)
+        title.text = "Panel settings"
+        title.setTextColor(Look.text)
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+        title.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        texts.addView(title, LinearLayout.LayoutParams(WRAP, WRAP))
+        val sub = TextView(context)
+        sub.text = "Touch and hold to change order"
+        sub.setTextColor(Look.textA(190))
+        sub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
+        texts.addView(sub, LinearLayout.LayoutParams(WRAP, WRAP))
+        row.addView(texts, LinearLayout.LayoutParams(0, WRAP, 1f))
+        row.addView(textAction("Reset", false) {
             active = QuickTiles.DEFAULT_ORDER
             render()
         }, LinearLayout.LayoutParams(WRAP, WRAP))
-        row.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
-        row.addView(pill("Done", true) { onDone(active) }, LinearLayout.LayoutParams(WRAP, WRAP))
+        row.addView(textAction("Done", true) { onDone(active) }, LinearLayout.LayoutParams(WRAP, WRAP))
         content.addView(row, LinearLayout.LayoutParams(MATCH, WRAP))
+    }
+
+    /** A plain word as a button (no pill), like "Done" in the reference. */
+    private fun textAction(text: String, strong: Boolean, onTap: () -> Unit): TextView {
+        val v = TextView(context)
+        v.text = text
+        v.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+        v.typeface = Typeface.create(if (strong) "sans-serif-medium" else "sans-serif", Typeface.NORMAL)
+        v.setTextColor(if (strong) Look.text else Look.textA(200))
+        v.setPadding(context.dp(12), context.dp(10), context.dp(12), context.dp(10))
+        v.isClickable = true
+        v.setOnClickListener { onTap() }
+        return v
     }
 
     private fun pill(text: String, strong: Boolean, onTap: () -> Unit): TextView {
@@ -177,7 +204,7 @@ internal class QuickEditor(
     // ------------------------------------------------------------------ drawing
 
     private fun render() {
-        hint.text = "Touch and hold to move buttons. ${QuickTiles.MIN_BUTTONS} buttons are required. The first two are wide."
+        hint.text = "At least ${QuickTiles.MIN_BUTTONS} buttons are needed. The first two are wide."
         activeGrid.removeAllViews()
         availGrid.removeAllViews()
         for (id in active) {

@@ -145,6 +145,9 @@ class QuickPanel(
     /** Told when the panel opens or closes (the activity blurs the wallpaper behind it). */
     var onOpenChanged: (() -> Unit)? = null
 
+    /** Step 17c: a swipe to the left on the panel asks for the Notifications page. */
+    var onSwitchPage: (() -> Unit)? = null
+
     private val scrim = View(context)
     private val card = SwipeCard(context)
 
@@ -181,6 +184,13 @@ class QuickPanel(
                         close(true)
                         return true
                     }
+                    val dx = ev.x - downX
+                    if (editor == null && slider?.isDragging != true && dx < -slop * 3f && -dx > abs(ev.y - downY) * 2f &&
+                        !(notifs?.cardsAt(downX, downY) ?: false)
+                    ) {
+                        onSwitchPage?.invoke()
+                        return true
+                    }
                 }
             }
             return false
@@ -212,18 +222,13 @@ class QuickPanel(
     init {
         visibility = View.GONE
 
-        scrim.setBackgroundColor(Color.argb(90, 0, 0, 0))
+        scrim.setBackgroundColor(Look.veil(150))
         scrim.isClickable = true
         scrim.setOnClickListener { close(true) }
         addView(scrim, LayoutParams(MATCH, MATCH))
 
-        val r = context.dpf(34f)
-        card.background = GradientDrawable().apply {
-            setColor(Look.panel(228))
-            cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, r, r, r, r) // round at the bottom only
-        }
+        // Step 17b: no card any more - the buttons float over the blurred wallpaper, like the reference.
         card.orientation = LinearLayout.VERTICAL
-        card.elevation = context.dpf(16f)
         card.isClickable = true // taps on the card must not close it
         val width = min(context.resources.displayMetrics.widthPixels, context.dp(MAX_WIDTH_DP))
         content.orientation = LinearLayout.VERTICAL
@@ -349,9 +354,35 @@ class QuickPanel(
         }
         bright.onChange = { p, _ -> system.setBrightness(1 + (p * 254f).toInt()) }
         slider = bright
-        val bp = LinearLayout.LayoutParams(MATCH, c.dp(PillSlider.HEIGHT_DP))
+        // Step 17b: a round moon button sits at the right end of the slider (opens the phone's display / dark mode settings).
+        val row = LinearLayout(c)
+        row.orientation = LinearLayout.HORIZONTAL
+        row.gravity = Gravity.CENTER_VERTICAL
+        row.addView(bright, LinearLayout.LayoutParams(0, c.dp(PillSlider.HEIGHT_DP), 1f))
+        val moon = roundGlyphButton(c, QuickGlyph(c, QuickGlyph.DARK), "Display and dark mode settings") { openDisplaySettings() }
+        val moonLp = LinearLayout.LayoutParams(c.dp(PillSlider.HEIGHT_DP), c.dp(PillSlider.HEIGHT_DP))
+        moonLp.leftMargin = c.dp(10)
+        row.addView(moon, moonLp)
+        val bp = LinearLayout.LayoutParams(MATCH, WRAP)
         bp.topMargin = c.dp(topMarginDp)
-        content.addView(bright, bp)
+        content.addView(row, bp)
+    }
+
+    /** The power icon in the header: locks the screen (the phone's power menu is not open to launchers). Needs "Double-tap to lock" to be allowed once. */
+    private fun powerTap() {
+        close(false)
+        if (!LockAdmin.lock(context)) {
+            Toast.makeText(context, "To lock from here, turn on Double-tap to lock (long-press an empty spot on Home)", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun openDisplaySettings() {
+        close(false)
+        try {
+            context.startActivity(Intent(Settings.ACTION_DISPLAY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (e: Exception) {
+            Toast.makeText(context, "Can't open Settings", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun header(): View {
@@ -361,7 +392,8 @@ class QuickPanel(
         row.gravity = Gravity.CENTER_VERTICAL
 
         val texts = LinearLayout(c)
-        texts.orientation = LinearLayout.VERTICAL
+        texts.orientation = LinearLayout.HORIZONTAL // Step 17b: time and date on one line
+        texts.gravity = Gravity.BOTTOM
         val time = TextClock(c)
         time.format12Hour = "h:mm"
         time.format24Hour = "HH:mm"
@@ -380,7 +412,11 @@ class QuickPanel(
         date.format24Hour = pattern
         date.setTextColor(Look.textA(200))
         date.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-        texts.addView(date, LinearLayout.LayoutParams(WRAP, WRAP))
+        date.includeFontPadding = false
+        val dateLp = LinearLayout.LayoutParams(WRAP, WRAP)
+        dateLp.leftMargin = c.dp(10)
+        dateLp.bottomMargin = c.dp(4)
+        texts.addView(date, dateLp)
         row.addView(texts, LinearLayout.LayoutParams(0, WRAP, 1f))
 
         val pencil = QuickGlyph(c, QuickGlyph.PENCIL)
@@ -389,6 +425,13 @@ class QuickPanel(
         pencil.isClickable = true
         pencil.setOnClickListener { startEdit() }
         row.addView(pencil, LinearLayout.LayoutParams(c.dp(44), c.dp(44)))
+
+        val power = QuickGlyph(c, QuickGlyph.POWER)
+        power.tint = Look.text
+        power.contentDescription = "Lock screen"
+        power.isClickable = true
+        power.setOnClickListener { powerTap() }
+        row.addView(power, LinearLayout.LayoutParams(c.dp(44), c.dp(44)))
 
         val gear = QuickGlyph(c, QuickGlyph.GEAR)
         gear.tint = Look.text

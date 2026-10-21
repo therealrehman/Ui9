@@ -72,6 +72,7 @@ class LauncherActivity : Activity() {
     private var editMode = false
     private lateinit var edgePanel: EdgePanel
     private lateinit var quickPanel: QuickPanel
+    private lateinit var notifPage: NotificationPage
     private lateinit var edgeHandle: FrameLayout
     private var insetLeft = 0
     private var insetRight = 0
@@ -267,6 +268,7 @@ class LauncherActivity : Activity() {
         buildWidgetPicker()
         buildEdgePanel()
         buildQuickPanel()
+        buildNotifPage()
         buildResizeLayer()
         buildDragLayer()
 
@@ -316,6 +318,7 @@ class LauncherActivity : Activity() {
         widgetPicker.close(animated = false)
         edgePanel.close(animated = false)
         quickPanel.close(animated = false)
+        notifPage.close(animated = false)
         resizeLayer.close(animated = false)
         exitEditMode(animated = false)
         isForeground = false
@@ -369,6 +372,10 @@ class LauncherActivity : Activity() {
         if (dragLayer.dismiss()) return // an open quick menu / a drag goes first
         if (quickPanel.isOpen) { // then the Quick panel (Step 16a)
             quickPanel.back(animated = isForeground)
+            return
+        }
+        if (notifPage.isOpen) { // then the Notifications page (Step 17a)
+            notifPage.close(animated = isForeground)
             return
         }
         if (resizeLayer.isActive) { // then resize mode (the frame around a widget)
@@ -572,12 +579,12 @@ class LauncherActivity : Activity() {
         root.editMode = { editMode }
         root.pinchEnabled = {
             !editMode && apps.progress == 0f && !folderLayer.isOpen && !widgetPicker.isOpen &&
-                !resizeLayer.isActive && !dragLayer.isTouchActive && !edgePanel.isOpen && !quickPanel.isOpen
+                !resizeLayer.isActive && !dragLayer.isTouchActive && !edgePanel.isOpen && !quickPanel.isOpen && !notifPage.isOpen
         }
         root.onPinchIn = { enterEditMode() }
         root.swipeDownEnabled = {
             notifSwipeOn() && apps.progress == 0f && !folderLayer.isOpen && !widgetPicker.isOpen && !resizeLayer.isActive &&
-                !edgePanel.isOpen && !quickPanel.isOpen
+                !edgePanel.isOpen && !quickPanel.isOpen && !notifPage.isOpen
         }
         root.onSwipeDown = { openSwipeDownPanel() }
         root.addView(
@@ -679,7 +686,8 @@ class LauncherActivity : Activity() {
 
     private fun animateOverlayBlur() {
         val open = folderLayer.isOpen || (::widgetPicker.isInitialized && widgetPicker.isOpen) ||
-            (::quickPanel.isInitialized && quickPanel.wantsBlur)
+            (::quickPanel.isInitialized && quickPanel.wantsBlur) ||
+            (::notifPage.isInitialized && notifPage.wantsBlur)
         blurAnimator?.cancel()
         val anim = ValueAnimator.ofFloat(overlayBlur, if (open) 1f else 0f)
         anim.duration = 220
@@ -717,6 +725,7 @@ class LauncherActivity : Activity() {
         if (::apps.isInitialized) apps.setInsets(insetTop, maxOf(insetBottom, imeBottom))
         if (::folderLayer.isInitialized) folderLayer.setInsets(insetTop, maxOf(insetBottom, imeBottom))
         if (::quickPanel.isInitialized) quickPanel.setInsets(insetTop)
+        if (::notifPage.isInitialized) notifPage.setInsets(insetTop, insetBottom)
         if (::widgetPicker.isInitialized) widgetPicker.setInsets(insetTop, maxOf(insetBottom, imeBottom))
         if (::editPanel.isInitialized) {
             (editPanel.layoutParams as FrameLayout.LayoutParams).bottomMargin = maxOf(insetBottom, dp(12)) + dp(28)
@@ -1145,14 +1154,78 @@ class LauncherActivity : Activity() {
 
     private fun openQuickPanel() {
         if (editMode || apps.progress > 0f || folderLayer.isOpen || widgetPicker.isOpen || resizeLayer.isActive ||
-            dragLayer.isTouchActive || edgePanel.isOpen || quickPanel.isOpen
+            dragLayer.isTouchActive || edgePanel.isOpen || quickPanel.isOpen || notifPage.isOpen
         ) return
         dragLayer.dismiss()
         quickPanel.open()
     }
 
+    // ---------------------------------------------------------------- notifications page (Step 17a)
+
+    /** The Notifications page: same layer level as the Quick panel (only one of them is open at a time). */
+    private fun buildNotifPage() {
+        notifPage = NotificationPage(this) { openNotificationSettings() }
+        notifPage.onOpenChanged = { animateOverlayBlur() }
+        notifPage.onSwitchPage = { switchPanels(toNotifs = false) }
+        quickPanel.onSwitchPage = { switchPanels(toNotifs = true) }
+        root.notifPage = notifPage
+        root.addView(
+            notifPage,
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        )
+        notifPage.setInsets(insetTop, insetBottom)
+    }
+
+    /** Step 17c: a sideways swipe moves between the Quick panel and the Notifications page, without going back to Home in between. */
+    private fun switchPanels(toNotifs: Boolean) {
+        if (toNotifs) {
+            if (!quickPanel.isOpen || !ownNotifPage()) return
+            quickPanel.close(animated = false)
+            notifPage.open()
+        } else {
+            if (!notifPage.isOpen) return
+            notifPage.close(animated = false)
+            quickPanel.open()
+        }
+    }
+
+    /** Settings > Quick panel > Notification panel: the launcher's own page (default) or the phone's. */
+    private fun ownNotifPage(): Boolean =
+        getSharedPreferences("launcher", MODE_PRIVATE).getBoolean(NotificationPage.PREF_KEY, true)
+
+    private fun openNotifPage() {
+        if (editMode || apps.progress > 0f || folderLayer.isOpen || widgetPicker.isOpen || resizeLayer.isActive ||
+            dragLayer.isTouchActive || edgePanel.isOpen || quickPanel.isOpen || notifPage.isOpen
+        ) return
+        dragLayer.dismiss()
+        notifPage.open()
+    }
+
+    /** "Notification settings" on the page: the phone's notification settings (the first screen the phone has). */
+    private fun openNotificationSettings() {
+        val tries = listOf(
+            Intent("android.settings.NOTIFICATION_SETTINGS"),
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName),
+            Intent(Settings.ACTION_SETTINGS)
+        )
+        for (intent in tries) {
+            try {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+                return
+            } catch (e: Exception) {
+                // try the next one
+            }
+        }
+        toast("Can't open Settings")
+    }
+
     /** Swipe down on the Home screen: pull the notification panel open (the phone decides how it looks). */
     private fun openNotificationPanel() {
+        if (ownNotifPage()) {
+            openNotifPage()
+            return
+        }
         try {
             val bar = getSystemService("statusbar")
             Class.forName("android.app.StatusBarManager").getMethod("expandNotificationsPanel").invoke(bar)

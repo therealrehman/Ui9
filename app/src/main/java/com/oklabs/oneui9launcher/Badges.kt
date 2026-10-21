@@ -90,7 +90,8 @@ class BadgeService : NotificationListenerService() {
         val map = HashMap<String, Int>()
         val list = ArrayList<NotifItem>()
         // Step 16c: the text is only taken while "Notifications in Quick panel" is on.
-        val forPanel = getSharedPreferences("launcher", MODE_PRIVATE).getBoolean(Notifs.PREF_KEY, true)
+        val prefs = getSharedPreferences("launcher", MODE_PRIVATE)
+        val forPanel = prefs.getBoolean(Notifs.PREF_KEY, true) || prefs.getBoolean(NotificationPage.PREF_KEY, true)
         try {
             val showing = activeNotifications
             if (showing != null) {

@@ -180,6 +180,11 @@ class QuickGlyph(context: Context, var kind: Int) : View(context) {
                 canvas.drawLine(cx - s * 0.09f, cy + s * 0.05f, cx + s * 0.09f, cy + s * 0.05f, paint)
                 canvas.drawLine(cx, cy - s * 0.04f, cx, cy + s * 0.14f, paint)
             }
+            POWER -> {
+                stroke(s, 0.1f)
+                arc(canvas, cx, cy + s * 0.03f, s * 0.3f, -60f, 300f)
+                canvas.drawLine(cx, cy - s * 0.36f, cx, cy - s * 0.04f, paint)
+            }
             DARK -> {
                 fill()
                 path.reset()
@@ -404,5 +409,18 @@ class QuickGlyph(context: Context, var kind: Int) : View(context) {
         const val CHEVRON_UP = 26
         const val BELL = 27
         const val ALARM = 28
+        const val POWER = 29
     }
+}
+
+/** Step 17b: a round glass button with an icon (the moon next to brightness, the speaker next to volume, like the reference). */
+fun roundGlyphButton(context: Context, glyph: QuickGlyph, description: String, onTap: () -> Unit): View {
+    val box = android.widget.FrameLayout(context)
+    box.background = roundRect(Look.inkA(40), context.dpf(26f))
+    box.contentDescription = description
+    box.isClickable = true
+    glyph.tint = Look.text
+    box.addView(glyph, android.widget.FrameLayout.LayoutParams(context.dp(26), context.dp(26), android.view.Gravity.CENTER))
+    box.setOnClickListener { onTap() }
+    return box
 }
