@@ -9,6 +9,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
@@ -28,14 +29,18 @@ import android.widget.TextView
 import java.util.Locale
 
 /**
- * Step 21b: the launcher's own lock screen (part 1 of 2): wallpaper, big clock, date, a Phone and a Camera button, and
- * "swipe up to unlock". It is drawn above the phone's lock screen; swiping up asks Android to unlock (PIN / fingerprint if
- * the phone has one). Music card, notifications and app shortcuts come in the next part.
+ * Steps 21b + 21c: the launcher's own lock screen: wallpaper, big clock, date, the music card and notification cards (the Quick
+ * panel's own), the phone's Phone and Camera apps, and swipe up to unlock. Drawn above the phone's lock screen; swiping up
+ * asks Android to unlock (PIN / fingerprint if the phone has one).
  */
 class LockScreenActivity : Activity() {
 
-    private lateinit var content: FrameLayout
+    private lateinit var content: View
     private var unlocking = false
+    private var player: QuickPlayer? = null
+    private var notifs: QuickNotifs? = null
+    private var watching = false
+    private val notifsListener: () -> Unit = { notifs?.bind() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,8 +58,34 @@ class LockScreenActivity : Activity() {
             window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
                 View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
         }
+        Look.load(this)
+        Look.forceDark = true
         blurWallpaper()
         setContentView(build())
+    }
+
+    override fun onStart() {
+        super.onStart()
+        player?.start()
+        notifs?.bind()
+        if (!watching) {
+            watching = true
+            Notifs.addListener(notifsListener)
+        }
+    }
+
+    override fun onStop() {
+        player?.stop()
+        if (watching) {
+            watching = false
+            Notifs.removeListener(notifsListener)
+        }
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        Look.forceDark = false
+        super.onDestroy()
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -88,11 +119,13 @@ class LockScreenActivity : Activity() {
             intArrayOf(Color.argb(95, 60, 30, 130), Color.argb(70, 30, 20, 80), Color.argb(150, 20, 10, 60))
         )
 
-        content = FrameLayout(this)
-        root.slide = content
-        root.addView(content, FrameLayout.LayoutParams(-1, -1))
+        // one column: top (padlock, clock, date), middle (music + notifications), bottom (hint, Phone, Camera)
+        val column = LinearLayout(this)
+        column.orientation = LinearLayout.VERTICAL
+        content = column
+        root.slide = column
+        root.addView(column, FrameLayout.LayoutParams(-1, -1))
 
-        // top: padlock, clock, date
         val top = LinearLayout(this)
         top.orientation = LinearLayout.VERTICAL
         top.gravity = Gravity.CENTER_HORIZONTAL
@@ -102,13 +135,13 @@ class LockScreenActivity : Activity() {
         val clock = TextClock(this)
         clock.format12Hour = "h:mm"
         clock.format24Hour = "HH:mm"
-        clock.setTextSize(TypedValue.COMPLEX_UNIT_SP, 92f)
+        clock.setTextSize(TypedValue.COMPLEX_UNIT_SP, 80f)
         clock.typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         clock.setTextColor(Color.argb(205, 255, 255, 255))
         clock.includeFontPadding = false
         clock.gravity = Gravity.CENTER
         clock.setShadowLayer(dpf(10f), 0f, dpf(2f), Color.argb(70, 0, 0, 0))
-        top.addView(clock, LinearLayout.LayoutParams(-2, -2).also { it.topMargin = dp(46) })
+        top.addView(clock, LinearLayout.LayoutParams(-2, -2).also { it.topMargin = dp(30) })
 
         val date = TextClock(this)
         val pattern = DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEMMMMd")
@@ -118,22 +151,52 @@ class LockScreenActivity : Activity() {
         date.setTextColor(Color.argb(190, 255, 255, 255))
         date.gravity = Gravity.CENTER
         top.addView(date, LinearLayout.LayoutParams(-2, -2).also { it.topMargin = dp(6) })
-        content.addView(top, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
+        column.addView(top, LinearLayout.LayoutParams(-1, -2))
 
-        // bottom: hint, Phone and Camera
+        // middle: the music card and the notification cards (the same ones as in the Quick panel)
+        val prefs = getSharedPreferences("launcher", MODE_PRIVATE)
+        val middle = LinearLayout(this)
+        middle.orientation = LinearLayout.VERTICAL
+        middle.setPadding(dp(16), dp(18), dp(16), dp(8))
+        if (prefs.getBoolean(QuickCards.PREF_KEY, true)) {
+            val p = QuickPlayer(this) { unlock(null) }
+            player = p
+            middle.addView(p, LinearLayout.LayoutParams(-1, -2))
+        }
+        if (prefs.getBoolean(Notifs.PREF_KEY, true)) {
+            val box = LinearLayout(this)
+            box.orientation = LinearLayout.VERTICAL
+            box.setPadding(dp(10), dp(10), dp(10), dp(10))
+            box.background = GradientDrawable().apply {
+                setColor(Look.glass(70))
+                cornerRadius = dpf(26f)
+                setStroke(dp(1), Look.inkA(22))
+            }
+            val n = QuickNotifs(this, false, true) { unlock(null) }
+            n.bind()
+            notifs = n
+            box.addView(n, LinearLayout.LayoutParams(-1, -1))
+            middle.addView(box, LinearLayout.LayoutParams(-1, 0, 1f).also { it.topMargin = dp(if (player != null) 12 else 0) })
+        }
+        root.keepTouch = { x, y -> notifs?.scrollsAtRaw(x, y) == true }
+        column.addView(middle, LinearLayout.LayoutParams(-1, 0, 1f))
+
+        // bottom: hint, Phone and Camera (the phone's own apps, with their own icons)
         val bottom = FrameLayout(this)
         val hint = TextView(this)
         hint.text = "Swipe up to unlock"
         hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
         hint.setTextColor(Color.argb(210, 255, 255, 255))
         hint.gravity = Gravity.CENTER
-        bottom.addView(hint, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).also { it.topMargin = dp(0) })
+        bottom.addView(hint, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
 
-        val phone = shortcut(android.R.drawable.ic_menu_call) { unlock { startOther(Intent(Intent.ACTION_DIAL)) } }
-        val camera = shortcut(android.R.drawable.ic_menu_camera) { unlock { startOther(Intent("android.media.action.STILL_IMAGE_CAMERA")) } }
+        val dial = Intent(Intent.ACTION_DIAL)
+        val cam = Intent("android.media.action.STILL_IMAGE_CAMERA")
+        val phone = shortcut(ownIcon(dial), android.R.drawable.ic_menu_call) { unlock { startOther(dial) } }
+        val camera = shortcut(ownIcon(cam), android.R.drawable.ic_menu_camera) { unlock { startOther(cam) } }
         bottom.addView(phone, FrameLayout.LayoutParams(dp(54), dp(54), Gravity.START or Gravity.BOTTOM).also { it.marginStart = dp(34) })
         bottom.addView(camera, FrameLayout.LayoutParams(dp(54), dp(54), Gravity.END or Gravity.BOTTOM).also { it.marginEnd = dp(34) })
-        content.addView(bottom, FrameLayout.LayoutParams(-1, dp(120), Gravity.BOTTOM))
+        column.addView(bottom, LinearLayout.LayoutParams(-1, dp(120)))
 
         // keep everything clear of the status and navigation bars
         root.setOnApplyWindowInsetsListener { _, insets ->
@@ -141,21 +204,35 @@ class LockScreenActivity : Activity() {
             val topInset = insets.systemWindowInsetTop
             @Suppress("DEPRECATION")
             val bottomInset = insets.systemWindowInsetBottom
-            top.setPadding(0, topInset + dp(70), 0, 0)
+            top.setPadding(0, topInset + dp(40), 0, 0)
             bottom.setPadding(0, 0, 0, bottomInset + dp(22))
-            (bottom.layoutParams as FrameLayout.LayoutParams).height = dp(120) + bottomInset
+            (bottom.layoutParams as LinearLayout.LayoutParams).height = dp(120) + bottomInset
+            bottom.requestLayout()
             insets
         }
         return root
     }
 
-    private fun shortcut(icon: Int, onTap: () -> Unit): View {
+    /** The icon of the phone's own app that handles [intent] (null when there is none). */
+    private fun ownIcon(intent: Intent): Drawable? = try {
+        packageManager.resolveActivity(intent, 0)?.loadIcon(packageManager)
+    } catch (e: Exception) {
+        null
+    }
+
+    private fun shortcut(own: Drawable?, fallback: Int, onTap: () -> Unit): View {
         val button = ImageView(this)
-        button.setImageResource(icon)
-        button.setColorFilter(Color.WHITE)
+        if (own != null) {
+            button.setImageDrawable(own)
+            button.setPadding(dp(8), dp(8), dp(8), dp(8))
+            button.background = roundRect(Color.argb(60, 255, 255, 255), dpf(27f))
+        } else {
+            button.setImageResource(fallback)
+            button.setColorFilter(Color.WHITE)
+            button.setPadding(dp(15), dp(15), dp(15), dp(15))
+            button.background = roundRect(Color.rgb(84, 52, 196), dpf(27f))
+        }
         button.scaleType = ImageView.ScaleType.CENTER_INSIDE
-        button.setPadding(dp(15), dp(15), dp(15), dp(15))
-        button.background = roundRect(Color.rgb(84, 52, 196), dpf(27f))
         button.setOnClickListener { onTap() }
         return button
     }
@@ -214,6 +291,10 @@ class LockScreenActivity : Activity() {
 private class SwipeFrame(context: Context, private val onUnlock: () -> Unit) : FrameLayout(context) {
 
     var slide: View? = null
+
+    /** True where a vertical drag belongs to a scrolling list (the notifications), not to swipe-up-to-unlock. */
+    var keepTouch: ((Float, Float) -> Boolean)? = null
+    private var ignore = false
     private val slop = ViewConfiguration.get(context).scaledTouchSlop
     private var downY = 0f
     private var downX = 0f
@@ -226,6 +307,7 @@ private class SwipeFrame(context: Context, private val onUnlock: () -> Unit) : F
                 downY = e.rawY
                 downX = e.rawX
                 dragging = false
+                ignore = keepTouch?.invoke(e.rawX, e.rawY) == true
                 tracker?.recycle()
                 tracker = VelocityTracker.obtain()
                 tracker?.addMovement(e)
@@ -233,7 +315,7 @@ private class SwipeFrame(context: Context, private val onUnlock: () -> Unit) : F
             MotionEvent.ACTION_MOVE -> {
                 tracker?.addMovement(e)
                 val dy = downY - e.rawY
-                if (dy > slop && dy > Math.abs(downX - e.rawX)) {
+                if (!ignore && dy > slop && dy > Math.abs(downX - e.rawX)) {
                     dragging = true
                     return true
                 }

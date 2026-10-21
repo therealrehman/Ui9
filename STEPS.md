@@ -650,3 +650,75 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - Android can not remove the system lock screen: this one is drawn on top of it.
 - Not in this part: music card, notification cards, app shortcuts (part 2 of 2, Step 21c).
 - Compile-checked by reading only; not built or tested on a phone. Version 1.0.18 (code 128).
+
+## Step 21c - own lock screen, part 2 of 2
+
+- **Music card on the lock screen:** the same player as the Quick panel (art, title, artist, seek bar, previous / play-pause / next). Follows Settings > Quick panel cards switch.
+- **Notification cards:** the same list as the Quick panel (swipe a card sideways to remove, Clear all, tap to open: the phone asks to unlock first). Follows the "Notifications in Quick panel" switch and needs Notification access. The list scrolls without unlocking; swipe up anywhere else to unlock.
+- **Phone / Camera buttons** now show the phone's own Phone and Camera app icons.
+- The panels on the lock screen are always dark (new `Look.forceDark`, on only while the lock screen is open).
+- Compile-checked by reading only; not built or tested on a phone. Version 1.0.19 (code 129).
+
+## Step 21c - own lock screen, part 2 of 2
+
+- **Music card and notification cards on the lock screen**: the same player and notification list as the Quick panel, in a frosted box under the date. They follow the Quick panel switches (Settings > Quick panel: music card, notifications). Tapping a notification asks Android to unlock, then opens the app.
+- **Phone and Camera buttons** now show the phone's own app icons and open those apps after unlock.
+- Dragging up on a scrolling notification list scrolls it; drag anywhere else to unlock.
+- The lock screen is always dark-styled (`Look.forceDark`) so text stays readable on the veil.
+- Compile-checked by reading only; not built or tested on a phone. Version 1.0.19 (code 129).
+
+## Step 21c - own lock screen, part 2 of 2
+
+- **Music card** (the Quick panel's player: art, title, artist, seek bar, previous / play-pause / next) and **notification cards** (swipe a card sideways to remove, Clear all) now sit on the lock screen, between the date and "Swipe up to unlock". They follow the Quick panel switches (Settings > Gestures > Volume and media, Notifications in Quick panel). Needs Notification access, same as before.
+- **Phone / Camera buttons** now show the phone's own Phone and Camera app icons.
+- Tapping a card or the music card unlocks first (PIN / fingerprint if set). Swiping up on a notification list that can scroll scrolls it; swipe up anywhere else to unlock.
+- The lock screen is always dark-styled (white text) over the wallpaper.
+- Compile-checked by reading only; not built or tested on a phone. Version 1.0.19 (code 129).
+
+## Step 21c - own lock screen, part 2 of 2
+
+- **Music card** (the Quick panel's own player: art, title, seek bar, previous / play-pause / next) and **notification cards** (swipe a card sideways to remove it, tap to open, Clear all) now sit in the middle of the lock screen. They follow Settings > Quick panel switches.
+- **Phone and Camera buttons** show the phone's own app icons. Swiping up inside a scrolling notification list scrolls it; swipe anywhere else to unlock. Tapping a notification asks Android to unlock.
+- Lock screen panels are always dark (`Look.forceDark`, only while the lock screen is open).
+- Compile-checked by reading only; not built or tested on a phone. Version 1.0.19 (code 129).
+
+## Step 21c - own lock screen, part 2 of 2
+
+- **Music card:** the Quick panel's own player now sits on the lock screen (art, title, artist, seek bar, previous / play-pause / next). Follows Settings > Quick panel > cards switch.
+- **Notification cards:** the Quick panel's own list under the music card (swipe sideways to remove, Clear all, scrolls when long). Follows the "Notifications in Quick panel" switch and needs Notification access. Tapping a card asks Android to unlock first.
+- **Phone / Camera buttons** now show the phone's own app icons (fallback: simple icons).
+- Panels on the lock screen are always dark (`Look.forceDark`). Swipe up on the notification list scrolls it; swipe up anywhere else unlocks.
+- Compile-checked by reading only; not built or tested on a phone. Version 1.0.19 (code 129).
+
+## Step 21c - own lock screen, part 2 of 2
+
+- **Music card** on the lock screen (the Quick panel's player): art, title, artist, seek bar, previous / play-pause / next. Follows Settings > Quick panel > cards switch.
+- **Notification cards** under it (the Quick panel's list): swipe a card sideways to remove it, tap to open (Android asks to unlock first). Follows the "Notifications in Quick panel" switch and needs Notification access.
+- **Phone / Camera buttons** now show the phone's own Phone and Camera app icons.
+- Swipe up anywhere except on a scrolling notification list to unlock. Text on the lock screen is always light (dark veil).
+- Compile-checked by reading only; not built or tested on a phone. Version 1.0.19 (code 129).
+
+## Step 21c - own lock screen, part 2 of 2
+
+- **Lock screen now also shows:** the music card (same player as the Quick panel: art, title, artist, seek bar, previous / play-pause / next) and your notification cards (same list, swipe a card sideways to remove it). Both follow the Quick panel switches (Settings > Quick panel / Gestures > Volume and media; Notifications in Quick panel). Needs Notification access, as before.
+- **Phone and Camera buttons** now use the icons of the phone's own Phone and Camera apps and open them after unlocking.
+- Tapping a card opens its app and asks Android to unlock. Swiping up on the notification list scrolls it when it is long; swipe up anywhere else to unlock.
+- The panels on the lock screen are always dark so the text stays readable.
+- Compile-checked by reading only; not built or tested on a phone. Version 1.0.19 (code 129).
+
+## Step 21c - own lock screen, part 2 of 2
+
+- **Music card on the lock screen:** the same player as in the Quick panel (art, title, artist, seek bar, previous / play-pause / next). Switch: Settings > Gestures > Volume and media. Tapping it unlocks first.
+- **Notification cards:** the same list as in the Quick panel (swipe a card sideways to remove, Clear all, tap opens the app after unlock). Switch: Notifications in Quick panel. Needs Notification access.
+- **Phone and Camera buttons** now show the icons of the phone's own Phone and Camera apps (fallback: the old round icons).
+- A long notification list scrolls; a swipe up anywhere else still unlocks.
+- Panels on the lock screen are always dark (`Look.forceDark`).
+- Compile-checked by reading only; not built or tested on a phone. Version 1.0.19 (code 129).
+
+## Step 21c - own lock screen, part 2 of 2
+
+- **Music card on the lock screen**: the same player as in the Quick panel (art, title, artist, seek bar, previous / play-pause / next). Shown when Settings > Quick panel cards is on. A tap on it unlocks and opens the playing app.
+- **Notification cards**: the Quick panel's own list (swipe a card sideways to remove it, tap to open the app after unlock, Clear all). Shown when "Notifications in Quick panel" is on and Notification access is allowed. The list scrolls without unlocking; swipe up anywhere else to unlock.
+- **Phone and Camera buttons now use the icons of the phone's own Phone and Camera apps** (fallback: the old purple buttons). They unlock first, then open the app.
+- The panels on the lock screen are always dark (they sit on a dark veil): `Look.forceDark` while the lock screen is open.
+- Compile-checked by reading only; not built or tested on a phone. Version 1.0.19 (code 129).

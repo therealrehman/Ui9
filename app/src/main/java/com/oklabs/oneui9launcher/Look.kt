@@ -22,8 +22,12 @@ object Look {
     private var systemDark = true
 
     /** True while the panels are dark. */
+    /** Step 21c: the lock screen sits on a dark veil, so while it is open the panels on it are always dark. */
+    @Volatile
+    var forceDark = false
+
     val dark: Boolean
-        get() = when (mode) {
+        get() = if (forceDark) true else when (mode) {
             LIGHT -> false
             DARK -> true
             else -> systemDark

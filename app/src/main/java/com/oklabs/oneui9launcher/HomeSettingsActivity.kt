@@ -869,7 +869,7 @@ class HomeSettingsActivity : Activity() {
         )
         kit.note(
             box,
-            "Clock and date, swipe up to unlock, and Phone and Camera buttons. Music and notification cards come in the next update."
+            "Clock and date, the music card, your notifications (same switches as the Quick panel), swipe up to unlock, and the phone's own Phone and Camera apps."
         )
         kit.note(
             box,
