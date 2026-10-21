@@ -56,6 +56,11 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.APP_CALENDAR" />
         </intent>
+        <!-- Step 20: the Quick panel's music player shows (and opens) the phone's own music app. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.APP_MUSIC" />
+        </intent>
     </queries>
 
     <application

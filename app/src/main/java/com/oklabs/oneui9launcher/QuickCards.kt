@@ -89,12 +89,6 @@ class QuickCards(context: Context, private val say: (String) -> Unit, private va
         val c = context
         addView(deviceRow(), LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
-        buildMediaCard()
-        mediaCard.visibility = GONE
-        val mp = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        mp.topMargin = c.dp(12)
-        addView(mediaCard, mp)
-
         val volume = buildVolumeCard()
         val vp = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         vp.topMargin = c.dp(12)
@@ -442,17 +436,6 @@ class QuickCards(context: Context, private val say: (String) -> Unit, private va
             receiverOn = true
         } catch (e: Exception) {
             // the sliders then only update when the panel opens
-        }
-        // Media sessions can only be read with Notification access.
-        if (Badges.accessGranted(context)) {
-            try {
-                sessions?.addOnActiveSessionsChangedListener(sessionsListener, listenerComponent)
-                pick(sessions?.getActiveSessions(listenerComponent) ?: emptyList())
-            } catch (e: SecurityException) {
-                mediaCard.visibility = GONE
-            } catch (e: Exception) {
-                mediaCard.visibility = GONE
-            }
         }
     }
 

@@ -30,6 +30,8 @@ class QuickNotifs(
     context: Context,
     /** Step 17a: true on the full-screen Notifications page (no heading, the list fills the space, a big centred "No notifications"). */
     private val fullPage: Boolean = false,
+    /** Step 20: in the Quick panel's lower area the list takes all the space that is left (down to the bottom of the screen). */
+    private val fillSpace: Boolean = false,
     private val onLeave: () -> Unit
 ) : LinearLayout(context) {
 
@@ -73,8 +75,27 @@ class QuickNotifs(
         } else {
             val sp = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             sp.topMargin = context.dp(8)
+            if (fillSpace) {
+                sp.weight = 1f
+                scroller.isFillViewport = true
+            }
             addView(scroller, sp)
         }
+    }
+
+    /** Step 20: same as [scrollsAt], for a touch given in screen coordinates (the panel's lower area sits deeper in the layout). */
+    fun scrollsAtRaw(rawX: Float, rawY: Float): Boolean {
+        val r = Rect()
+        if (!scroller.getGlobalVisibleRect(r)) return false
+        return r.contains(rawX.toInt(), rawY.toInt()) && (scroller.canScrollVertically(1) || scroller.canScrollVertically(-1))
+    }
+
+    /** Step 20: same as [cardsAt], in screen coordinates. */
+    fun cardsAtRaw(rawX: Float, rawY: Float): Boolean {
+        if (Notifs.current().isEmpty() || !Badges.accessGranted(context)) return false
+        val r = Rect()
+        if (!scroller.getGlobalVisibleRect(r)) return false
+        return r.contains(rawX.toInt(), rawY.toInt())
     }
 
     /** True when a vertical touch at ([x], [y]) (in this view's parent's coordinates) is on a list that can scroll: the panel must not take it as "swipe up to close". */
@@ -332,7 +353,9 @@ class QuickNotifs(
     /** A scroll view that never grows taller than [maxPx]. */
     private class CappedScroll(context: Context, private val maxPx: Int) : ScrollView(context) {
         override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-            super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(maxPx, MeasureSpec.AT_MOST))
+            // Step 20: when the parent gives an exact height (the list fills the space), keep it.
+            val h = if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.EXACTLY) heightMeasureSpec else MeasureSpec.makeMeasureSpec(maxPx, MeasureSpec.AT_MOST)
+            super.onMeasure(widthMeasureSpec, h)
         }
 
         // Inside the panel's own scrolling: a long list scrolls itself first.

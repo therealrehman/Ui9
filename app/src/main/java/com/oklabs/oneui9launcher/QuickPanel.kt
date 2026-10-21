@@ -165,6 +165,7 @@ class QuickPanel(
     private var editor: QuickEditor? = null
     private var notifs: QuickNotifs? = null
     private var cards: QuickCards? = null
+    private var player: QuickPlayer? = null
     private var notifsWatching = false
     private val notifsListener: () -> Unit = { notifs?.bind() }
     private var insetTop = 0
@@ -177,22 +178,26 @@ class QuickPanel(
         private val slop = ViewConfiguration.get(context).scaledTouchSlop
         private var downX = 0f
         private var downY = 0f
+        private var rawDownX = 0f
+        private var rawDownY = 0f
 
         override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
             when (ev.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     downX = ev.x
                     downY = ev.y
+                    rawDownX = ev.rawX
+                    rawDownY = ev.rawY
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dy = downY - ev.y
-                    if (editor == null && slider?.isDragging != true && !body.canScrollVertically(1) && !(notifs?.scrollsAt(downX, downY) ?: false) && dy > slop * 2 && dy > abs(ev.x - downX) * 1.5f) {
+                    if (editor == null && slider?.isDragging != true && !body.canScrollVertically(1) && !(notifs?.scrollsAtRaw(rawDownX, rawDownY) ?: false) && dy > slop * 2 && dy > abs(ev.x - downX) * 1.5f) {
                         close(true)
                         return true
                     }
                     val dx = ev.x - downX
                     if (editor == null && slider?.isDragging != true && dx < -slop * 3f && -dx > abs(ev.y - downY) * 2f &&
-                        !(notifs?.cardsAt(downX, downY) ?: false)
+                        !(notifs?.cardsAtRaw(rawDownX, rawDownY) ?: false)
                     ) {
                         onSwitchPage?.invoke()
                         return true
@@ -241,15 +246,17 @@ class QuickPanel(
         body.isVerticalScrollBarEnabled = false
         body.overScrollMode = View.OVER_SCROLL_NEVER
         body.addView(content, ViewGroup.LayoutParams(MATCH, WRAP))
-        card.addView(body, LinearLayout.LayoutParams(MATCH, WRAP))
-        addView(card, LayoutParams(width, WRAP, Gravity.TOP or Gravity.CENTER_HORIZONTAL))
+        // Step 20: the panel is as tall as the screen; its lower area (player + notifications) takes the space that is left.
+        body.isFillViewport = true
+        card.addView(body, LinearLayout.LayoutParams(MATCH, 0, 1f))
+        addView(card, LayoutParams(width, MATCH, Gravity.TOP or Gravity.CENTER_HORIZONTAL))
         setInsets(0)
     }
 
     /** The status bar height, so the clock sits below it. */
     fun setInsets(top: Int) {
         insetTop = top
-        card.setPadding(context.dp(18), top + context.dp(12), context.dp(18), context.dp(12))
+        card.setPadding(context.dp(18), top + context.dp(12), context.dp(18), context.dp(26))
         // the panel never grows past the screen: below this it scrolls
         body.maxPx = (context.resources.displayMetrics.heightPixels - top - context.dp(64)).coerceAtLeast(context.dp(200))
     }
@@ -318,10 +325,15 @@ class QuickPanel(
 
         if (!brightnessOnTop()) addBrightness(c, 18)
 
-        // Volume and media cards (Step 16d), then the notifications (Step 16c): under the brightness slider.
+        // Volume card (Step 16d), then the lower area (Step 20): the music player and the notifications in one frosted box
+        // that stretches down to the bottom of the screen.
         cards?.stop()
         cards = null
-        if (context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getBoolean(QuickCards.PREF_KEY, true)) {
+        player?.stop()
+        player = null
+        notifs = null
+        val cardsOn = context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getBoolean(QuickCards.PREF_KEY, true)
+        if (cardsOn) {
             val k = QuickCards(c, { Toast.makeText(c, it, Toast.LENGTH_SHORT).show() }) { close(false) }
             cards = k
             val kp = LinearLayout.LayoutParams(MATCH, WRAP)
@@ -329,14 +341,33 @@ class QuickPanel(
             content.addView(k, kp)
             if (isOpen) k.start() // the panel is already showing (back from the editor)
         }
-        notifs = null
+        val lower = LinearLayout(c)
+        lower.orientation = LinearLayout.VERTICAL
+        lower.setPadding(c.dp(10), c.dp(10), c.dp(10), c.dp(10))
+        lower.minimumHeight = c.dp(240)
+        lower.background = GradientDrawable().apply {
+            setColor(Look.glass(70))
+            cornerRadius = c.dpf(30f)
+            setStroke(c.dp(1), Look.inkA(22))
+        }
+        if (cardsOn) {
+            val p = QuickPlayer(c) { close(false) }
+            player = p
+            lower.addView(p, LinearLayout.LayoutParams(MATCH, WRAP))
+            if (isOpen) p.start()
+        }
         if (prefsOn()) {
-            val n = QuickNotifs(c) { close(false) }
+            val n = QuickNotifs(c, false, true) { close(false) }
             n.bind()
             notifs = n
-            val np = LinearLayout.LayoutParams(MATCH, WRAP)
-            np.topMargin = c.dp(18)
-            content.addView(n, np)
+            val np = LinearLayout.LayoutParams(MATCH, WRAP, 1f)
+            np.topMargin = c.dp(if (cardsOn) 14 else 0)
+            lower.addView(n, np)
+        }
+        if (lower.childCount > 0) {
+            val lp = LinearLayout.LayoutParams(MATCH, WRAP, 1f)
+            lp.topMargin = c.dp(14)
+            content.addView(lower, lp)
         }
 
         // A little grab bar: it says "swipe up to close".
@@ -496,6 +527,8 @@ class QuickPanel(
         notifs = null
         cards?.stop()
         cards = null
+        player?.stop()
+        player = null
         val e = QuickEditor(context, { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }) { ids ->
             QuickTiles.save(context, ids)
             finishEdit()
@@ -537,6 +570,7 @@ class QuickPanel(
         system.onChanged = { refresh() }
         watchPhone()
         cards?.start()
+        player?.start()
         if (!notifsWatching) {
             notifsWatching = true
             Notifs.addListener(notifsListener)
@@ -557,6 +591,7 @@ class QuickPanel(
         scrim.animate().cancel()
         unwatchPhone()
         cards?.stop()
+        player?.stop()
         if (notifsWatching) {
             notifsWatching = false
             Notifs.removeListener(notifsListener)
@@ -622,6 +657,7 @@ class QuickPanel(
     override fun onDetachedFromWindow() {
         unwatchPhone()
         cards?.stop()
+        player?.stop()
         if (notifsWatching) {
             notifsWatching = false
             Notifs.removeListener(notifsListener)
@@ -734,6 +770,8 @@ class CappedScrollView(context: Context) : android.widget.ScrollView(context) {
     var maxPx: Int = Int.MAX_VALUE
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        super.onMeasure(widthMeasureSpec, View.MeasureSpec.makeMeasureSpec(maxPx, View.MeasureSpec.AT_MOST))
+        // Step 20: an exact height from the parent (the panel fills the screen) is kept.
+        val h = if (View.MeasureSpec.getMode(heightMeasureSpec) == View.MeasureSpec.EXACTLY) heightMeasureSpec else View.MeasureSpec.makeMeasureSpec(maxPx, View.MeasureSpec.AT_MOST)
+        super.onMeasure(widthMeasureSpec, h)
     }
 }

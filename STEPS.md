@@ -626,3 +626,14 @@ bash push.sh                                                    # every later st
 
 `bitrise.yml` in the project root is the cloud workflow: clone, `assembleDebug`, publish the APK (workflow `primary`).
 The `release` workflow does the same for the signed release APK (see Step 10d).
+
+## Step 20 - music player in the Quick panel's lower area
+
+- **A music player now sits in the lower area of the Quick panel**, above the notifications (the area under the volume slider). It is always there:
+  while something plays it shows the art, title, artist, a seek bar (tap or drag to jump) and previous / play-pause / next; a tap on the card opens the playing app.
+  What is playing needs Notification access (same as before).
+- **When nothing plays** it shows the phone's own music app (its icon and name, "Tap to open"). The three buttons then send the phone's media keys.
+- **The lower area is one frosted box that stretches to the bottom of the screen**: the player on top, the Notifications list under it taking all the space that is left.
+  The panel is now as tall as the screen; the Media output / Devices row and the volume card stay above it. Switch the player off with Settings > Gestures > Volume and media.
+- The old media card between Media output and the volume card is gone (the player replaces it).
+- Compile-checked only by reading; not built or tested on a real phone. Version 1.0.16 (code 126).
