@@ -10,7 +10,7 @@ cd ~/storage/downloads && unzip -oq "$(ls -t OneUI9Launcher-step01*.zip | head -
 ```
 
 Each new step ships as a full project zip. Use the same command with the new zip name
-(step02, step03, step04, step05a, step05b, step05c, step06a, step06b1, step06b2, step06c1, step06c2, step07a, step07b, step07c, step08a, step08b, step08c, step08d, step09a, step09b, step10a, step10b, step10c, step10d, step11, step12, step13, step14, step15, step16a, step16b, step16c, step16d, step16e, step17a, step17b, step17c). Your `local.properties` is kept between steps.
+(step02, step03, step04, step05a, step05b, step05c, step06a, step06b1, step06b2, step06c1, step06c2, step07a, step07b, step07c, step08a, step08b, step08c, step08d, step09a, step09b, step10a, step10b, step10c, step10d, step11, step12, step13, step14, step15, step16a, step16b, step16c, step16d, step16e, step17a, step17b, step17c, step18). Your `local.properties` is kept between steps.
 
 ## Status
 
@@ -64,6 +64,7 @@ Each new step ships as a full project zip. Use the same command with the new zip
 | 17a | Notifications page: full-screen page over the blurred wallpaper, time + date top left, cards, centred "No notifications", Notification settings + Clear all at the bottom | DONE |
 | 17b | Quick panel full-screen look: header (time + date, pencil / power / gear), wide Wi-Fi + Bluetooth tiles, round buttons, sliders with a moon / speaker button, cards | DONE |
 | 17c | Panel edit look ("Panel settings - Touch and hold to change order - Done") and swipe between the Quick panel and the Notifications page | DONE |
+| 18 | Fixes after testing: crash on opening the Notifications page twice, blurred Home screen behind the panels, dark frosted buttons and cards | DONE |
 
 ## Step 1 - what is in it
 
@@ -586,6 +587,19 @@ Under the brightness slider (above the notifications) the panel now has three mo
 - **Swipe between the two panels:** on the Quick panel swipe **left** to go to the Notifications page; on the Notifications page swipe **right** to come back. No trip through the Home screen in between.
   A sideways swipe that starts on a notification card still just removes that card, and a swipe on a slider moves the slider. The swipe to the Notifications page only works when "Notification panel" is *Launcher's page* (Settings > Quick panel).
 - The Quick panel and Notifications page plan (Step 17) is **complete**. Not done: a finger-follow pull-down, the second page of buttons. Compile-checked only; not tested on a real phone. Version 1.0.13 (code 123).
+
+## Step 18 - fixes after testing (crash, blur, frosted look)
+
+- **Crash fixed** ("The specified child already has a parent", `NotificationPage.build`): the page reused its "Clear all" button every time it opened,
+  and the second opening tried to add a button that still sat in the old row. It now makes a new button each time. A safety net also stops
+  any other drawing problem on that page from closing the launcher (it shows a message instead).
+- **The Home screen behind the Quick panel and the Notifications page is blurred**: its icons, widgets and dock are blurred by the launcher
+  itself (Android 12+), so it works even on phones that switch the wallpaper blur off (some vivo / battery-saver cases). It follows
+  Settings > Blur.
+- **Darker veil when the phone can not blur the wallpaper**: then the wallpaper stays sharp, so the dark layer over it is stronger.
+- **Dark frosted look like the reference**: the buttons that are off, the sliders' empty track, the volume / media cards, the notification
+  cards and the pills are now dark translucent glass (white / milky in light mode); buttons that are on stay bright.
+- Not tested on a real phone: compile-checked only. Version 1.0.14 (code 124).
 
 ## Cloud build (Bitrise) - no Termux build needed
 

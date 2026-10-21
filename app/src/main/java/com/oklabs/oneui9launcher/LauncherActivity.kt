@@ -19,6 +19,8 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Rect
+import android.graphics.RenderEffect
+import android.graphics.Shader
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -672,6 +674,7 @@ class LauncherActivity : Activity() {
      */
     private fun applyBlur() {
         if (Build.VERSION.SDK_INT < 31 || !::apps.isInitialized) return
+        applyContentBlur()
         val level = maxOf(apps.progress, overlayBlur)
         val allowed = blurOn() && windowManager.isCrossWindowBlurEnabled
         val radius = if (allowed) (level * dp(BLUR_DP)).toInt() else 0
@@ -681,6 +684,27 @@ class LauncherActivity : Activity() {
             window.setBackgroundBlurRadius(radius)
         } catch (e: Exception) {
             // the phone can not blur: nothing to do
+        }
+    }
+
+    /**
+     * Step 18: while a panel, folder or the widget picker is open, the icons, widgets and dock of the Home screen behind it are
+     * blurred too (the launcher's own picture), not only the wallpaper. This works on every Android 12+ phone, also where the
+     * phone refuses to blur the wallpaper.
+     */
+    private var appliedContentBlur = -1f
+
+    private fun applyContentBlur() {
+        if (Build.VERSION.SDK_INT < 31 || !::homeLayer.isInitialized) return
+        val radius = if (blurOn()) overlayBlur * dp(CONTENT_BLUR_DP) else 0f
+        if (abs(radius - appliedContentBlur) < 0.5f) return
+        appliedContentBlur = radius
+        try {
+            homeLayer.setRenderEffect(
+                if (radius < 0.5f) null else RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP)
+            )
+        } catch (e: Exception) {
+            // the phone can not blur views: nothing to do
         }
     }
 
@@ -1198,7 +1222,16 @@ class LauncherActivity : Activity() {
             dragLayer.isTouchActive || edgePanel.isOpen || quickPanel.isOpen || notifPage.isOpen
         ) return
         dragLayer.dismiss()
-        notifPage.open()
+        try {
+            notifPage.open()
+        } catch (e: Exception) {
+            // Safety net (Step 18): never let a drawing problem in the page take the whole launcher down.
+            try {
+                notifPage.close(animated = false)
+            } catch (ignored: Exception) {
+            }
+            toast("Could not open the notifications page")
+        }
     }
 
     /** "Notification settings" on the page: the phone's notification settings (the first screen the phone has). */
@@ -1855,6 +1888,9 @@ class LauncherActivity : Activity() {
         const val SWIPE_SPLIT = 2
         const val KEY_BLUR = "blur"
         const val BLUR_DP = 28
+
+        /** Blur of the Home screen's own icons behind a panel (Step 18). */
+        const val CONTENT_BLUR_DP = 9
         const val KEY_DOCK_COLOR = "dock_color"
         const val KEY_DOCK_OPACITY = "dock_opacity"
         const val KEY_DOCK_GRADIENT = "dock_gradient"

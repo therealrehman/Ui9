@@ -47,7 +47,7 @@ class NotificationPage(
 
     private val veil = View(context)
     private val column = Column(context)
-    private val clearButton = TextView(context)
+    private var clearButton = TextView(context)
     private var notifs: QuickNotifs? = null
     private var watching = false
     private var closing = false
@@ -183,6 +183,9 @@ class NotificationPage(
             close(false)
         })
         bar.addView(View(c), LinearLayout.LayoutParams(0, c.dp(1), 1f))
+        // A new button every time the page is built: the old one is still inside the old bar, and a view with a parent can not be added again
+        // (that was the "specified child already has a parent" crash on the second opening).
+        clearButton = TextView(c)
         clearButton.text = "Clear all"
         styleAsPill(clearButton)
         clearButton.setOnClickListener { Notifs.clearAll() }
@@ -206,7 +209,7 @@ class NotificationPage(
         button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
         button.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         button.setPadding(context.dp(16), context.dp(10), context.dp(16), context.dp(10))
-        button.background = roundRect(Look.inkA(38), context.dpf(22f))
+        button.background = roundRect(Look.glass(115), context.dpf(22f))
         button.isClickable = true
     }
 
@@ -229,6 +232,8 @@ class NotificationPage(
             Notifs.addListener(listener)
         }
         visibility = View.VISIBLE
+        // Without a working window blur the wallpaper stays sharp, so the dark veil is stronger to hide it.
+        veil.setBackgroundColor(Look.veil(if (context.windowBlurWorks()) 140 else 195))
         veil.alpha = 0f
         column.alpha = 0f
         column.translationY = -context.dp(48).toFloat()

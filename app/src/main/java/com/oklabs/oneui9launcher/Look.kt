@@ -67,6 +67,12 @@ object Look {
     /** Soft highlights, rings and field backgrounds: white in dark mode, black in light mode, with transparency [alpha]. */
     fun inkA(alpha: Int): Int = if (dark) Color.argb(alpha, 255, 255, 255) else Color.argb(alpha, 0, 0, 0)
 
+    /**
+     * Step 18: the dark "frosted glass" behind the panel buttons and cards (like the reference phone): a deep dark tint in dark mode,
+     * milky white in light mode, with transparency [alpha] so the blurred wallpaper shines through.
+     */
+    fun glass(alpha: Int): Int = if (dark) Color.argb(alpha, 14, 10, 30) else Color.argb(alpha, 255, 255, 255)
+
     /** Colour of a floating panel (card, sheet, menu) with transparency [alpha]. */
     fun panel(alpha: Int): Int =
         if (dark) Color.argb(alpha, 34, 36, 44) else Color.argb(alpha, 250, 251, 254)

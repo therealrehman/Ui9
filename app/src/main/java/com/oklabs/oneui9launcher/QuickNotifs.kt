@@ -56,7 +56,7 @@ class QuickNotifs(
         clearAll.setTextColor(Look.text)
         clearAll.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
         clearAll.setPadding(context.dp(14), context.dp(7), context.dp(14), context.dp(7))
-        clearAll.background = roundRect(Look.inkA(34), context.dpf(18f))
+        clearAll.background = roundRect(Look.glass(110), context.dpf(18f))
         clearAll.isClickable = true
         clearAll.setOnClickListener { Notifs.clearAll() }
         head.addView(clearAll, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
@@ -133,7 +133,7 @@ class QuickNotifs(
         row.orientation = HORIZONTAL
         row.gravity = Gravity.CENTER_VERTICAL
         row.setPadding(c.dp(16), c.dp(14), c.dp(16), c.dp(14))
-        row.background = roundRect(Look.inkA(26), c.dpf(22f))
+        row.background = roundRect(Look.glass(115), c.dpf(22f))
         val label = TextView(c)
         label.text = text
         label.setTextColor(Look.textA(200))
@@ -237,7 +237,7 @@ class QuickNotifs(
             orientation = HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(context.dp(14), context.dp(11), context.dp(14), context.dp(11))
-            background = roundRect(Look.inkA(30), context.dpf(22f))
+            background = roundRect(Look.glass(115), context.dpf(22f))
             isClickable = true
 
             val icon = ImageView(context)

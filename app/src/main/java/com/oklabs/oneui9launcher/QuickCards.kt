@@ -124,13 +124,13 @@ class QuickCards(context: Context, private val say: (String) -> Unit, private va
         box.orientation = HORIZONTAL
         box.gravity = Gravity.CENTER_VERTICAL
         box.setPadding(c.dp(10), 0, c.dp(10), 0)
-        box.background = roundRect(Look.inkA(34), c.dpf(31f))
+        box.background = roundRect(Look.glass(110), c.dpf(31f))
         box.isClickable = true
         box.setOnClickListener { onTap() }
         val circle = FrameLayout(c)
         circle.background = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
-            setColor(Look.inkA(30))
+            setColor(Look.glass(90))
         }
         val glyph = QuickGlyph(c, glyphKind)
         glyph.tint = Look.textA(225)
@@ -233,7 +233,7 @@ class QuickCards(context: Context, private val say: (String) -> Unit, private va
         mediaCard.orientation = HORIZONTAL
         mediaCard.gravity = Gravity.CENTER_VERTICAL
         mediaCard.setPadding(c.dp(12), c.dp(12), c.dp(8), c.dp(12))
-        mediaCard.background = roundRect(Look.inkA(30), c.dpf(26f))
+        mediaCard.background = roundRect(Look.glass(110), c.dpf(26f))
         mediaCard.isClickable = true
         mediaCard.setOnClickListener { openPlayer() }
 

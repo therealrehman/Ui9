@@ -64,7 +64,7 @@ class PillSlider(context: Context, glyphKind: Int) : FrameLayout(context) {
     private var accepted = false
 
     init {
-        track.background = roundRect(Look.inkA(40), context.dpf(HEIGHT_DP / 2f))
+        track.background = roundRect(Look.glass(110), context.dpf(HEIGHT_DP / 2f))
         fill.background = roundRect(Look.text, context.dpf(HEIGHT_DP / 2f))
         addView(track, LayoutParams(MATCH, MATCH))
         addView(fill, LayoutParams(0, MATCH))
@@ -523,6 +523,8 @@ class QuickPanel(
             Notifs.addListener(notifsListener)
         }
         visibility = View.VISIBLE
+        // Without a working window blur the wallpaper stays sharp, so the dark veil is stronger to hide it.
+        scrim.setBackgroundColor(Look.veil(if (context.windowBlurWorks()) 150 else 200))
         scrim.alpha = 0f
         card.translationY = -context.resources.displayMetrics.heightPixels.toFloat()
         scrim.animate().alpha(1f).setDuration(220).start()
@@ -666,10 +668,10 @@ class QuickPanel(
                 val onBg = Look.text
                 val onFg = if (Look.dark) Color.rgb(24, 26, 32) else Color.WHITE
                 if (wide) {
-                    background = roundRect(if (on) onBg else Look.inkA(34), c.dpf(31f))
-                    circle.background = oval(if (on) Color.argb(34, Color.red(onFg), Color.green(onFg), Color.blue(onFg)) else Look.inkA(30))
+                    background = roundRect(if (on) onBg else Look.glass(110), c.dpf(31f))
+                    circle.background = oval(if (on) Color.argb(34, Color.red(onFg), Color.green(onFg), Color.blue(onFg)) else Look.glass(90))
                 } else {
-                    circle.background = oval(if (on) onBg else Look.inkA(34))
+                    circle.background = oval(if (on) onBg else Look.glass(115))
                 }
                 glyph.tint = if (on) onFg else Look.textA(225)
                 if (wide) {
