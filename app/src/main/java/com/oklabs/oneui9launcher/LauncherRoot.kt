@@ -7,6 +7,7 @@ import android.view.VelocityTracker
 import android.view.ViewConfiguration
 import android.widget.FrameLayout
 import kotlin.math.abs
+import kotlin.math.max
 
 /**
  * Root of the launcher. It owns the vertical swipe that opens and closes the Apps screen:
@@ -30,6 +31,13 @@ class LauncherRoot(context: Context) : FrameLayout(context) {
 
     /** Set by the activity right after it creates the Edge panel (Step 9b). While it is open it owns the screen. */
     lateinit var edge: EdgePanel
+
+    /** Set by the activity right after it creates the Quick panel (Step 16a). While it is open it owns the screen. */
+    lateinit var quick: QuickPanel
+
+    /** Where across the screen (0 = left edge, 1 = right edge) the latest touch went down: a swipe down on the right half opens the Quick panel. */
+    var downFraction = 0.5f
+        private set
 
     /** Set by the activity right after it creates the resize frame (resize mode for a widget). */
     lateinit var resize: ResizeLayer
@@ -118,10 +126,12 @@ class LauncherRoot(context: Context) : FrameLayout(context) {
         if (folders.isOpen || editMode()) return false
         if (::picker.isInitialized && picker.isOpen) return false
         if (::edge.isInitialized && edge.isOpen) return false
+        if (::quick.isInitialized && quick.isOpen) return false
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 downX = ev.x
                 downY = ev.y
+                downFraction = ev.x / max(1, width)
                 dragging = false
                 swipeDown = false
                 tracker?.recycle()

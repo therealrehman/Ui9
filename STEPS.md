@@ -10,7 +10,7 @@ cd ~/storage/downloads && unzip -oq "$(ls -t OneUI9Launcher-step01*.zip | head -
 ```
 
 Each new step ships as a full project zip. Use the same command with the new zip name
-(step02, step03, step04, step05a, step05b, step05c, step06a, step06b1, step06b2, step06c1, step06c2, step07a, step07b, step07c, step08a, step08b, step08c, step08d, step09a, step09b, step10a, step10b, step10c, step10d, step11, step12, step13, step14). Your `local.properties` is kept between steps.
+(step02, step03, step04, step05a, step05b, step05c, step06a, step06b1, step06b2, step06c1, step06c2, step07a, step07b, step07c, step08a, step08b, step08c, step08d, step09a, step09b, step10a, step10b, step10c, step10d, step11, step12, step13, step14, step15, step16a, step16b, step16c, step16d, step16e). Your `local.properties` is kept between steps.
 
 ## Status
 
@@ -53,6 +53,13 @@ Each new step ships as a full project zip. Use the same command with the new zip
 | 12 | Look like the reference: 12a colourful system-app icons + rounder squircle, 12b Apps screen in left/right pages | DONE |
 | 13 | Settings app + Apps screen grid options + more icons + Contact / policies inside the app | DONE |
 | 14 | Gradient glass backgrounds for the clock / date widgets: 5 themes (Aurora, Sunset, Ocean, Forest, Midnight) | DONE |
+| 15 | Dock gradients, gradient wallpapers, search bar gradient | DONE |
+| 16 | Quick panel (Samsung One UI style, customizable): 5 parts | in progress (16c-16e left) |
+| 16a | Quick panel part 1: the panel itself (swipe down), buttons that work, brightness slider, "Swipe down opens" setting | DONE |
+| 16b | Quick panel part 2: edit the buttons (Done / Reset, active buttons + Available buttons, drag to add / remove / reorder, more buttons) | DONE |
+| 16c | Quick panel part 3: notifications list inside the panel (swipe away, clear all, tap to open) | todo |
+| 16d | Quick panel part 4: volume + media cards, Media output, Device control row | todo |
+| 16e | Quick panel part 5: Panel settings (left-side panel, brightness position, reset layout), polish, optional system-wide mode | todo |
 
 ## Step 1 - what is in it
 
@@ -463,6 +470,90 @@ Each new step ships as a full project zip. Use the same command with the new zip
 - **Search bar gradient.** Settings > Home screen > Search > **Search bar gradient**: None + the same 12 gradients. The Home search pill becomes a left-to-right
   glass gradient (about 75% clear, hairline light edge); None = the old soft white glass. Saved key `search_gradient`. The Apps screen's own search pill is unchanged.
 - Version 1.0.5 (code 115).
+
+## Step 16a - Quick panel, part 1 of 5
+
+- **Swipe down on Home** now has a setting: Settings > Gestures > **Swipe down opens**: Notifications (the phone's own panel, as before) / Quick panel / **Split** (default).
+  Split = swipe down on the **left half** for notifications, on the **right half** for the Quick panel (like One UI's "Separate" panel). The old on / off switch is still there.
+- **The Quick panel** slides down from the top (blurred wallpaper behind it on Android 12+, dark / light like the other panels): time and date, a gear (opens the phone's Settings),
+  two wide buttons, a grid of round buttons, the brightness slider and a grab bar. Tap outside, swipe up, Back or Home closes it.
+- **Buttons (10):** Wi-Fi, Bluetooth (wide), Mobile data, Flight mode, Sound (Sound > Vibrate > Mute), Torch, Auto rotate, Do not disturb, Location, Mobile hotspot.
+  All icons are drawn in code (`QuickGlyph.kt`). A lit button = on. The state updates by itself while the panel is open.
+- **What really switches, and what cannot (Android rule, not a bug):**
+  - Work directly: **Torch**, **Sound mode** (Mute asks for Do-not-disturb access once), **Auto rotate** (asks "Modify system settings" once), **Do not disturb** (asks DND access once), **Brightness** (same one-time "Modify system settings").
+  - Show the real state, then **open the phone's own small panel** on tap (long-press = the full settings page): Wi-Fi, Bluetooth, Mobile data, Flight mode, Location, Hotspot. Android does not let a normal app switch these; only the system or Shizuku / root can.
+  - Mobile data shows "On" when a mobile-data network exists; Hotspot has no state (Android hides it).
+- New permissions (all documented in Permissions and data use + `docs/privacy-policy.html` + PLAY_STORE.md): ACCESS_WIFI_STATE, ACCESS_NETWORK_STATE, BLUETOOTH (API 30-), WRITE_SETTINGS, ACCESS_NOTIFICATION_POLICY.
+- Saved keys: `swipe_down_mode` (0 Notifications, 1 Quick panel, 2 Split), `qp_tiles` (the button order; 16b makes it editable). Backup and restore carry both.
+- **Only on the Home screen:** the panel is part of the launcher, so it opens from the Home screen only. Opening it over other apps (replacing the system panel) would need an Accessibility service: planned as an optional extra in 16e, not promised.
+- **Left for 16b-16e:** editing the buttons, notifications inside the panel, volume + media + device cards, panel settings, finger-follow pull-down. Not tested on a real phone; compile-checked only.
+- Version 1.0.6 (code 116).
+
+## Step 16b - Quick panel, part 2 of 5 (edit the buttons)
+
+- **Pencil** in the Quick panel's header (next to the gear) opens **Edit buttons**: the panel's buttons in a box at the top, **Available buttons** in a box under it.
+  - **Move / add:** touch and hold a button, then drag. A white bar shows where it will land in the top box. Drop an available button there = it joins the panel; drop a panel button in another place = it moves.
+  - **Remove:** tap the red minus on a panel button, or drag it out of the top box (it fades while you hold it outside). At least **6** buttons must stay.
+  - **Add by tap:** a tap on an available button puts it at the end of the panel.
+  - The **first two** buttons of the panel are the wide ones (name + state), the rest are round. **Reset** brings back the first ten buttons; **Done** saves; Back / Home / tap outside leaves without saving.
+- **4 new buttons** (14 in all): **Battery saver** (real state; tap opens the phone's battery saver page), **Dark mode** (real state; tap opens Display settings), **Screen cast** (opens the phone's cast settings), **Camera** (opens the camera).
+  A fresh install shows the same ten buttons as 16a; the four new ones wait under "Available buttons". The panel grows by itself when it holds more buttons (no pages yet).
+- The order is saved (`qp_tiles`, same key as 16a) and carried by backup / restore. No new permissions.
+- Not done on purpose: dark mode / battery saver cannot be switched by an app (Android rule), and a separate page of buttons (swipe sideways) is not in this part.
+- Version 1.0.7 (code 117).
+
+## Step 16c - Quick panel, part 3 of 5 (notifications in the panel)
+
+- **Notifications under the brightness slider.** A "Notifications" heading with **Clear all**, then one card per notification, newest first:
+  app icon, app name and age (now / 5m / 3h / 2d), title and text (2 lines). The list scrolls inside the panel when it is long
+  (it never takes more than about a third of the screen height), and a swipe up on the list scrolls it instead of closing the panel.
+- **Swipe a card sideways** to remove it (far enough or a quick flick); it slides away and the phone removes the notification.
+  A notification the app marked "can not be cleared" only wobbles. **Clear all** removes every notification that can be removed.
+- **Tap a card** to open it: the app's own intent runs (the right chat, the right mail), or else the app opens; the panel closes. Cards whose app asked for
+  "remove when tapped" are removed too.
+- **No access yet?** One card says "Allow notification access..." with an **Allow** button that opens the phone's access screen. "No notifications" when the list is empty.
+- **Switch:** Settings > Gestures > **Notifications in Quick panel** (on by default). Off = no title or text is read at all.
+- **Privacy:** same Notification access as the badges. The text is held in memory only while the notifications are showing (up to 40), never saved or sent.
+  Ongoing notifications (music, downloads) and group summaries are not listed; notifications an app marks "secret" are left out.
+  The access dialog, Permissions and data use, `docs/privacy-policy.html` and PLAY_STORE.md (Data safety + permission declaration) now say this.
+- Code: `NotifLogic.kt` (pure rules, JVM-tested), `Notifs.kt` (store + removing), `QuickNotifs.kt` (the list), `BadgeService` also feeds the store. Saved key `qp_notifs`.
+- Not done on purpose: grouping by app, reply / action buttons on a card (16d+ if wanted), the panel over other apps.
+- **Left for 16d-16e:** volume + media cards, Media output, Device control row; panel settings, polish, optional system-wide mode.
+- Version 1.0.8 (code 118). Compile-checked and rules JVM-tested; not tested on a real phone.
+
+## Step 16d - Quick panel, part 4 of 5 (media output, devices, media card, volume)
+
+Under the brightness slider (above the notifications) the panel now has three more things. One switch turns all of them off: Settings > Gestures > **Volume and media in Quick panel** (on by default).
+- **Media output + Devices row.** Two wide buttons. **Media output** shows where the sound goes now (a Bluetooth speaker / headphones by name, "Headphones" for wired, else "Phone")
+  and opens the phone's output switcher. **Devices** opens SmartThings or Google Home when one is installed (its name is shown), else Bluetooth settings.
+  Honest note: Android has no public "switch output" screen, so Media output is best effort: it tries the system's media output panel, then the volume panel, then Bluetooth settings.
+  Real smart-home device controls (lights, locks) need each home app's own Device Controls: not done.
+- **Media card.** Shows only while something is playing (or paused with a title): cover, app name, title, artist, **previous / play-pause / next**. Tap the card to open the player.
+  Needs Notification access (Android only lets a notification listener see media sessions); without it the card just stays hidden. The title is held in memory only, never saved or sent.
+- **Volume card.** A **Media** slider (same pill as brightness) and an arrow that opens **Ring** and **Alarm** sliders. The sliders follow the phone's volume keys while the panel is open.
+  Ring to silent can be refused by Android while Do not disturb limits it: the panel then says so.
+- Code: `CardLogic.kt` (pure rules: slider to volume step, which session to show; JVM-tested), `QuickCards.kt` (the cards), nine new icons in `QuickGlyph.kt` (play, pause, previous, next, output, devices, arrows, bell, alarm). No new permission.
+- Saved key: `qp_cards`. Privacy text updated (access dialog, Permissions and data use, `docs/privacy-policy.html`, PLAY_STORE.md).
+- **Left for 16e:** panel settings (panel on the left side, where brightness sits, reset layout), polish, optional system-wide mode.
+- Version 1.0.9 (code 119). Compile-checked and rules JVM-tested; not tested on a real phone.
+
+## Step 16e - Quick panel, part 5 of 5 (panel settings, polish)
+
+- **Settings > Quick panel** (new page; also a row in Settings > Gestures and on the main page):
+  - **Swipe down opens** (Notifications / Quick panel / Split) - the same switch as in Gestures.
+  - **Quick panel side (Split):** Right half (default) or **Left half**. In Split mode a swipe down on that half opens the Quick panel, on the other half the phone's notifications.
+  - **Brightness slider:** Below the buttons (default) or **Under the clock**.
+  - **Show in the panel:** Notifications, Volume and media (the two switches moved here from Gestures).
+  - **Reset Quick panel** (asks first): the buttons go back to the first ten, slider below the buttons, panel on the right half, notifications and media on again.
+- **Polish:** the panel can no longer grow past the screen: when buttons + cards + notifications are too tall it scrolls inside itself (a swipe up still closes it once it is scrolled to the end,
+  and a long notification list scrolls on its own first). A tiny tick when you tap a button. Saved keys: `qp_left`, `qp_bright_top` (both in backup and restore).
+- Rules JVM-tested: which half opens the panel (`CardLogic.splitOpensQuick`).
+- **Not done (decided):**
+  - **Panel over other apps (system-wide).** It would need an Accessibility service drawing a touch strip over the status bar. I did not build it: it cannot be tested without a real phone, many phones
+    (One UI, MIUI) do not let overlays take the status-bar swipe, and Google Play treats Accessibility services as a restricted permission that needs its own declaration. The Quick panel stays a Home-screen panel.
+  - **Finger-follow pull-down** (the panel following your finger while you drag): the panel opens with a short slide after the swipe is recognised. Needs touch handling in `LauncherRoot`; left out to avoid breaking page swipes.
+  - Separate pages of buttons (swipe sideways), reply buttons on notifications, real smart-home device controls.
+- Quick panel is now **complete for this plan (16a-16e)**. Version 1.0.10 (code 120). Compile-checked; not tested on a real phone.
 
 ## Cloud build (Bitrise) - no Termux build needed
 

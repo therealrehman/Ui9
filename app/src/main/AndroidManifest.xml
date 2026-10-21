@@ -11,6 +11,14 @@
     <uses-permission android:name="android.permission.SET_WALLPAPER_HINTS" />
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
 
+    <!-- Step 16a: the Quick panel. It shows the state of Wi-Fi / Bluetooth / mobile data / location (read-only), and changes
+         brightness, auto rotate and Do not disturb only after the person allows each one in the phone's own settings. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+
     <!-- Android 11+ hides other apps unless declared. These let the launcher see every
          launchable app plus the default Phone / Messages / Browser / Camera / Settings. -->
     <queries>

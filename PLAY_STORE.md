@@ -78,7 +78,7 @@ EXTRAS
 PRIVACY
 OneUI-style home screen, written from scratch by Ok Labs. It has no internet permission, collects nothing and shows no ads.
 Your layout and settings stay on your phone. Notification access and the lock-screen permission are optional and only used for the
-features above: the app only counts notifications and never reads or stores their content.
+features above: the app counts notifications for badges and, if you keep "Notifications in Quick panel" on, shows their title and text in the panel from memory only; nothing is saved or sent.
 
 After installing, press Home and choose this launcher as your default (Always).
 
@@ -114,15 +114,16 @@ I can make the 512 icon and a feature graphic if you ask.
 | Government app / Financial features / Health features | No / None / None |
 | Advertising ID | The app does not use it. Declare "No" |
 
-Data safety note: the app counts notifications locally only and never transmits them. Because nothing leaves the device, answering "No data collected" is correct
+Data safety note: the app reads notifications locally only (counts for badges; title and text for the Quick panel, in memory only, never saved) and never transmits them. Because nothing leaves the device, answering "No data collected" is correct
 as long as you never add internet features. If you add any later, update the form and the policy first.
 
 ## 5. Declarations and review notes (paste into the forms / "Notes for reviewers")
 
 **Notification Listener (badges):**
-"OneUI 9 Launcher is a home-screen launcher. The optional 'Notification badges' feature uses NotificationListenerService only to count active notifications per app
-and draw a dot or number on that app's icon. It never reads, stores or transmits notification text or content, and the app has no INTERNET permission.
-A prominent in-app dialog explains this before Android's Notification access screen opens. The feature is off by default."
+"OneUI 9 Launcher is a home-screen launcher. The optional 'Notification badges' feature uses NotificationListenerService to count active notifications per app
+and draw a dot or number on that app's icon, and (Step 16c, switchable in Settings > Gestures) to list them in the app's Quick panel with swipe-to-remove and tap-to-open, and (Step 16d) to read the active media session (title, artist, cover) for the panel's play / pause / next card.
+Title and text are held in memory only while the notifications are showing; they are never stored or transmitted, and the app has no INTERNET permission.
+A prominent in-app dialog explains this before Android's Notification access screen opens. Notification badges are off by default."
 
 **Device administrator (force-lock only):**
 "The optional 'Double-tap to lock' feature uses the Device Administration API with a single policy, force-lock (res/xml/lock_admin.xml), to lock the screen when the user double-taps
@@ -135,6 +136,11 @@ Core purpose: a launcher must list launchable apps.
 
 **Other permissions:** REQUEST_DELETE_PACKAGES (starts Android's own uninstall dialog from the quick menu), EXPAND_STATUS_BAR (swipe-down opens notification panel),
 SET_WALLPAPER_HINTS (wallpaper scroll). All are user-triggered.
+
+**Quick panel permissions (Step 16a):** ACCESS_WIFI_STATE, ACCESS_NETWORK_STATE and BLUETOOTH (API 30 and older) are read-only: they show on / off on the panel buttons.
+WRITE_SETTINGS (special access, the user grants it in Android's own screen) is used only for the brightness slider and the Auto rotate button.
+ACCESS_NOTIFICATION_POLICY (special access, same) is used only for the Do not disturb and Mute buttons. Core purpose: a Samsung-style quick settings panel inside the Home screen.
+Wi-Fi, Bluetooth, mobile data, flight mode and hotspot are NOT switched by the app (Android does not allow it); those buttons open the phone's own settings panel.
 
 **Reviewer test steps:** Install, press Home, choose the launcher as default. Long-press an empty spot for Widgets / Home settings. Home settings > Notification badges > Dot shows the disclosure dialog.
 No login is needed.

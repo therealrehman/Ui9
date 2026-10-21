@@ -13,7 +13,8 @@ import android.service.notification.StatusBarNotification
 /**
  * Step 9b: notification badges. [BadgeService] counts the notifications that are showing for each app and hands the numbers
  * to [Badges]; every [AppIconView] that has a [AppIconView.badgePackage] asks here and redraws when the numbers change.
- * Only the counts are kept (nothing of a notification's text is read or stored). Needs the phone's "Notification access".
+ * Badges only keep the counts. Step 16c: while "Notifications in Quick panel" is on, the title and text are also held in memory for the panel (see [Notifs]), never saved or sent.
+ * Needs the phone's "Notification access".
  */
 object Badges {
 
@@ -62,7 +63,18 @@ object Badges {
 class BadgeService : NotificationListenerService() {
 
     override fun onListenerConnected() {
+        Notifs.service = this
         recount()
+    }
+
+    override fun onListenerDisconnected() {
+        if (Notifs.service === this) Notifs.service = null
+        Notifs.publish(emptyList())
+    }
+
+    override fun onDestroy() {
+        if (Notifs.service === this) Notifs.service = null
+        super.onDestroy()
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
@@ -76,6 +88,9 @@ class BadgeService : NotificationListenerService() {
     /** Ongoing ones (music player, downloads) and group summaries do not count. */
     private fun recount() {
         val map = HashMap<String, Int>()
+        val list = ArrayList<NotifItem>()
+        // Step 16c: the text is only taken while "Notifications in Quick panel" is on.
+        val forPanel = getSharedPreferences("launcher", MODE_PRIVATE).getBoolean(Notifs.PREF_KEY, true)
         try {
             val showing = activeNotifications
             if (showing != null) {
@@ -84,11 +99,31 @@ class BadgeService : NotificationListenerService() {
                     if (sbn.isOngoing) continue
                     if ((n.flags and Notification.FLAG_GROUP_SUMMARY) != 0) continue
                     map[sbn.packageName] = (map[sbn.packageName] ?: 0) + 1
+                    if (forPanel && n.visibility != Notification.VISIBILITY_SECRET) {
+                        val extras = n.extras
+                        val title = NotifLogic.firstText(extras?.getCharSequence(Notification.EXTRA_TITLE))
+                        val text = NotifLogic.firstText(
+                            extras?.getCharSequence(Notification.EXTRA_TEXT),
+                            extras?.getCharSequence(Notification.EXTRA_BIG_TEXT),
+                            extras?.getCharSequence(Notification.EXTRA_SUB_TEXT)
+                        )
+                        if (title.isNotEmpty() || text.isNotEmpty()) {
+                            list.add(
+                                NotifItem(
+                                    sbn.key, sbn.packageName, title, text,
+                                    if (sbn.postTime > 0L) sbn.postTime else System.currentTimeMillis(),
+                                    sbn.isClearable, n.contentIntent,
+                                    (n.flags and Notification.FLAG_AUTO_CANCEL) != 0
+                                )
+                            )
+                        }
+                    }
                 }
             }
         } catch (e: Exception) {
             // the system may refuse for a moment; the next change counts again
         }
         Badges.publish(map)
+        Notifs.publish(NotifLogic.newestFirst(list) { it.whenMs })
     }
 }

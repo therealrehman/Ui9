@@ -211,8 +211,11 @@ object LegalText {
         ),
         Permission(
             "Notification access",
-            "Only if you turn on notification badges. The app counts how many notifications each app has to draw a dot or a number on its icon. " +
-                "It does not read, store or send the text or content of notifications. You can turn this off at any time in Android Settings.",
+            "Only if you turn on notification badges or “Notifications in Quick panel”. For badges the app counts how many notifications each app has to draw a dot or a number on its icon. " +
+                "For the Quick panel it shows the app name, title and text of the notifications on your screen, with swipe to remove and tap to open, " +
+                "and what is playing (title, artist, cover) with previous / play / next buttons. " +
+                "This is held in memory only while the notifications are showing: it is never saved, shared or sent anywhere (the app has no internet access). " +
+                "You can turn the Quick panel list off in Settings > Gestures, and the access at any time in Android Settings.",
             true
         ),
         Permission(
@@ -239,6 +242,21 @@ object LegalText {
         Permission(
             "Set wallpaper",
             "Only when you tap “Set as wallpaper” in Settings > Wallpaper: the launcher draws the gradient you picked and gives it to Android as your wallpaper. Nothing is read from your photos.",
+            false
+        ),
+        Permission(
+            "Wi-Fi, network and Bluetooth state",
+            "Only to show on the Quick panel whether Wi-Fi, mobile data and Bluetooth are on or off. The app cannot switch them and never reads network names, nearby devices or your location.",
+            false
+        ),
+        Permission(
+            "Modify system settings",
+            "Only when you move the brightness slider or tap Auto rotate on the Quick panel. Android asks you to allow it once in its own screen. The app changes nothing else.",
+            false
+        ),
+        Permission(
+            "Do not disturb access",
+            "Only when you tap Do not disturb or Mute on the Quick panel. Android asks you to allow it once in its own screen. The app does not read your notifications for this.",
             false
         ),
         Permission(

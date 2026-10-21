@@ -71,6 +71,7 @@ class LauncherActivity : Activity() {
     /** True while the zoomed-out edit screen shows (Step 7c). */
     private var editMode = false
     private lateinit var edgePanel: EdgePanel
+    private lateinit var quickPanel: QuickPanel
     private lateinit var edgeHandle: FrameLayout
     private var insetLeft = 0
     private var insetRight = 0
@@ -265,6 +266,7 @@ class LauncherActivity : Activity() {
         buildEditPanel()
         buildWidgetPicker()
         buildEdgePanel()
+        buildQuickPanel()
         buildResizeLayer()
         buildDragLayer()
 
@@ -313,6 +315,7 @@ class LauncherActivity : Activity() {
         folderLayer.close(animated = false)
         widgetPicker.close(animated = false)
         edgePanel.close(animated = false)
+        quickPanel.close(animated = false)
         resizeLayer.close(animated = false)
         exitEditMode(animated = false)
         isForeground = false
@@ -364,6 +367,10 @@ class LauncherActivity : Activity() {
      */
     private fun goHome() {
         if (dragLayer.dismiss()) return // an open quick menu / a drag goes first
+        if (quickPanel.isOpen) { // then the Quick panel (Step 16a)
+            quickPanel.back(animated = isForeground)
+            return
+        }
         if (resizeLayer.isActive) { // then resize mode (the frame around a widget)
             resizeLayer.close(animated = isForeground)
             return
@@ -565,14 +572,14 @@ class LauncherActivity : Activity() {
         root.editMode = { editMode }
         root.pinchEnabled = {
             !editMode && apps.progress == 0f && !folderLayer.isOpen && !widgetPicker.isOpen &&
-                !resizeLayer.isActive && !dragLayer.isTouchActive && !edgePanel.isOpen
+                !resizeLayer.isActive && !dragLayer.isTouchActive && !edgePanel.isOpen && !quickPanel.isOpen
         }
         root.onPinchIn = { enterEditMode() }
         root.swipeDownEnabled = {
             notifSwipeOn() && apps.progress == 0f && !folderLayer.isOpen && !widgetPicker.isOpen && !resizeLayer.isActive &&
-                !edgePanel.isOpen
+                !edgePanel.isOpen && !quickPanel.isOpen
         }
-        root.onSwipeDown = { openNotificationPanel() }
+        root.onSwipeDown = { openSwipeDownPanel() }
         root.addView(
             widgetPicker,
             FrameLayout.LayoutParams(
@@ -671,7 +678,8 @@ class LauncherActivity : Activity() {
     }
 
     private fun animateOverlayBlur() {
-        val open = folderLayer.isOpen || (::widgetPicker.isInitialized && widgetPicker.isOpen)
+        val open = folderLayer.isOpen || (::widgetPicker.isInitialized && widgetPicker.isOpen) ||
+            (::quickPanel.isInitialized && quickPanel.wantsBlur)
         blurAnimator?.cancel()
         val anim = ValueAnimator.ofFloat(overlayBlur, if (open) 1f else 0f)
         anim.duration = 220
@@ -708,6 +716,7 @@ class LauncherActivity : Activity() {
 
         if (::apps.isInitialized) apps.setInsets(insetTop, maxOf(insetBottom, imeBottom))
         if (::folderLayer.isInitialized) folderLayer.setInsets(insetTop, maxOf(insetBottom, imeBottom))
+        if (::quickPanel.isInitialized) quickPanel.setInsets(insetTop)
         if (::widgetPicker.isInitialized) widgetPicker.setInsets(insetTop, maxOf(insetBottom, imeBottom))
         if (::editPanel.isInitialized) {
             (editPanel.layoutParams as FrameLayout.LayoutParams).bottomMargin = maxOf(insetBottom, dp(12)) + dp(28)
@@ -935,7 +944,7 @@ class LauncherActivity : Activity() {
                     updateWallpaperOffset(pager.scrollFraction())
                 },
                 MenuEntry(searchLabel, null) { setShowSearchBar(!showSearchBar()) },
-                MenuEntry(if (notifSwipeOn()) "Swipe down for notifications: On" else "Swipe down for notifications: Off", null) {
+                MenuEntry(if (notifSwipeOn()) "Swipe down on Home: On" else "Swipe down on Home: Off", null) {
                     setPref(KEY_NOTIF_SWIPE, !notifSwipeOn())
                 },
                 MenuEntry(if (lockTapOn()) "Double-tap to lock: On" else "Double-tap to lock: Off", null) {
@@ -1098,6 +1107,48 @@ class LauncherActivity : Activity() {
 
     private fun setPref(key: String, value: Boolean) {
         getSharedPreferences("launcher", MODE_PRIVATE).edit().putBoolean(key, value).apply()
+    }
+
+    /** Settings > Gestures > "Swipe down opens": notifications, the Quick panel, or split (left = notifications, right = Quick panel). */
+    private fun swipeDownMode(): Int =
+        getSharedPreferences("launcher", MODE_PRIVATE).getInt(KEY_SWIPE_MODE, SWIPE_SPLIT).coerceIn(SWIPE_NOTIF, SWIPE_SPLIT)
+
+    private fun openSwipeDownPanel() {
+        val quick = when (swipeDownMode()) {
+            SWIPE_QUICK -> true
+            SWIPE_SPLIT -> CardLogic.splitOpensQuick(root.downFraction, getSharedPreferences("launcher", MODE_PRIVATE).getBoolean(KEY_QP_LEFT, false))
+            else -> false
+        }
+        if (quick) openQuickPanel() else openNotificationPanel()
+    }
+
+    // ---------------------------------------------------------------- quick panel (Step 16a)
+
+    /** The Quick panel: above the Edge panel, below the resize frame and the drag layer. */
+    private fun buildQuickPanel() {
+        val system = QuickSystem(this) { toast(it) }
+        quickPanel = QuickPanel(this, system) {
+            try {
+                startActivity(Intent(Settings.ACTION_SETTINGS))
+            } catch (e: Exception) {
+                toast("Can't open Settings")
+            }
+        }
+        quickPanel.onOpenChanged = { animateOverlayBlur() }
+        root.quick = quickPanel
+        root.addView(
+            quickPanel,
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        )
+        quickPanel.setInsets(insetTop)
+    }
+
+    private fun openQuickPanel() {
+        if (editMode || apps.progress > 0f || folderLayer.isOpen || widgetPicker.isOpen || resizeLayer.isActive ||
+            dragLayer.isTouchActive || edgePanel.isOpen || quickPanel.isOpen
+        ) return
+        dragLayer.dismiss()
+        quickPanel.open()
     }
 
     /** Swipe down on the Home screen: pull the notification panel open (the phone decides how it looks). */
@@ -1724,6 +1775,11 @@ class LauncherActivity : Activity() {
         const val KEY_DOCK_SEEDED = "dock_seeded"
         const val KEY_HOME_SEARCH = "home_search"
         const val KEY_NOTIF_SWIPE = "notif_swipe"
+        const val KEY_SWIPE_MODE = "swipe_down_mode"
+        const val KEY_QP_LEFT = "qp_left"
+        const val SWIPE_NOTIF = 0
+        const val SWIPE_QUICK = 1
+        const val SWIPE_SPLIT = 2
         const val KEY_BLUR = "blur"
         const val BLUR_DP = 28
         const val KEY_DOCK_COLOR = "dock_color"

@@ -158,6 +158,7 @@ class HomeSettingsActivity : Activity() {
             HOME -> homePage()
             APPS -> appsPage()
             DOCK -> dockPage()
+            QUICK -> quickPage()
             WALLPAPER -> wallpaperPage()
             ICONS -> iconsPage()
             LOOK -> lookPage()
@@ -290,6 +291,7 @@ class HomeSettingsActivity : Activity() {
         kit.label(box, "Features")
         kit.card(
             box,
+            kit.row(SettingsTile.GESTURES, SettingsTile.TEAL, "Quick panel", "Side, slider, notifications, media and volume") { go(QUICK) },
             kit.row(SettingsTile.GESTURES, SettingsTile.GREEN, "Gestures", "Swipe down " + onOff(prefs().getBoolean(K_NOTIF_SWIPE, true)) + " · Double-tap lock " + onOff(prefs().getBoolean(K_LOCK_TAP, false))) { go(GESTURES) },
             kit.row(SettingsTile.BADGES, SettingsTile.RED, "Notification badges", listOf("Off", "Dot", "Number")[HomeStore.savedBadgeMode(this)]) { go(BADGES) },
             kit.row(SettingsTile.EDGE, SettingsTile.PURPLE, "Edge panel", onOff(HomeStore.savedEdgeOn(this))) { go(EDGE) },
@@ -616,6 +618,71 @@ class HomeSettingsActivity : Activity() {
         }.start()
     }
 
+    // ------------------------------------------------------------------ Quick panel (Step 16e)
+
+    private fun quickPage(): View = kit.page("Quick panel", { goBack() }) { box ->
+        kit.label(box, "Opening")
+        kit.card(
+            box,
+            kit.chips("Swipe down opens", listOf("Notifications", "Quick panel", "Split"), prefs().getInt(K_SWIPE_MODE, 2).coerceIn(0, 2)) { i ->
+                prefs().edit().putInt(K_SWIPE_MODE, i).apply()
+                changed()
+            },
+            kit.chips("Quick panel side (Split)", listOf("Right half", "Left half"), if (prefs().getBoolean(K_QP_LEFT, false)) 1 else 0) { i ->
+                prefs().edit().putBoolean(K_QP_LEFT, i == 1).apply()
+                changed()
+            }
+        )
+        kit.note(box, "Split: a swipe down on one half of the Home screen opens the Quick panel and on the other half the phone's notifications.")
+
+        kit.label(box, "Layout")
+        kit.card(
+            box,
+            kit.chips("Brightness slider", listOf("Below the buttons", "Under the clock"), if (prefs().getBoolean(K_QP_BRIGHT_TOP, false)) 1 else 0) { i ->
+                prefs().edit().putBoolean(K_QP_BRIGHT_TOP, i == 1).apply()
+                changed()
+            }
+        )
+        kit.note(box, "To add, remove or move the buttons: open the Quick panel and tap the pencil.")
+
+        kit.label(box, "Show in the panel")
+        kit.card(
+            box,
+            kit.toggle(-1, 0, "Notifications", "Your notifications under the sliders. Needs Notification access", prefs().getBoolean(Notifs.PREF_KEY, true)) { on ->
+                prefs().edit().putBoolean(Notifs.PREF_KEY, on).apply()
+                changed()
+                if (on && !Badges.accessGranted(this)) askNotificationAccess()
+            },
+            kit.toggle(-1, 0, "Volume and media", "Media output, Devices, what is playing, and volume sliders. What is playing needs Notification access", prefs().getBoolean(QuickCards.PREF_KEY, true)) { on ->
+                prefs().edit().putBoolean(QuickCards.PREF_KEY, on).apply()
+                changed()
+            }
+        )
+
+        kit.label(box, "Reset")
+        kit.card(
+            box,
+            kit.row(-1, 0, "Reset Quick panel", "Buttons, side and slider position go back to the start") { askResetQuick() }
+        )
+    }
+
+    private fun askResetQuick() {
+        AlertDialog.Builder(this)
+            .setTitle("Reset Quick panel?")
+            .setMessage("The buttons go back to the first ten, the slider goes below the buttons, the Quick panel opens from the right half, and notifications and media are shown again.")
+            .setPositiveButton("Reset") { _, _ ->
+                prefs().edit()
+                    .remove("qp_tiles").remove(K_QP_BRIGHT_TOP).remove(K_QP_LEFT)
+                    .putBoolean(Notifs.PREF_KEY, true).putBoolean(QuickCards.PREF_KEY, true)
+                    .apply()
+                changed()
+                toast("Quick panel is reset")
+                show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
     // ------------------------------------------------------------------ Icons
 
     private fun iconsPage(): View = kit.page("Icons", { goBack() }) { box ->
@@ -675,10 +742,15 @@ class HomeSettingsActivity : Activity() {
     private fun gesturesPage(): View = kit.page("Gestures", { goBack() }) { box ->
         kit.card(
             box,
-            kit.toggle(-1, 0, "Swipe down for notifications", "Swipe down on the Home screen to open the notification panel", prefs().getBoolean(K_NOTIF_SWIPE, true)) { on ->
+            kit.toggle(-1, 0, "Swipe down on the Home screen", "Pull a panel down from the top of the Home screen", prefs().getBoolean(K_NOTIF_SWIPE, true)) { on ->
                 prefs().edit().putBoolean(K_NOTIF_SWIPE, on).apply()
                 changed()
             },
+            kit.chips("Swipe down opens", listOf("Notifications", "Quick panel", "Split"), prefs().getInt(K_SWIPE_MODE, 2).coerceIn(0, 2)) { i ->
+                prefs().edit().putInt(K_SWIPE_MODE, i).apply()
+                changed()
+            },
+            kit.row(-1, 0, "Quick panel settings", "Side, brightness slider, notifications, media and volume") { go(QUICK) },
             kit.toggle(-1, 0, "Double-tap to lock", "Double-tap an empty spot on the Home screen to lock the screen", prefs().getBoolean(K_LOCK_TAP, false)) { on ->
                 if (!on) {
                     prefs().edit().putBoolean(K_LOCK_TAP, false).apply()
@@ -690,6 +762,10 @@ class HomeSettingsActivity : Activity() {
                     askLockAccess()
                 }
             }
+        )
+        kit.note(
+            box,
+            "Quick panel = the Samsung-style buttons panel (Wi-Fi, torch, brightness...). Split = swipe down on the left half for notifications, on the right half for the Quick panel."
         )
         kit.note(
             box,
@@ -734,7 +810,7 @@ class HomeSettingsActivity : Activity() {
                 if (index != HomeStore.BADGE_OFF && !Badges.accessGranted(this)) askNotificationAccess()
             }
         )
-        kit.note(box, "Shows a red dot or the number of notifications on an app's icon. The launcher only counts notifications; it never reads or stores them.")
+        kit.note(box, "Shows a red dot or the number of notifications on an app's icon. The launcher only counts notifications for badges. (Notifications in the Quick panel have their own switch in Settings > Gestures.)")
         kit.label(box, "Access")
         kit.card(
             box,
@@ -750,10 +826,10 @@ class HomeSettingsActivity : Activity() {
         AlertDialog.Builder(this)
             .setTitle("Notification access")
             .setMessage(
-                "To show badges, " + getString(R.string.app_name) + " needs Notification access. " +
-                    "It only counts the notifications of each app on this phone. It never reads, stores or sends " +
-                    "their content, and it has no internet access. Nothing is shown until you allow it. " +
-                    "You can turn it off at any time in the phone's settings."
+                getString(R.string.app_name) + " needs Notification access to show badges and to list your notifications in the Quick panel. " +
+                    "Badges only count the notifications of each app. The Quick panel shows their title and text on the screen, " +
+                    "kept in memory only while they are showing: it never saves or sends them, and the app has no internet access. " +
+                    "Nothing is shown until you allow it. You can turn it off at any time in the phone's settings."
             )
             .setPositiveButton("Continue") { _, _ -> Badges.openAccessSettings(this) }
             .setNegativeButton("Not now", null)
@@ -1293,10 +1369,14 @@ class HomeSettingsActivity : Activity() {
         /** The page of Settings > Wallpaper (the Home screen menu opens it with [EXTRA_PAGE]). */
         const val PAGE_WALLPAPER = "wallpaper"
 
+        /** The page of Settings > Quick panel (the panel header menu can open it with [EXTRA_PAGE]). */
+        const val PAGE_QUICK = "quickpanel"
+
         private const val MAIN = "main"
         private const val HOME = "home"
         private const val APPS = "apps"
         private const val DOCK = "dock"
+        private const val QUICK = "quickpanel"
         private const val WALLPAPER = "wallpaper"
         private const val ICONS = "icons"
         private const val LOOK = "look"
@@ -1316,18 +1396,21 @@ class HomeSettingsActivity : Activity() {
 
         /** Pages a caller may ask for with [EXTRA_PAGE]. */
         private val PAGES = setOf(
-            HOME, APPS, DOCK, WALLPAPER, ICONS, LOOK, GESTURES, BADGES, EDGE, HIDE, ROTATION, BACKUP, CONTACT, PRIVACY, TERMS, PERMISSIONS, ABOUT
+            HOME, APPS, DOCK, WALLPAPER, QUICK, ICONS, LOOK, GESTURES, BADGES, EDGE, HIDE, ROTATION, BACKUP, CONTACT, PRIVACY, TERMS, PERMISSIONS, ABOUT
         )
 
         // The launcher's saved settings (same keys the Home screen reads).
         private const val K_HOME_SEARCH = "home_search"
         private const val K_NOTIF_SWIPE = "notif_swipe"
+        private const val K_SWIPE_MODE = "swipe_down_mode"
         private const val K_LOCK_TAP = "lock_tap"
         private const val K_BLUR = "blur"
         private const val K_WALLPAPER_SCROLL = "wallpaper_scroll"
         private const val K_DOCK_COLOR = "dock_color"
         private const val K_DOCK_OPACITY = "dock_opacity"
         private const val K_DOCK_GRADIENT = "dock_gradient"
+        private const val K_QP_LEFT = "qp_left"
+        private const val K_QP_BRIGHT_TOP = "qp_bright_top"
         private const val K_SEARCH_GRADIENT = "search_gradient"
         private const val K_APPS_SORT = "apps_sort"
 
