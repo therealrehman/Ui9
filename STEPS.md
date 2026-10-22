@@ -645,6 +645,14 @@ Under the brightness slider (above the notifications) the panel now has three mo
 - Popups of the panel (Bluetooth, Location...) become overlay windows there. No new manifest permission except the Accessibility service itself. Permissions page, `docs/privacy-policy.html` updated. Google Play treats Accessibility as a restricted permission (needs its own declaration): see PLAY_STORE.md.
 - Not tested on a real phone: compile-checked only, and the pure recognising rule is JVM-tested. Version 1.0.20 (code 130).
 
+## Step 23 - widget fonts, colours and a stacked clock
+
+- **Ten fonts** for the Clock, Mini clock and Date widgets (widget setup screen > Font): Light, Thin, Regular, Medium, Bold, Black, Narrow, Serif, Playful, Script. Each name is shown in its own font. They are Android's built-in font families (no font files). A widget can not change a font while it runs, so each layout holds ten text blocks and shows only the chosen one.
+- **Six more colours** (12 in all: + Coral, Violet, Lemon, Aqua, Lime, Orange) for digital clocks and the Date widget. The analog clock keeps its first six (it has one picture per colour).
+- **Stacked style** for the clock: hour on one line, minutes under it, big. Style chips are now Digital / Stacked / Analog. 12 / 24 hour applies to both digital styles.
+- Widgets saved before this keep their look (the saved text gained a sixth value, the font; the old five-value text still reads). Defaults: clocks Light, Date Regular.
+- Layouts `widget_clock.xml` / `widget_date.xml` were written by a small script (ten blocks each); the save format is JVM-tested. Compile-checked only. Version 1.0.21 (code 131).
+
 ## Cloud build (Bitrise) - no Termux build needed
 
 `push.sh` puts the project on GitHub; Bitrise builds the APK from there.

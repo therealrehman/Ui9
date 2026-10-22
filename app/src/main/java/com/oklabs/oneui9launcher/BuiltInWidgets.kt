@@ -98,6 +98,17 @@ object WidgetConfigStore {
 
 object BuiltInWidgets {
 
+    private const val FONT_COUNT = 10
+
+    /** The ten text blocks (one per font) of widget_clock.xml and widget_date.xml, in the order of [WidgetConfig.FONT_NAMES]. */
+    private val CLOCK_BOX = intArrayOf(R.id.clock_box_0, R.id.clock_box_1, R.id.clock_box_2, R.id.clock_box_3, R.id.clock_box_4, R.id.clock_box_5, R.id.clock_box_6, R.id.clock_box_7, R.id.clock_box_8, R.id.clock_box_9)
+    private val CLOCK_TIME = intArrayOf(R.id.clock_time_0, R.id.clock_time_1, R.id.clock_time_2, R.id.clock_time_3, R.id.clock_time_4, R.id.clock_time_5, R.id.clock_time_6, R.id.clock_time_7, R.id.clock_time_8, R.id.clock_time_9)
+    private val CLOCK_DATE = intArrayOf(R.id.clock_date_0, R.id.clock_date_1, R.id.clock_date_2, R.id.clock_date_3, R.id.clock_date_4, R.id.clock_date_5, R.id.clock_date_6, R.id.clock_date_7, R.id.clock_date_8, R.id.clock_date_9)
+    private val DATE_BOX = intArrayOf(R.id.date_box_0, R.id.date_box_1, R.id.date_box_2, R.id.date_box_3, R.id.date_box_4, R.id.date_box_5, R.id.date_box_6, R.id.date_box_7, R.id.date_box_8, R.id.date_box_9)
+    private val DATE_WEEKDAY = intArrayOf(R.id.date_weekday_0, R.id.date_weekday_1, R.id.date_weekday_2, R.id.date_weekday_3, R.id.date_weekday_4, R.id.date_weekday_5, R.id.date_weekday_6, R.id.date_weekday_7, R.id.date_weekday_8, R.id.date_weekday_9)
+    private val DATE_DAY = intArrayOf(R.id.date_day_0, R.id.date_day_1, R.id.date_day_2, R.id.date_day_3, R.id.date_day_4, R.id.date_day_5, R.id.date_day_6, R.id.date_day_7, R.id.date_day_8, R.id.date_day_9)
+    private val DATE_MONTH = intArrayOf(R.id.date_month_0, R.id.date_month_1, R.id.date_month_2, R.id.date_month_3, R.id.date_month_4, R.id.date_month_5, R.id.date_month_6, R.id.date_month_7, R.id.date_month_8, R.id.date_month_9)
+
     /** One face of the analog clock per colour of [WidgetConfig.COLORS], in the same order. */
     private val ANALOG_LAYOUTS = intArrayOf(
         R.layout.widget_clock_analog_0,
@@ -113,29 +124,47 @@ object BuiltInWidgets {
         val views = if (kind == BuiltInKind.DATE) {
             RemoteViews(context.packageName, R.layout.widget_date)
         } else if (config.style == WidgetConfig.STYLE_ANALOG) {
-            RemoteViews(context.packageName, ANALOG_LAYOUTS[config.color.coerceIn(0, ANALOG_LAYOUTS.size - 1)])
+            RemoteViews(context.packageName, ANALOG_LAYOUTS[if (config.color in ANALOG_LAYOUTS.indices) config.color else 0])
         } else {
             RemoteViews(context.packageName, R.layout.widget_clock)
         }
 
+        val font = config.font.coerceIn(0, FONT_COUNT - 1)
         if (kind == BuiltInKind.DATE) {
-            views.setTextColor(R.id.date_weekday, config.softColorInt)
-            views.setTextColor(R.id.date_day, config.colorInt)
-            views.setTextColor(R.id.date_month, config.softColorInt)
+            for (i in 0 until FONT_COUNT) views.setViewVisibility(DATE_BOX[i], if (i == font) android.view.View.VISIBLE else android.view.View.GONE)
+            views.setTextColor(DATE_WEEKDAY[font], config.softColorInt)
+            views.setTextColor(DATE_DAY[font], config.colorInt)
+            views.setTextColor(DATE_MONTH[font], config.softColorInt)
             tapOpens(context, views, REQUEST_DATE, calendarApp(context))
-        } else {
+        } else if (config.style == WidgetConfig.STYLE_ANALOG) {
+            // the analog faces have their own picture of the date line
             val datePattern = bestPattern("EEEMMMd", "EEE, MMM d")
             views.setCharSequence(R.id.clock_date, "setFormat12Hour", datePattern)
             views.setCharSequence(R.id.clock_date, "setFormat24Hour", datePattern)
             views.setTextColor(R.id.clock_date, config.softColorInt)
             views.setViewVisibility(R.id.clock_date, if (config.showDate) android.view.View.VISIBLE else android.view.View.GONE)
-            if (config.style != WidgetConfig.STYLE_ANALOG) {
-                views.setTextColor(R.id.clock_time, config.colorInt)
-                when (config.hours) {
-                    WidgetConfig.HOURS_12 -> setTimePattern(views, "h:mm")
-                    WidgetConfig.HOURS_24 -> setTimePattern(views, "HH:mm")
-                    // HOURS_PHONE: the layout already switches between h:mm and HH:mm with the phone's setting
-                }
+            tapOpens(context, views, REQUEST_CLOCK, clockApp(context))
+        } else {
+            for (i in 0 until FONT_COUNT) views.setViewVisibility(CLOCK_BOX[i], if (i == font) android.view.View.VISIBLE else android.view.View.GONE)
+            val datePattern = bestPattern("EEEMMMd", "EEE, MMM d")
+            val date = CLOCK_DATE[font]
+            val time = CLOCK_TIME[font]
+            views.setCharSequence(date, "setFormat12Hour", datePattern)
+            views.setCharSequence(date, "setFormat24Hour", datePattern)
+            views.setTextColor(date, config.softColorInt)
+            views.setViewVisibility(date, if (config.showDate) android.view.View.VISIBLE else android.view.View.GONE)
+            views.setTextColor(time, config.colorInt)
+            val stacked = config.style == WidgetConfig.STYLE_STACKED
+            val twelve = when (config.hours) {
+                WidgetConfig.HOURS_12 -> true
+                WidgetConfig.HOURS_24 -> false
+                else -> !DateFormat.is24HourFormat(context)
+            }
+            when {
+                stacked -> setTimePattern(views, time, if (twelve) "h\nmm" else "HH\nmm")
+                config.hours == WidgetConfig.HOURS_12 -> setTimePattern(views, time, "h:mm")
+                config.hours == WidgetConfig.HOURS_24 -> setTimePattern(views, time, "HH:mm")
+                // HOURS_PHONE: the layout already switches between h:mm and HH:mm with the phone's setting
             }
             tapOpens(context, views, REQUEST_CLOCK, clockApp(context))
         }
@@ -163,9 +192,9 @@ object BuiltInWidgets {
         }
     }
 
-    private fun setTimePattern(views: RemoteViews, pattern: String) {
-        views.setCharSequence(R.id.clock_time, "setFormat12Hour", pattern)
-        views.setCharSequence(R.id.clock_time, "setFormat24Hour", pattern)
+    private fun setTimePattern(views: RemoteViews, id: Int, pattern: String) {
+        views.setCharSequence(id, "setFormat12Hour", pattern)
+        views.setCharSequence(id, "setFormat24Hour", pattern)
     }
 
     /** The phone's best pattern for [skeleton] in its language; [fallback] when the system can not tell. */

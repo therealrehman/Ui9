@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.Outline
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
@@ -165,15 +166,22 @@ class WidgetSetupActivity : Activity() {
         optionsBox.removeAllViews()
         if (kind.isClock) {
             addSection("Style")
+            // chips: Digital, Stacked, Analog (saved as 0, 2, 1)
+            val order = listOf(WidgetConfig.STYLE_DIGITAL, WidgetConfig.STYLE_STACKED, WidgetConfig.STYLE_ANALOG)
             addRow(
-                chipRow(listOf("Digital", "Analog"), config.style) { config = config.copy(style = it); changed() }
+                chipRow(listOf("Digital", "Stacked", "Analog"), order.indexOf(config.style)) { config = config.copy(style = order[it]); changed() }
             )
         }
 
         addSection("Colour")
         addRow(swatchRow())
 
-        if (kind.isClock && config.style == WidgetConfig.STYLE_DIGITAL) {
+        if (config.style != WidgetConfig.STYLE_ANALOG) {
+            addSection("Font")
+            addRow(fontRows())
+        }
+
+        if (kind.isClock && config.style != WidgetConfig.STYLE_ANALOG) {
             addSection("Time format")
             addRow(
                 chipRow(listOf("Phone", "12 hour", "24 hour"), config.hours) { config = config.copy(hours = it); changed() }
@@ -242,25 +250,70 @@ class WidgetSetupActivity : Activity() {
         return row
     }
 
-    /** The colour choices as round swatches; the chosen one gets a ring. */
+    /** The colour choices as round swatches, six to a row; the chosen one gets a ring. The analog clock has pictures for the first six only. */
     private fun swatchRow(): View {
-        val row = LinearLayout(this)
-        row.orientation = LinearLayout.HORIZONTAL
-        for ((index, color) in WidgetConfig.COLORS.withIndex()) {
-            val swatch = View(this)
-            swatch.background = swatchDrawable(color, index == config.color)
-            swatch.isClickable = true
-            swatch.contentDescription = WidgetConfig.COLOR_NAMES[index]
-            swatch.setOnClickListener {
-                config = config.copy(color = index)
-                changed()
+        val box = LinearLayout(this)
+        box.orientation = LinearLayout.VERTICAL
+        val count = if (kind.isClock && config.style == WidgetConfig.STYLE_ANALOG) WidgetConfig.ANALOG_COLORS else WidgetConfig.COLORS.size
+        var index = 0
+        while (index < count) {
+            val row = LinearLayout(this)
+            row.orientation = LinearLayout.HORIZONTAL
+            for (i in index until minOf(index + 6, count)) {
+                val swatch = View(this)
+                swatch.background = swatchDrawable(WidgetConfig.COLORS[i], i == config.color)
+                swatch.isClickable = true
+                swatch.contentDescription = WidgetConfig.COLOR_NAMES[i]
+                swatch.setOnClickListener {
+                    config = config.copy(color = i)
+                    changed()
+                }
+                val lp = LinearLayout.LayoutParams(0, dp(44), 1f)
+                lp.leftMargin = dp(3)
+                lp.rightMargin = dp(3)
+                row.addView(swatch, lp)
             }
-            val lp = LinearLayout.LayoutParams(0, dp(44), 1f)
-            lp.leftMargin = dp(3)
-            lp.rightMargin = dp(3)
-            row.addView(swatch, lp)
+            val rp = LinearLayout.LayoutParams(MATCH, WRAP)
+            if (index > 0) rp.topMargin = dp(8)
+            box.addView(row, rp)
+            index += 6
         }
-        return row
+        return box
+    }
+
+    /** The ten fonts, five to a row; each name is written in its own font and the chosen one is filled. */
+    private fun fontRows(): View {
+        val box = LinearLayout(this)
+        box.orientation = LinearLayout.VERTICAL
+        for (start in 0 until WidgetConfig.FONT_NAMES.size step 5) {
+            val row = LinearLayout(this)
+            row.orientation = LinearLayout.HORIZONTAL
+            for (i in start until start + 5) {
+                val on = i == config.font
+                val chip = TextView(this)
+                chip.text = WidgetConfig.FONT_NAMES[i]
+                chip.gravity = Gravity.CENTER
+                chip.maxLines = 1
+                chip.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                chip.typeface = Typeface.create(WidgetConfig.FONT_FAMILIES[i], if (WidgetConfig.FONT_BOLD[i]) Typeface.BOLD else Typeface.NORMAL)
+                chip.setTextColor(if (on) Color.BLACK else Color.WHITE)
+                chip.setPadding(dp(4), dp(11), dp(4), dp(11))
+                chip.background = roundRect(if (on) Color.WHITE else Color.argb(46, 255, 255, 255), dpf(22f))
+                chip.isClickable = true
+                chip.contentDescription = WidgetConfig.FONT_NAMES[i]
+                chip.setOnClickListener {
+                    config = config.copy(font = i)
+                    changed()
+                }
+                val lp = LinearLayout.LayoutParams(0, WRAP, 1f)
+                if (i < start + 4) lp.rightMargin = dp(6)
+                row.addView(chip, lp)
+            }
+            val rp = LinearLayout.LayoutParams(MATCH, WRAP)
+            if (start > 0) rp.topMargin = dp(8)
+            box.addView(row, rp)
+        }
+        return box
     }
 
     /** The five gradient glass themes as little tiles with their names; the chosen one gets a ring. */
