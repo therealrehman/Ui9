@@ -645,6 +645,12 @@ Under the brightness slider (above the notifications) the panel now has three mo
 - Popups of the panel (Bluetooth, Location...) become overlay windows there. No new manifest permission except the Accessibility service itself. Permissions page, `docs/privacy-policy.html` updated. Google Play treats Accessibility as a restricted permission (needs its own declaration): see PLAY_STORE.md.
 - Not tested on a real phone: compile-checked only, and the pure recognising rule is JVM-tested. Version 1.0.20 (code 130).
 
+## Step 24b - the Quick panel ignores the phone's dark / light mode
+
+- The Quick panel, its pop-ups and the Notifications page now use their own look (`PanelLook`) and **never follow the phone's dark / light mode**, on the Home screen and in the "In every app" overlay alike. They stay the dark frosted glass with white text, like the reference phone, whatever the phone is set to.
+- Only an explicit **Light** in Settings > Look and feel > Panels makes them light. "Auto" and "Dark" both give the dark glass for these two. The Apps screen, folders, menus and Settings still follow Auto as before.
+- Version 1.0.23 (code 133). Compile-checked only; not tested on a real phone.
+
 ## Step 24 - Quick panel from the top edge: no flicker, no pop-ups, blurred apps behind
 
 - **No flash of the phone's own panel:** with "In every app" on, a thin invisible bar now sits exactly over the status bar (accessibility overlay). A pull-down that starts there never reaches the phone's panel, so nothing of it ever shows; the launcher's panel opens after about 10 dp of movement. The panel is built and the screen is pictured the moment the finger touches the edge, so it appears at once.

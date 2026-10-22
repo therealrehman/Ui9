@@ -114,7 +114,7 @@ class NotificationPage(
     init {
         visibility = View.GONE
 
-        veil.background = PanelTheme.scrim(135, Look.dark)
+        veil.background = PanelTheme.scrim(135, PanelLook.dark)
         veil.isClickable = true
         veil.setOnClickListener { close(true) }
         addView(veil, LayoutParams(MATCH, MATCH))
@@ -147,7 +147,7 @@ class NotificationPage(
         val time = TextClock(c)
         time.format12Hour = "h:mm"
         time.format24Hour = "HH:mm"
-        time.setTextColor(Look.text)
+        time.setTextColor(PanelLook.text)
         time.setTextSize(TypedValue.COMPLEX_UNIT_SP, 34f)
         time.typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
         time.includeFontPadding = false
@@ -160,7 +160,7 @@ class NotificationPage(
         }
         date.format12Hour = pattern
         date.format24Hour = pattern
-        date.setTextColor(Look.textA(210))
+        date.setTextColor(PanelLook.textA(210))
         date.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
         date.includeFontPadding = false
         val dateLp = LinearLayout.LayoutParams(WRAP, WRAP)
@@ -208,11 +208,11 @@ class NotificationPage(
     }
 
     private fun styleAsPill(button: TextView) {
-        button.setTextColor(Look.text)
+        button.setTextColor(PanelLook.text)
         button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
         button.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         button.setPadding(context.dp(16), context.dp(10), context.dp(16), context.dp(10))
-        button.background = roundRect(Look.glass(115), context.dpf(22f))
+        button.background = roundRect(PanelLook.glass(115), context.dpf(22f))
         button.isClickable = true
     }
 
@@ -237,7 +237,7 @@ class NotificationPage(
         visibility = View.VISIBLE
         // Without a working window blur the wallpaper stays sharp, so the dark veil is stronger to hide it.
         PanelTheme.load(context)
-        veil.background = PanelTheme.scrim(if (context.windowBlurWorks()) 140 else 195, Look.dark)
+        veil.background = PanelTheme.scrim(if (context.windowBlurWorks()) 140 else 195, PanelLook.dark)
         veil.alpha = 0f
         column.alpha = 0f
         column.translationY = -context.dp(48).toFloat()

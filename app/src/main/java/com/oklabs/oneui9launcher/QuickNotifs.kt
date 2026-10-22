@@ -50,15 +50,15 @@ class QuickNotifs(
         head.gravity = Gravity.CENTER_VERTICAL
         val title = TextView(context)
         title.text = "Notifications"
-        title.setTextColor(Look.text)
+        title.setTextColor(PanelLook.text)
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
         title.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         head.addView(title, LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         clearAll.text = "Clear all"
-        clearAll.setTextColor(Look.text)
+        clearAll.setTextColor(PanelLook.text)
         clearAll.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
         clearAll.setPadding(context.dp(14), context.dp(7), context.dp(14), context.dp(7))
-        clearAll.background = roundRect(Look.glass(110), context.dpf(18f))
+        clearAll.background = roundRect(PanelLook.glass(110), context.dpf(18f))
         clearAll.isClickable = true
         clearAll.setOnClickListener { Notifs.clearAll() }
         head.addView(clearAll, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
@@ -154,19 +154,19 @@ class QuickNotifs(
         row.orientation = HORIZONTAL
         row.gravity = Gravity.CENTER_VERTICAL
         row.setPadding(c.dp(16), c.dp(14), c.dp(16), c.dp(14))
-        row.background = roundRect(Look.glass(115), c.dpf(22f))
+        row.background = roundRect(PanelLook.glass(115), c.dpf(22f))
         val label = TextView(c)
         label.text = text
-        label.setTextColor(Look.textA(200))
+        label.setTextColor(PanelLook.textA(200))
         label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
         row.addView(label, LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         if (action != null) {
             val button = TextView(c)
             button.text = action
-            button.setTextColor(if (Look.dark) android.graphics.Color.rgb(24, 26, 32) else android.graphics.Color.WHITE)
+            button.setTextColor(if (PanelLook.dark) android.graphics.Color.rgb(24, 26, 32) else android.graphics.Color.WHITE)
             button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             button.setPadding(c.dp(14), c.dp(7), c.dp(14), c.dp(7))
-            button.background = roundRect(Look.text, c.dpf(18f))
+            button.background = roundRect(PanelLook.text, c.dpf(18f))
             row.addView(button, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             row.isClickable = true
             row.setOnClickListener { onAction() }
@@ -182,17 +182,17 @@ class QuickNotifs(
         box.gravity = Gravity.CENTER
         val label = TextView(c)
         label.text = text
-        label.setTextColor(Look.textA(215))
+        label.setTextColor(PanelLook.textA(215))
         label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
         label.gravity = Gravity.CENTER
         box.addView(label, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         if (action != null) {
             val button = TextView(c)
             button.text = action
-            button.setTextColor(if (Look.dark) android.graphics.Color.rgb(24, 26, 32) else android.graphics.Color.WHITE)
+            button.setTextColor(if (PanelLook.dark) android.graphics.Color.rgb(24, 26, 32) else android.graphics.Color.WHITE)
             button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
             button.setPadding(c.dp(20), c.dp(10), c.dp(20), c.dp(10))
-            button.background = roundRect(Look.text, c.dpf(22f))
+            button.background = roundRect(PanelLook.text, c.dpf(22f))
             button.isClickable = true
             button.setOnClickListener { onAction() }
             val bp = LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
@@ -270,7 +270,7 @@ class QuickNotifs(
             orientation = HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(context.dp(14), context.dp(11), context.dp(14), context.dp(11))
-            background = roundRect(Look.glass(115), context.dpf(22f))
+            background = roundRect(PanelLook.glass(115), context.dpf(22f))
             isClickable = true
 
             val icon = ImageView(context)
@@ -281,7 +281,7 @@ class QuickNotifs(
             texts.orientation = VERTICAL
             val meta = TextView(context)
             meta.text = labelOf(item.pkg) + " · " + NotifLogic.ago(now, item.whenMs)
-            meta.setTextColor(Look.textA(160))
+            meta.setTextColor(PanelLook.textA(160))
             meta.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             meta.maxLines = 1
             meta.ellipsize = TextUtils.TruncateAt.END
@@ -289,7 +289,7 @@ class QuickNotifs(
             if (item.title.isNotEmpty()) {
                 val title = TextView(context)
                 title.text = item.title
-                title.setTextColor(Look.text)
+                title.setTextColor(PanelLook.text)
                 title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
                 title.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
                 title.maxLines = 1
@@ -299,7 +299,7 @@ class QuickNotifs(
             if (item.text.isNotEmpty()) {
                 val body = TextView(context)
                 body.text = item.text
-                body.setTextColor(Look.textA(205))
+                body.setTextColor(PanelLook.textA(205))
                 body.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
                 body.maxLines = 2
                 body.ellipsize = TextUtils.TruncateAt.END

@@ -311,15 +311,15 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
         val box = android.widget.LinearLayout(c)
         box.orientation = android.widget.LinearLayout.VERTICAL
         box.setPadding(c.dp(22), c.dp(20), c.dp(22), c.dp(18))
-        box.background = roundRect(Look.panel(250), c.dpf(28f))
+        box.background = roundRect(PanelLook.panel(250), c.dpf(28f))
         val t = android.widget.TextView(c)
         t.text = title
-        t.setTextColor(Look.text)
+        t.setTextColor(PanelLook.text)
         t.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 19f)
         box.addView(t)
         val s = android.widget.TextView(c)
         s.text = if (st.sub.isNotEmpty() && st.sub != "Settings") st.sub else "Android lets only the system switch this one"
-        s.setTextColor(Look.textA(190))
+        s.setTextColor(PanelLook.textA(190))
         s.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14f)
         val sp = android.widget.LinearLayout.LayoutParams(-1, -2)
         sp.topMargin = c.dp(6)
@@ -330,8 +330,8 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
         b.text = "Open settings"
         b.gravity = android.view.Gravity.CENTER
         b.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15f)
-        b.setTextColor(if (Look.dark) android.graphics.Color.rgb(24, 26, 32) else android.graphics.Color.WHITE)
-        b.background = roundRect(Look.text, c.dpf(24f))
+        b.setTextColor(if (PanelLook.dark) android.graphics.Color.rgb(24, 26, 32) else android.graphics.Color.WHITE)
+        b.background = roundRect(PanelLook.text, c.dpf(24f))
         b.setPadding(0, c.dp(12), 0, c.dp(12))
         b.isClickable = true
         b.setOnClickListener {

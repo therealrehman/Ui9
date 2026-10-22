@@ -67,7 +67,7 @@ object PanelTheme {
 
     /** The veil behind the panel; [strength] is the normal veil transparency (0..255). */
     fun scrim(strength: Int, dark: Boolean): Drawable {
-        val base = baseRgb() ?: return ColorDrawable(Look.veil(strength))
+        val base = baseRgb() ?: return ColorDrawable(PanelLook.veil(strength))
         val a = (strength + 40).coerceAtMost(235)
         if (index > solids.size) {
             val colors = Gradients.all[index - solids.size - 1].colors

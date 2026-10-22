@@ -29,6 +29,9 @@ object Look {
             else -> systemDark
         }
 
+    /** True only when the person picked "Light" in Settings. ([PanelLook] uses it: "Auto" never means "follow the phone" for the Quick panel.) */
+    val lightChosen: Boolean get() = mode == LIGHT
+
     /** Reads the saved mode and the phone's current dark / light setting. Call before any view is built. */
     fun load(context: Context) {
         mode = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KEY, AUTO).coerceIn(AUTO, DARK)

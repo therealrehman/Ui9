@@ -118,27 +118,27 @@ class QuickCards(context: Context, private val say: (String) -> Unit, private va
         box.orientation = HORIZONTAL
         box.gravity = Gravity.CENTER_VERTICAL
         box.setPadding(c.dp(10), 0, c.dp(10), 0)
-        box.background = roundRect(Look.glass(110), c.dpf(31f))
+        box.background = roundRect(PanelLook.glass(110), c.dpf(31f))
         box.isClickable = true
         box.setOnClickListener { onTap() }
         val circle = FrameLayout(c)
         circle.background = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
-            setColor(Look.glass(90))
+            setColor(PanelLook.glass(90))
         }
         val glyph = QuickGlyph(c, glyphKind)
-        glyph.tint = Look.textA(225)
+        glyph.tint = PanelLook.textA(225)
         circle.addView(glyph, FrameLayout.LayoutParams(c.dp(26), c.dp(26), Gravity.CENTER))
         box.addView(circle, LayoutParams(c.dp(42), c.dp(42)))
         val texts = LinearLayout(c)
         texts.orientation = VERTICAL
         val label = TextView(c)
         label.text = title
-        label.setTextColor(Look.text)
+        label.setTextColor(PanelLook.text)
         label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
         label.maxLines = 1
         texts.addView(label, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        sub.setTextColor(Look.textA(170))
+        sub.setTextColor(PanelLook.textA(170))
         sub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
         sub.maxLines = 1
         sub.ellipsize = TextUtils.TruncateAt.END
@@ -227,13 +227,13 @@ class QuickCards(context: Context, private val say: (String) -> Unit, private va
         mediaCard.orientation = HORIZONTAL
         mediaCard.gravity = Gravity.CENTER_VERTICAL
         mediaCard.setPadding(c.dp(12), c.dp(12), c.dp(8), c.dp(12))
-        mediaCard.background = roundRect(Look.glass(110), c.dpf(26f))
+        mediaCard.background = roundRect(PanelLook.glass(110), c.dpf(26f))
         mediaCard.isClickable = true
         mediaCard.setOnClickListener { openPlayer() }
 
         art.scaleType = ImageView.ScaleType.CENTER_CROP
         art.clipToOutline = true
-        art.background = roundRect(Look.inkA(40), c.dpf(14f))
+        art.background = roundRect(PanelLook.inkA(40), c.dpf(14f))
         art.outlineProvider = object : android.view.ViewOutlineProvider() {
             override fun getOutline(view: View, outline: android.graphics.Outline) {
                 outline.setRoundRect(0, 0, view.width, view.height, c.dpf(14f))
@@ -243,18 +243,18 @@ class QuickCards(context: Context, private val say: (String) -> Unit, private va
 
         val texts = LinearLayout(c)
         texts.orientation = VERTICAL
-        mediaApp.setTextColor(Look.textA(150))
+        mediaApp.setTextColor(PanelLook.textA(150))
         mediaApp.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
         mediaApp.maxLines = 1
         mediaApp.ellipsize = TextUtils.TruncateAt.END
         texts.addView(mediaApp, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        mediaTitle.setTextColor(Look.text)
+        mediaTitle.setTextColor(PanelLook.text)
         mediaTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
         mediaTitle.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         mediaTitle.maxLines = 1
         mediaTitle.ellipsize = TextUtils.TruncateAt.END
         texts.addView(mediaTitle, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        mediaArtist.setTextColor(Look.textA(190))
+        mediaArtist.setTextColor(PanelLook.textA(190))
         mediaArtist.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
         mediaArtist.maxLines = 1
         mediaArtist.ellipsize = TextUtils.TruncateAt.END
@@ -264,7 +264,7 @@ class QuickCards(context: Context, private val say: (String) -> Unit, private va
         mediaCard.addView(texts, tp)
 
         mediaCard.addView(control(QuickGlyph(c, QuickGlyph.PREV), "Previous") { controller?.transportControls?.skipToPrevious() }, LayoutParams(c.dp(40), c.dp(40)))
-        playGlyph.tint = Look.text
+        playGlyph.tint = PanelLook.text
         mediaCard.addView(control(playGlyph, "Play or pause") {
             val ctl = controller
             if (ctl != null) {
@@ -275,7 +275,7 @@ class QuickCards(context: Context, private val say: (String) -> Unit, private va
     }
 
     private fun control(glyph: QuickGlyph, description: String, onTap: () -> Unit): View {
-        glyph.tint = Look.text
+        glyph.tint = PanelLook.text
         glyph.contentDescription = description
         glyph.isClickable = true
         glyph.setPadding(context.dp(8), context.dp(8), context.dp(8), context.dp(8))

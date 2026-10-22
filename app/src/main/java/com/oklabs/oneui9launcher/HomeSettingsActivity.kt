@@ -780,7 +780,7 @@ class HomeSettingsActivity : Activity() {
                 changed()
             }
         )
-        kit.note(box, "Colours of the Apps screen, folders, menus and this Settings screen. Auto follows the phone's dark mode.")
+        kit.note(box, "Colours of the Apps screen, folders, menus and this Settings screen. Auto follows the phone's dark mode. The Quick panel and the Notifications page ignore the phone's mode: they stay dark glass unless you pick Light here.")
 
         kit.label(box, "Effects")
         kit.card(

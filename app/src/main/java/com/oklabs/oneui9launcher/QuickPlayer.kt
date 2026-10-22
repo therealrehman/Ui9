@@ -87,7 +87,7 @@ class QuickPlayer(context: Context, private val onLeave: () -> Unit) : LinearLay
         orientation = VERTICAL
         val c = context
         setPadding(c.dp(14), c.dp(14), c.dp(14), c.dp(10))
-        background = roundRect(Look.glass(110), c.dpf(26f))
+        background = roundRect(PanelLook.glass(110), c.dpf(26f))
         isClickable = true
         setOnClickListener { openPlayer() }
 
@@ -97,7 +97,7 @@ class QuickPlayer(context: Context, private val onLeave: () -> Unit) : LinearLay
 
         art.scaleType = ImageView.ScaleType.CENTER_CROP
         art.clipToOutline = true
-        art.background = roundRect(Look.inkA(40), c.dpf(16f))
+        art.background = roundRect(PanelLook.inkA(40), c.dpf(16f))
         art.outlineProvider = object : android.view.ViewOutlineProvider() {
             override fun getOutline(view: View, outline: android.graphics.Outline) {
                 outline.setRoundRect(0, 0, view.width, view.height, c.dpf(16f))
@@ -107,18 +107,18 @@ class QuickPlayer(context: Context, private val onLeave: () -> Unit) : LinearLay
 
         val texts = LinearLayout(c)
         texts.orientation = VERTICAL
-        appLabel.setTextColor(Look.textA(150))
+        appLabel.setTextColor(PanelLook.textA(150))
         appLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
         appLabel.maxLines = 1
         appLabel.ellipsize = TextUtils.TruncateAt.END
         texts.addView(appLabel, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        title.setTextColor(Look.text)
+        title.setTextColor(PanelLook.text)
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
         title.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         title.maxLines = 1
         title.ellipsize = TextUtils.TruncateAt.END
         texts.addView(title, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        artist.setTextColor(Look.textA(190))
+        artist.setTextColor(PanelLook.textA(190))
         artist.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
         artist.maxLines = 1
         artist.ellipsize = TextUtils.TruncateAt.END
@@ -148,9 +148,9 @@ class QuickPlayer(context: Context, private val onLeave: () -> Unit) : LinearLay
         val playWrap = FrameLayout(c)
         playWrap.background = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
-            setColor(Look.text)
+            setColor(PanelLook.text)
         }
-        playGlyph.tint = if (Look.dark) Color.rgb(24, 26, 32) else Color.WHITE
+        playGlyph.tint = if (PanelLook.dark) Color.rgb(24, 26, 32) else Color.WHITE
         playWrap.addView(playGlyph, FrameLayout.LayoutParams(c.dp(30), c.dp(30), Gravity.CENTER))
         playWrap.contentDescription = "Play or pause"
         playWrap.isClickable = true
@@ -177,7 +177,7 @@ class QuickPlayer(context: Context, private val onLeave: () -> Unit) : LinearLay
     }
 
     private fun control(glyph: QuickGlyph, description: String, onTap: () -> Unit): View {
-        glyph.tint = Look.text
+        glyph.tint = PanelLook.text
         glyph.contentDescription = description
         glyph.isClickable = true
         glyph.setPadding(context.dp(11), context.dp(11), context.dp(11), context.dp(11))
@@ -395,10 +395,10 @@ class QuickPlayer(context: Context, private val onLeave: () -> Unit) : LinearLay
             val h = context.dpf(4f)
             val top = (height - h) / 2f
             val r = h / 2f
-            paint.color = Look.inkA(55)
+            paint.color = PanelLook.inkA(55)
             rect.set(0f, top, width.toFloat(), top + h)
             canvas.drawRoundRect(rect, r, r, paint)
-            paint.color = Look.text
+            paint.color = PanelLook.text
             rect.set(0f, top, width * progress, top + h)
             canvas.drawRoundRect(rect, r, r, paint)
         }

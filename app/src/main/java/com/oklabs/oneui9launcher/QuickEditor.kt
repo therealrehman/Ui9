@@ -98,7 +98,7 @@ internal class QuickEditor(
         addView(content, LayoutParams(MATCH, WRAP))
         buildHeader()
 
-        hint.setTextColor(Look.textA(190))
+        hint.setTextColor(PanelLook.textA(190))
         hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
         hint.gravity = Gravity.CENTER
         val hp = LinearLayout.LayoutParams(MATCH, WRAP)
@@ -112,7 +112,7 @@ internal class QuickEditor(
 
         val title = TextView(context)
         title.text = "Available buttons"
-        title.setTextColor(Look.text)
+        title.setTextColor(PanelLook.text)
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
         title.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         title.gravity = Gravity.CENTER
@@ -122,7 +122,7 @@ internal class QuickEditor(
 
         box(availBox, availGrid)
         emptyNote.text = "Every button is on the panel"
-        emptyNote.setTextColor(Look.textA(150))
+        emptyNote.setTextColor(PanelLook.textA(150))
         emptyNote.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
         emptyNote.gravity = Gravity.CENTER
         availBox.addView(emptyNote, LayoutParams(MATCH, context.dp(TileGrid.CELL_DP)))
@@ -130,13 +130,13 @@ internal class QuickEditor(
         vp.topMargin = context.dp(10)
         content.addView(availBox, vp)
 
-        marker.background = roundRect(Look.text, context.dpf(2f))
+        marker.background = roundRect(PanelLook.text, context.dpf(2f))
         marker.visibility = View.GONE
         addView(marker, LayoutParams(context.dp(4), context.dp(52)))
     }
 
     private fun box(box: FrameLayout, grid: TileGrid) {
-        box.background = roundRect(Look.inkA(24), context.dpf(24f))
+        box.background = roundRect(PanelLook.inkA(24), context.dpf(24f))
         box.setPadding(context.dp(6), context.dp(6), context.dp(6), context.dp(6))
         box.addView(grid, LayoutParams(MATCH, WRAP))
     }
@@ -150,13 +150,13 @@ internal class QuickEditor(
         texts.orientation = LinearLayout.VERTICAL
         val title = TextView(context)
         title.text = "Panel settings"
-        title.setTextColor(Look.text)
+        title.setTextColor(PanelLook.text)
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
         title.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         texts.addView(title, LinearLayout.LayoutParams(WRAP, WRAP))
         val sub = TextView(context)
         sub.text = "Touch and hold to change order"
-        sub.setTextColor(Look.textA(190))
+        sub.setTextColor(PanelLook.textA(190))
         sub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
         texts.addView(sub, LinearLayout.LayoutParams(WRAP, WRAP))
         row.addView(texts, LinearLayout.LayoutParams(0, WRAP, 1f))
@@ -174,7 +174,7 @@ internal class QuickEditor(
         v.text = text
         v.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
         v.typeface = Typeface.create(if (strong) "sans-serif-medium" else "sans-serif", Typeface.NORMAL)
-        v.setTextColor(if (strong) Look.text else Look.textA(200))
+        v.setTextColor(if (strong) PanelLook.text else PanelLook.textA(200))
         v.setPadding(context.dp(12), context.dp(10), context.dp(12), context.dp(10))
         v.isClickable = true
         v.setOnClickListener { onTap() }
@@ -187,9 +187,9 @@ internal class QuickEditor(
         v.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
         v.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         v.setPadding(context.dp(20), context.dp(9), context.dp(20), context.dp(9))
-        val onFg = if (Look.dark) Color.rgb(24, 26, 32) else Color.WHITE
-        v.setTextColor(if (strong) onFg else Look.text)
-        v.background = roundRect(if (strong) Look.text else Look.inkA(38), context.dpf(22f))
+        val onFg = if (PanelLook.dark) Color.rgb(24, 26, 32) else Color.WHITE
+        v.setTextColor(if (strong) onFg else PanelLook.text)
+        v.background = roundRect(if (strong) PanelLook.text else PanelLook.inkA(38), context.dpf(22f))
         v.isClickable = true
         v.setOnClickListener { onTap() }
         return v
@@ -231,10 +231,10 @@ internal class QuickEditor(
         val circle = FrameLayout(c)
         circle.background = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
-            setColor(Look.inkA(44))
+            setColor(PanelLook.inkA(44))
         }
         val glyph = QuickGlyph(c, def.glyph)
-        glyph.tint = Look.text
+        glyph.tint = PanelLook.text
         circle.addView(glyph, LayoutParams(c.dp(26), c.dp(26), Gravity.CENTER))
         holder.addView(circle, LayoutParams(c.dp(50), c.dp(50), Gravity.CENTER))
         if (onPanel) {
@@ -257,7 +257,7 @@ internal class QuickEditor(
 
         val label = TextView(c)
         label.text = def.label
-        label.setTextColor(Look.text)
+        label.setTextColor(PanelLook.text)
         label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f)
         label.gravity = Gravity.CENTER
         label.maxLines = 2

@@ -68,8 +68,8 @@ class PillSlider(context: Context, glyphKind: Int) : FrameLayout(context) {
     private val slop = android.view.ViewConfiguration.get(context).scaledTouchSlop
 
     init {
-        track.background = roundRect(Look.glass(110), context.dpf(HEIGHT_DP / 2f))
-        fill.background = roundRect(Look.text, context.dpf(HEIGHT_DP / 2f))
+        track.background = roundRect(PanelLook.glass(110), context.dpf(HEIGHT_DP / 2f))
+        fill.background = roundRect(PanelLook.text, context.dpf(HEIGHT_DP / 2f))
         addView(track, LayoutParams(MATCH, MATCH))
         addView(fill, LayoutParams(0, MATCH))
         val g = LayoutParams(context.dp(28), context.dp(28), Gravity.START or Gravity.CENTER_VERTICAL)
@@ -100,7 +100,7 @@ class PillSlider(context: Context, glyphKind: Int) : FrameLayout(context) {
         fill.layout(0, 0, fillWidth, h)
         // The icon is dark on the light bar and light on the empty track.
         val over = fillWidth > context.dp(46)
-        glyph.tint = if (over) (if (Look.dark) Color.rgb(24, 26, 32) else Color.WHITE) else Look.text
+        glyph.tint = if (over) (if (PanelLook.dark) Color.rgb(24, 26, 32) else Color.WHITE) else PanelLook.text
         invalidate()
     }
 
@@ -271,7 +271,7 @@ class QuickPanel(
     init {
         visibility = View.GONE
 
-        scrim.background = PanelTheme.scrim(150, Look.dark)
+        scrim.background = PanelTheme.scrim(150, PanelLook.dark)
         scrim.isClickable = true
         scrim.setOnClickListener { close(true) }
         addView(scrim, LayoutParams(MATCH, MATCH))
@@ -332,9 +332,9 @@ class QuickPanel(
         grid.orientation = LinearLayout.VERTICAL
         grid.setPadding(c.dp(6), c.dp(6), c.dp(6), c.dp(12))
         grid.background = GradientDrawable().apply {
-            setColor(Look.glass(80))
+            setColor(PanelLook.glass(80))
             cornerRadius = c.dpf(30f)
-            setStroke(c.dp(1), Look.inkA(22))
+            setStroke(c.dp(1), PanelLook.inkA(22))
         }
         var index = 0
         while (index < rest.size) {
@@ -385,9 +385,9 @@ class QuickPanel(
         lower.setPadding(c.dp(10), c.dp(10), c.dp(10), c.dp(10))
         lower.clipChildren = true
         lower.background = GradientDrawable().apply {
-            setColor(Look.glass(70))
+            setColor(PanelLook.glass(70))
             cornerRadius = c.dpf(30f)
-            setStroke(c.dp(1), Look.inkA(22))
+            setStroke(c.dp(1), PanelLook.inkA(22))
         }
         if (cardsOn) {
             val p = QuickPlayer(c) { close(false) }
@@ -411,7 +411,7 @@ class QuickPanel(
 
         // A little grab bar: it says "swipe up to close".
         val bar = View(c)
-        bar.background = roundRect(Look.inkA(70), c.dpf(2f))
+        bar.background = roundRect(PanelLook.inkA(70), c.dpf(2f))
         val barParams = LinearLayout.LayoutParams(c.dp(44), c.dp(4))
         barParams.gravity = Gravity.CENTER_HORIZONTAL
         barParams.topMargin = c.dp(8)
@@ -486,7 +486,7 @@ class QuickPanel(
         val time = TextClock(c)
         time.format12Hour = "h:mm"
         time.format24Hour = "HH:mm"
-        time.setTextColor(Look.text)
+        time.setTextColor(PanelLook.text)
         time.setTextSize(TypedValue.COMPLEX_UNIT_SP, 34f)
         time.typeface = android.graphics.Typeface.create("sans-serif-light", android.graphics.Typeface.NORMAL)
         time.includeFontPadding = false
@@ -499,7 +499,7 @@ class QuickPanel(
         }
         date.format12Hour = pattern
         date.format24Hour = pattern
-        date.setTextColor(Look.textA(200))
+        date.setTextColor(PanelLook.textA(200))
         date.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
         date.includeFontPadding = false
         val dateLp = LinearLayout.LayoutParams(WRAP, WRAP)
@@ -509,21 +509,21 @@ class QuickPanel(
         row.addView(texts, LinearLayout.LayoutParams(0, WRAP, 1f))
 
         val pencil = QuickGlyph(c, QuickGlyph.PENCIL)
-        pencil.tint = Look.text
+        pencil.tint = PanelLook.text
         pencil.contentDescription = "Edit buttons"
         pencil.isClickable = true
         pencil.setOnClickListener { startEdit() }
         row.addView(pencil, LinearLayout.LayoutParams(c.dp(44), c.dp(44)))
 
         val power = QuickGlyph(c, QuickGlyph.POWER)
-        power.tint = Look.text
+        power.tint = PanelLook.text
         power.contentDescription = "Lock screen"
         power.isClickable = true
         power.setOnClickListener { powerTap() }
         row.addView(power, LinearLayout.LayoutParams(c.dp(44), c.dp(44)))
 
         val gear = QuickGlyph(c, QuickGlyph.GEAR)
-        gear.tint = Look.text
+        gear.tint = PanelLook.text
         gear.contentDescription = "Settings"
         gear.isClickable = true
         gear.setOnClickListener {
@@ -618,7 +618,7 @@ class QuickPanel(
         }
         visibility = View.VISIBLE
         // Without a working window blur the wallpaper stays sharp, so the dark veil is stronger to hide it.
-        scrim.background = PanelTheme.scrim(if (context.windowBlurWorks()) 150 else 200, Look.dark)
+        scrim.background = PanelTheme.scrim(if (context.windowBlurWorks()) 150 else 200, PanelLook.dark)
         scrim.alpha = 0f
         card.translationY = -context.resources.displayMetrics.heightPixels.toFloat()
         scrim.animate().alpha(1f).setDuration(220).start()
@@ -763,20 +763,20 @@ class QuickPanel(
             sub.text = state.sub
             if (lastOn != on) {
                 lastOn = on
-                val onBg = Look.text
-                val onFg = if (Look.dark) Color.rgb(24, 26, 32) else Color.WHITE
+                val onBg = PanelLook.text
+                val onFg = if (PanelLook.dark) Color.rgb(24, 26, 32) else Color.WHITE
                 if (wide) {
-                    background = roundRect(if (on) onBg else Look.glass(110), c.dpf(31f))
-                    circle.background = oval(if (on) Color.argb(34, Color.red(onFg), Color.green(onFg), Color.blue(onFg)) else Look.glass(90))
+                    background = roundRect(if (on) onBg else PanelLook.glass(110), c.dpf(31f))
+                    circle.background = oval(if (on) Color.argb(34, Color.red(onFg), Color.green(onFg), Color.blue(onFg)) else PanelLook.glass(90))
                 } else {
-                    circle.background = oval(if (on) onBg else Look.glass(115))
+                    circle.background = oval(if (on) onBg else PanelLook.glass(115))
                 }
-                glyph.tint = if (on) onFg else Look.textA(225)
+                glyph.tint = if (on) onFg else PanelLook.textA(225)
                 if (wide) {
-                    label.setTextColor(if (on) onFg else Look.text)
-                    sub.setTextColor(if (on) Color.argb(190, Color.red(onFg), Color.green(onFg), Color.blue(onFg)) else Look.textA(170))
+                    label.setTextColor(if (on) onFg else PanelLook.text)
+                    sub.setTextColor(if (on) Color.argb(190, Color.red(onFg), Color.green(onFg), Color.blue(onFg)) else PanelLook.textA(170))
                 } else {
-                    label.setTextColor(Look.text)
+                    label.setTextColor(PanelLook.text)
                 }
             }
             contentDescription = def.label + (if (state.sub.isNotEmpty()) ", " + state.sub else "")
