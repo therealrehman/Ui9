@@ -681,6 +681,10 @@ class QuickPanel(
         pencil.contentDescription = "Edit buttons"
         pencil.isClickable = true
         pencil.setOnClickListener { startEdit() }
+        pencil.setOnLongClickListener {
+            maybeScan(true)
+            true
+        }
         row.addView(pencil, LinearLayout.LayoutParams(c.dp(44), c.dp(44)))
 
         val power = QuickGlyph(c, QuickGlyph.POWER)
@@ -700,6 +704,27 @@ class QuickPanel(
         }
         row.addView(gear, LinearLayout.LayoutParams(c.dp(44), c.dp(44)))
         return row
+    }
+
+    /**
+     * Step 27: reads the phone's own Quick settings once (hidden behind a picture) and adds every button the launcher has no button for
+     * (Speed up, Record screen, vivoshare...). [again]: long-press on the pencil reads it again.
+     */
+    private fun maybeScan(again: Boolean = false) {
+        val prefs = context.getSharedPreferences("launcher", Context.MODE_PRIVATE)
+        if (!again && prefs.getBoolean("qp_scanned", false)) return
+        if (PanelAccessibilityService.instance == null) {
+            if (again) Toast.makeText(context, "Turn on the Quick panel service (Accessibility) first", Toast.LENGTH_LONG).show()
+            return
+        }
+        handler.postDelayed({
+            if (!isOpen || editor != null) return@postDelayed
+            Toast.makeText(context, "Reading your phone's buttons...", Toast.LENGTH_SHORT).show()
+            system.scan { ok ->
+                if (ok) prefs.edit().putBoolean("qp_scanned", true).apply()
+                if (isOpen && editor == null) build()
+            }
+        }, 450L)
     }
 
     /** Tap and long-press of one button. */
@@ -783,6 +808,7 @@ class QuickPanel(
             notifsWatching = true
             Notifs.addListener(notifsListener)
         }
+        maybeScan()
         visibility = View.VISIBLE
         // Step 25: nothing is blurred behind the panel any more, so the veil alone must hide the Home screen: stronger than before.
         scrim.background = PanelTheme.scrim(205, PanelLook.dark)

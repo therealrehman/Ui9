@@ -342,6 +342,11 @@ class PanelAccessibilityService : AccessibilityService() {
         for (r in roots) collect(r, nodes, 0)
         val named = nodes.filter { it.isVisibleToUser }
         for (v in variants) {
+            if (v.startsWith("@wide")) {
+                val idx = v.removePrefix("@wide").toIntOrNull() ?: continue
+                val w = wideTiles(named, minTop).getOrNull(idx) ?: continue
+                return iconOf(w) ?: w
+            }
             val key = norm(v)
             for (n in named) {
                 val t = norm(n.text)
@@ -359,13 +364,184 @@ class PanelAccessibilityService : AccessibilityService() {
         for (r in roots) collect(r, nodes, 0)
         val minTop = statusBarPx()
         val r = Rect()
-        for (n in nodes) {
-            if (!n.isScrollable) continue
-            n.getBoundsInScreen(r)
-            if (r.centerY() < minTop) continue
-            if (n.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) return true
+        val scrollables = nodes.filter {
+            it.isScrollable && run {
+                it.getBoundsInScreen(r)
+                r.centerY() >= minTop
+            }
         }
+        // the sideways pager of the buttons first, then anything else that scrolls
+        val ordered = scrollables.sortedBy { if ((it.className?.toString() ?: "").contains("Pager", true)) 0 else 1 }
+        for (n in ordered) if (n.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) return true
         return false
+    }
+
+    /** The big buttons at the top of the phone's panel (Wi-Fi, mobile data on most phones), left to right. */
+    private fun wideTiles(nodes: List<AccessibilityNodeInfo>, minTop: Int): List<AccessibilityNodeInfo> {
+        val w = resources.displayMetrics.widthPixels
+        val h = resources.displayMetrics.heightPixels
+        val r = Rect()
+        return nodes.filter {
+            if (!it.isClickable || !it.isEnabled || !it.isVisibleToUser) return@filter false
+            it.getBoundsInScreen(r)
+            r.width() > w * 0.38f && r.width() < w * 0.7f && r.height() < h * 0.2f && r.centerY() > minTop && r.centerY() < h * 0.4f
+        }.sortedBy {
+            it.getBoundsInScreen(r)
+            r.left
+        }
+    }
+
+    /** The small round clickable part inside a wide button (the icon), which switches it; null when there is none. */
+    private fun iconOf(wide: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        val inner = ArrayList<AccessibilityNodeInfo>()
+        collect(wide, inner, 0)
+        val r = Rect()
+        wide.getBoundsInScreen(r)
+        val wideArea = r.width() * r.height()
+        var best: AccessibilityNodeInfo? = null
+        var bestArea = Int.MAX_VALUE
+        for (n in inner) {
+            if (n === wide || !n.isClickable || !n.isEnabled) continue
+            n.getBoundsInScreen(r)
+            val a = r.width() * r.height()
+            if (a > 0 && a < wideArea / 2 && a < bestArea) {
+                best = n
+                bestArea = a
+            }
+        }
+        return best
+    }
+
+    /** On / off of a button as the phone describes it (state text, switch or the words in its description); null when it does not say. */
+    private fun readState(n: AccessibilityNodeInfo?): Boolean? {
+        if (n == null) return null
+        val list = ArrayList<AccessibilityNodeInfo>()
+        collect(n, list, 0)
+        for (x in list) {
+            if (Build.VERSION.SDK_INT >= 30) {
+                val sd = norm(x.stateDescription)
+                if (sd == "on" || sd.startsWith("on ") || sd == "enabled" || sd == "active") return true
+                if (sd == "off" || sd.startsWith("off ") || sd == "disabled" || sd == "inactive") return false
+            }
+            if (x.isCheckable) return x.isChecked
+        }
+        for (x in list) {
+            val words = (norm(x.contentDescription) + " " + norm(x.text)).split(' ')
+            if ("off" in words) return false
+            if ("on" in words) return true
+        }
+        return null
+    }
+
+    private val noLabels = listOf("edit", "settings", "more", "power", "brightness", "volume", "slider", "search", "media", "page", "close", "back", "menu", "user", "devices")
+
+    private fun labelOf(n: AccessibilityNodeInfo): String {
+        val list = ArrayList<AccessibilityNodeInfo>()
+        collect(n, list, 0)
+        for (x in list) {
+            val t = x.text?.toString()?.trim() ?: ""
+            if (t.isNotEmpty()) return t
+        }
+        val d = n.contentDescription?.toString()?.trim() ?: ""
+        return d.substringBefore(',').trim()
+    }
+
+    /** Every small button of the phone's panel that is on screen right now: label and on / off. */
+    private fun readTiles(roots: List<AccessibilityNodeInfo>): List<Pair<String, Boolean?>> {
+        val minTop = (statusBarPx() * 1.3f).toInt()
+        val w = resources.displayMetrics.widthPixels
+        val nodes = ArrayList<AccessibilityNodeInfo>()
+        for (r in roots) collect(r, nodes, 0)
+        val visible = nodes.filter { it.isVisibleToUser }
+        val r = Rect()
+        var gridTop = minTop
+        for (wd in wideTiles(visible, minTop)) {
+            wd.getBoundsInScreen(r)
+            gridTop = maxOf(gridTop, r.bottom)
+        }
+        val seen = HashSet<String>()
+        val out = ArrayList<Pair<String, Boolean?>>()
+        for (n in visible) {
+            val has = !n.text.isNullOrBlank() || !n.contentDescription.isNullOrBlank()
+            if (!has) continue
+            val t = clickTarget(n, gridTop) ?: continue
+            t.getBoundsInScreen(r)
+            if (r.width() > w * 0.38f) continue
+            val cls = t.className?.toString() ?: ""
+            if (cls.contains("SeekBar") || cls.contains("Slider")) continue
+            if (!seen.add(r.toShortString())) continue
+            val label = labelOf(t)
+            val l = norm(label)
+            if (l.isEmpty() || l.length > 28 || noLabels.any { l == it || l.startsWith("$it ") }) continue
+            out.add(Pair(label, readState(t)))
+        }
+        return out
+    }
+
+    /** Opens the phone's Quick settings behind a cover, pages through all of it and hands back every button found (null: could not read it). */
+    fun scanTiles(done: (List<Pair<String, Boolean?>>?) -> Unit) {
+        if (forcing) {
+            done(null)
+            return
+        }
+        forcing = true
+        val all = LinkedHashMap<String, Boolean?>()
+        val finish: (Boolean) -> Unit = { ok ->
+            closeShade()
+            ui.postDelayed({
+                coverOff()
+                forcing = false
+                done(if (ok) all.map { Pair(it.key, it.value) } else null)
+            }, 330L)
+        }
+        coverOn {
+            performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)
+            var pages = 0
+            var empty = 0
+            val step = object : Runnable {
+                override fun run() {
+                    val roots = try {
+                        shadeRoots()
+                    } catch (e: Exception) {
+                        emptyList()
+                    }
+                    var added = 0
+                    try {
+                        for ((label, on) in readTiles(roots)) if (!all.containsKey(label)) {
+                            all[label] = on
+                            added++
+                        }
+                    } catch (e: Exception) {
+                        // look again
+                    }
+                    if (added == 0 && all.isEmpty()) {
+                        empty++
+                        if (empty > 8) {
+                            finish(false)
+                            return
+                        }
+                        ui.postDelayed(this, 150L)
+                        return
+                    }
+                    if (added == 0 || pages >= 7) {
+                        finish(true)
+                        return
+                    }
+                    pages++
+                    val moved = try {
+                        scrollTiles(roots)
+                    } catch (e: Exception) {
+                        false
+                    }
+                    if (!moved) {
+                        finish(true)
+                        return
+                    }
+                    ui.postDelayed(this, 420L)
+                }
+            }
+            ui.postDelayed(step, 350L)
+        }
     }
 
     /** After a tap that opened a small dialog instead (the "Internet" tile on stock Android): press the switch inside it. */
@@ -480,18 +656,19 @@ class PanelAccessibilityService : AccessibilityService() {
      * Opens the phone's own Quick settings, presses the button whose name is one of [variants], and closes it again. [done] gets true when the
      * button was pressed. A frozen picture of the screen covers the phone's panel the whole time, so nothing of it is ever seen.
      */
-    fun forceToggle(variants: List<String>, done: (Boolean) -> Unit) {
+    fun forceToggle(variants: List<String>, done: (Boolean, Boolean?) -> Unit) {
         if (forcing) {
-            done(true) // a second tap while one is running: ignored quietly
+            done(true, null) // a second tap while one is running: ignored quietly
             return
         }
         if (variants.isEmpty()) {
-            done(false)
+            done(false, null)
             return
         }
         forcing = true
+        var stateAfter: Boolean? = null
         val finish: (Boolean) -> Unit = { ok ->
-            done(ok)
+            done(ok, stateAfter)
             ui.postDelayed({
                 coverOff()
                 forcing = false
@@ -530,13 +707,19 @@ class PanelAccessibilityService : AccessibilityService() {
                             }, 220L)
                         } else {
                             ui.postDelayed({
+                                try {
+                                    tile.refresh()
+                                    stateAfter = readState(tile) ?: readState(tile.parent)
+                                } catch (e: Exception) {
+                                    stateAfter = null
+                                }
                                 closeShade()
                                 finish(ok)
-                            }, 70L)
+                            }, 110L)
                         }
                         return
                     }
-                    if (tries >= 5 && tries % 4 == 1 && scrolls < 4) {
+                    if (tries >= 5 && tries % 6 == 5 && scrolls < 5) {
                         scrolls++
                         try {
                             scrollTiles(roots)
@@ -544,7 +727,7 @@ class PanelAccessibilityService : AccessibilityService() {
                             // ignore, keep looking
                         }
                     }
-                    if (tries >= 45) {
+                    if (tries >= 60) {
                         closeShade()
                         finish(false)
                         return

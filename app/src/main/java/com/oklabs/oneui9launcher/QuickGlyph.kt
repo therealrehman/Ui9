@@ -236,6 +236,17 @@ class QuickGlyph(context: Context, var kind: Int) : View(context) {
                 oval.set(cx - s * 0.3f, cy - s * 0.3f, cx + s * 0.3f, cy + s * 0.3f)
                 canvas.drawArc(oval, 90f, 180f, true, paint)
             }
+            GRID -> {
+                fill()
+                val q = s * 0.17f
+                val g = s * 0.05f
+                for (i in 0..1) for (j in 0..1) {
+                    val x0 = cx + (if (i == 0) -q - g else g)
+                    val y0 = cy + (if (j == 0) -q - g else g)
+                    oval.set(x0, y0, x0 + q, y0 + q)
+                    canvas.drawRoundRect(oval, s * 0.05f, s * 0.05f, paint)
+                }
+            }
             SUN -> {
                 stroke(s, 0.07f)
                 canvas.drawCircle(cx, cy, s * 0.15f, paint)
@@ -426,6 +437,7 @@ class QuickGlyph(context: Context, var kind: Int) : View(context) {
         const val POWER = 29
         const val NFC = 30
         const val NIGHT = 31
+        const val GRID = 32
     }
 }
 

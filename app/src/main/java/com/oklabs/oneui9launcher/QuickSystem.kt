@@ -30,7 +30,7 @@ class QuickTileDef(val id: String, val label: String, val glyph: Int)
 /** The buttons the Quick panel knows, and which of them are on the panel (in which order). */
 object QuickTiles {
 
-    val ALL: List<QuickTileDef> = listOf(
+    val BUILTIN: List<QuickTileDef> = listOf(
         QuickTileDef("wifi", "Wi-Fi", QuickGlyph.WIFI),
         QuickTileDef("bluetooth", "Bluetooth", QuickGlyph.BLUETOOTH),
         QuickTileDef("data", "Mobile data", QuickGlyph.DATA),
@@ -48,6 +48,45 @@ object QuickTiles {
         QuickTileDef("nfc", "NFC", QuickGlyph.NFC),
         QuickTileDef("night", "Night light", QuickGlyph.NIGHT)
     )
+
+    /** Step 27: buttons found in the phone's own Quick settings that the launcher has no built-in button for (Speed up, Record screen, vivoshare...). */
+    @Volatile
+    private var custom: List<QuickTileDef> = emptyList()
+
+    const val CUSTOM_PREFIX = "sys:"
+    private const val KEY_CUSTOM = "qp_custom"
+
+    val ALL: List<QuickTileDef> get() = BUILTIN + custom
+
+    fun loadCustom(context: Context) {
+        val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_CUSTOM, "") ?: ""
+        custom = raw.split('\n').map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+            .map { QuickTileDef(CUSTOM_PREFIX + it, it, QuickGlyph.GRID) }
+    }
+
+    /** Remembers the found buttons; the ones never seen before are put at the end of the panel. */
+    fun saveCustom(context: Context, labels: List<String>) {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        loadCustom(context)
+        val known = custom.map { it.label }.toSet()
+        val fresh = labels.map { it.trim() }.filter { it.isNotEmpty() && it !in known }.distinct()
+        if (fresh.isEmpty()) return
+        val all = custom.map { it.label } + fresh
+        prefs.edit().putString(KEY_CUSTOM, all.joinToString("\n")).apply()
+        loadCustom(context)
+        val ids = order(context).map { it.id }.toMutableList()
+        for (l in fresh) if (CUSTOM_PREFIX + l !in ids) ids.add(CUSTOM_PREFIX + l)
+        save(context, ids)
+    }
+
+    fun cachedState(context: Context, id: String): Boolean? {
+        val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        return if (p.contains("qp_cs:$id")) p.getBoolean("qp_cs:$id", false) else null
+    }
+
+    fun cacheState(context: Context, id: String, on: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("qp_cs:$id", on).apply()
+    }
 
     /** What a fresh install shows (the first ten); the other buttons wait under "Available buttons" in the editor. */
     val DEFAULT_ORDER: List<String> =
@@ -93,6 +132,7 @@ object QuickTiles {
     /** The buttons on the panel, in order (the first two are drawn wide). */
     fun order(context: Context): List<QuickTileDef> {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        loadCustom(context)
         var ids = parse(prefs.getString(KEY, null))
         // Step 26b: once, every button the panel knows is put on it (the extra pages hold the ones that did not fit), then the editor decides
         if (!prefs.getBoolean(KEY_ALL, false)) {
@@ -256,7 +296,10 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
             }
             "cast" -> TileState(false, "Tap", QuickGlyph.CAST)
             "camera" -> TileState(false, "Open", QuickGlyph.CAMERA)
-            else -> TileState(false, "", QuickGlyph.GEAR)
+            else -> if (id.startsWith(QuickTiles.CUSTOM_PREFIX)) {
+                val on = QuickTiles.cachedState(app, id)
+                TileState(on == true, when (on) { true -> "On"; false -> "Off"; null -> "" }, QuickGlyph.GRID)
+            } else TileState(false, "", QuickGlyph.GEAR)
         }
     } catch (e: Exception) {
         TileState(false, "", QuickTiles.def(id)?.glyph ?: QuickGlyph.GEAR)
@@ -338,20 +381,49 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
     var onLeave: (() -> Unit)? = null
 
     private fun labels(id: String): List<String> = when (id) {
-        "wifi" -> listOf("wi-fi", "wifi", "internet")
+        "wifi" -> listOf("wi-fi", "wifi", "internet", "@wide0")
         "bluetooth" -> listOf("bluetooth")
-        "data" -> listOf("mobile data", "cellular data", "mobile network", "internet")
+        "data" -> listOf("mobile data", "cellular data", "mobile network", "internet", "@wide1")
         "airplane" -> listOf("flight mode", "airplane mode", "aeroplane mode", "airplane")
         "rotate" -> listOf("auto rotate", "auto rotation", "autorotate", "rotation lock", "rotate", "portrait", "landscape")
         "dnd" -> listOf("do not disturb", "dnd")
         "location" -> listOf("location")
-        "hotspot" -> listOf("mobile hotspot", "hotspot", "tethering")
+        "hotspot" -> listOf("mobile hotspot", "personal hotspot", "hotspot", "tethering")
         "battery" -> listOf("battery saver", "power saving", "power saver", "battery saving")
         "dark" -> listOf("dark mode", "dark theme", "dark")
         "cast" -> listOf("screen cast", "cast screen", "smart view", "screen mirroring", "cast")
         "nfc" -> listOf("nfc")
-        "night" -> listOf("night light", "eye comfort", "night mode", "reading mode")
-        else -> emptyList()
+        "night" -> listOf("night light", "eye comfort", "eye protection", "night mode", "reading mode")
+        else -> if (id.startsWith(QuickTiles.CUSTOM_PREFIX)) listOf(id.removePrefix(QuickTiles.CUSTOM_PREFIX)) else emptyList()
+    }
+
+    private fun norm(t: String): String = t.lowercase().map { if (it.isLetterOrDigit()) it else ' ' }.joinToString("").trim().replace(Regex(" +"), " ")
+
+    /** True when the phone's button [label] is one the launcher already has a button for (so it is not added a second time). */
+    fun isBuiltinLabel(label: String): Boolean {
+        val l = norm(label)
+        val words = listOf("torch", "flashlight", "vibration", "vibrate", "sound", "mute", "silent", "camera", "wi fi", "wifi", "bluetooth")
+        val all = QuickTiles.BUILTIN.flatMap { labels(it.id) }.filter { !it.startsWith("@") }.map { norm(it) } + words
+        return all.any { v -> l == v || l.startsWith("$v ") }
+    }
+
+    /** Reads the phone's own Quick settings (hidden behind a picture) and keeps every button the launcher has no button for. */
+    fun scan(done: (Boolean) -> Unit) {
+        val svc = PanelAccessibilityService.instance
+        if (svc == null) {
+            done(false)
+            return
+        }
+        svc.scanTiles { found ->
+            if (found == null) {
+                done(false)
+            } else {
+                val custom = found.filter { !isBuiltinLabel(it.first) }
+                QuickTiles.saveCustom(app, custom.map { it.first })
+                for ((label, on) in custom) if (on != null) QuickTiles.cacheState(app, QuickTiles.CUSTOM_PREFIX + label, on)
+                done(true)
+            }
+        }
     }
 
     private var forceBusy = false
@@ -365,12 +437,13 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
         }
         if (forceBusy) return
         forceBusy = true
-        svc.forceToggle(labels(id)) { ok ->
+        svc.forceToggle(labels(id)) { ok, on ->
             forceBusy = false
             if (!ok) {
                 say("Could not find that button in the phone's Quick settings")
                 fallback(id)
             } else {
+                if (on != null && id.startsWith(QuickTiles.CUSTOM_PREFIX)) QuickTiles.cacheState(app, id, on)
                 onChanged?.invoke()
             }
         }
@@ -378,6 +451,7 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
 
     /** No service (or the phone has no such button): the phone's own screen for it. */
     private fun fallback(id: String) {
+        if (id.startsWith(QuickTiles.CUSTOM_PREFIX)) return
         when (id) {
             "wifi" -> open(
                 when {

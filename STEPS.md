@@ -738,3 +738,13 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
   A swipe left anywhere else on the panel (clock, sliders, notifications area) still goes to the Notifications page.
 - **Swipe up to close**: the veil now fades on the same clock as the slide and the panel is drawn as one picture while it moves, so no faint shade is left on the Home screen.
 - Compile-checked only by reading; not built or tested on a real phone.
+
+## Step 27 - every button of the phone's own Quick settings
+
+- The first time the Quick panel opens (with the Quick panel service on), the launcher reads the phone's own Quick settings behind a picture of the screen,
+  pages through all of it and adds every button it has no built-in button for (Speed up, Record screen, Quick Share, vivoshare, Calculator...). They sit at the end of the panel
+  and can be moved / removed in the editor. Long-press the pencil to read the phone's buttons again.
+- Tapping such a button presses the same button in the phone's Quick settings (found by its name); its On / Off is read from the phone and remembered.
+- Wi-Fi and mobile data are also found by their place (the two big buttons on top) for phones that show the network name instead of "Wi-Fi".
+- New names: Personal hotspot, Eye Protection. Icons of the extra buttons are a plain grid symbol for now.
+- Compile-checked only by reading; not built or tested on a real phone.
