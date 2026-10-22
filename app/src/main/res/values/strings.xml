@@ -11,10 +11,10 @@
     <string name="developer_name" translatable="false">Ok Labs</string>
     <string name="contact_email" translatable="false">a.rehmanmazher11@gmail.com</string>
     <!-- Public home of the policy pages (docs/ on GitHub Pages). Leave YOUR_NAME in until the pages are online: the app then hides the "open online" rows. -->
-    <string name="website_url" translatable="false">https://therealrehman.github.io/Ui9/</string>
+    <string name="website_url" translatable="false">https://YOUR_NAME.github.io/OneUI9Launcher/</string>
     <!-- Play Store: public addresses of the policy pages (see PLAY_STORE.md). Change YOUR_NAME to your GitHub name. -->
-    <string name="privacy_url" translatable="false">https://therealrehman.github.io/Ui9/privacy-policy.html</string>
-    <string name="terms_url" translatable="false">https://therealrehman.github.io/Ui9/terms.html</string>
+    <string name="privacy_url" translatable="false">https://YOUR_NAME.github.io/OneUI9Launcher/privacy-policy.html</string>
+    <string name="terms_url" translatable="false">https://YOUR_NAME.github.io/OneUI9Launcher/terms.html</string>
 
     <!-- Step 6c1: the launcher's own widgets (names show in the widget picker) -->
     <string name="widget_clock_label">Clock</string>
