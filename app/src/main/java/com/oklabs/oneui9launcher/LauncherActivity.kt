@@ -715,7 +715,7 @@ class LauncherActivity : Activity() {
             (::notifPage.isInitialized && notifPage.wantsBlur)
         blurAnimator?.cancel()
         val anim = ValueAnimator.ofFloat(overlayBlur, if (open) 1f else 0f)
-        anim.duration = 220
+        anim.duration = 150
         anim.addUpdateListener {
             overlayBlur = it.animatedValue as Float
             applyBlur()

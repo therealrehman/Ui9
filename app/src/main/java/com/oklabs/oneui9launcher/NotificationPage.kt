@@ -241,8 +241,8 @@ class NotificationPage(
         veil.alpha = 0f
         column.alpha = 0f
         column.translationY = -context.dp(48).toFloat()
-        veil.animate().alpha(1f).setDuration(220).start()
-        column.animate().alpha(1f).translationY(0f).setDuration(260).setInterpolator(DecelerateInterpolator(1.6f)).start()
+        veil.animate().alpha(1f).setDuration(150).start()
+        column.animate().alpha(1f).translationY(0f).setDuration(210).setInterpolator(DecelerateInterpolator(1.6f)).start()
         onOpenChanged?.invoke()
     }
 
@@ -261,8 +261,8 @@ class NotificationPage(
             return
         }
         closing = true
-        veil.animate().alpha(0f).setDuration(180).start()
-        column.animate().alpha(0f).translationY(-context.dp(48).toFloat()).setDuration(190)
+        veil.animate().alpha(0f).setDuration(110).start()
+        column.animate().alpha(0f).translationY(-context.dp(48).toFloat()).setDuration(140)
             .withEndAction {
                 closing = false
                 visibility = View.GONE

@@ -1,6 +1,7 @@
 package com.oklabs.oneui9launcher
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.KeyguardManager
 import android.content.BroadcastReceiver
 import android.content.ComponentName
@@ -183,6 +184,7 @@ class PanelAccessibilityService : AccessibilityService() {
     private var prepared: Built? = null
     private var backdropBitmap: Bitmap? = null
     private var shotAt = 0L
+    private var shotState = SHOT_NONE
     private val ui = Handler(Looper.getMainLooper())
     private val worker: Executor by lazy { Executors.newSingleThreadExecutor() }
     private var receiverOn = false
@@ -377,12 +379,22 @@ class PanelAccessibilityService : AccessibilityService() {
     }
 
     /** A picture of whatever is on the screen, blurred, for behind the panel (Android 11+; the window blur of the overlay is the fallback). */
+    private fun canShoot(): Boolean =
+        Build.VERSION.SDK_INT >= 30 && ((serviceInfo?.capabilities ?: 0) and AccessibilityServiceInfo.CAPABILITY_CAN_TAKE_SCREENSHOT) != 0
+
     private fun requestBackdrop() {
-        if (Build.VERSION.SDK_INT < 30) return
+        backdropBitmap = null // never show the picture of an earlier screen
+        if (!canShoot()) {
+            shotState = SHOT_NONE
+            return
+        }
         val now = System.currentTimeMillis()
-        if (now - shotAt < 1500L) return // one at a time (the system also limits how often a picture can be taken)
+        if (now - shotAt < 400L) { // the system limits how often a picture can be taken
+            shotState = SHOT_NONE
+            return
+        }
         shotAt = now
-        backdropBitmap = null
+        shotState = SHOT_PENDING
         try {
             takeScreenshot(Display.DEFAULT_DISPLAY, worker, object : TakeScreenshotCallback {
                 override fun onSuccess(screenshot: ScreenshotResult) {
@@ -406,17 +418,56 @@ class PanelAccessibilityService : AccessibilityService() {
                     }
                     val result = blurred
                     ui.post {
-                        backdropBitmap = result
-                        if (result != null) frame?.showBackdrop(result)
+                        if (result != null) {
+                            backdropBitmap = result
+                            shotState = SHOT_READY
+                            frame?.showBackdrop(result)
+                        } else {
+                            shotState = SHOT_NONE
+                            frame?.let { setWindowBlur(it, true) }
+                        }
                     }
                 }
 
                 override fun onFailure(errorCode: Int) {
                     // the phone said no (too soon, secure screen...): the overlay's own blur is used
+                    ui.post {
+                        shotState = SHOT_NONE
+                        frame?.let { setWindowBlur(it, true) }
+                    }
                 }
             })
         } catch (e: Exception) {
             // the service may not take pictures (the switch was not re-allowed after an update): the overlay's own blur is used
+            shotState = SHOT_NONE
+        }
+    }
+
+    // ------------------------------------------------------------------ the phone's window blur (only when no picture is available)
+
+    private fun windowBlurAllowed(host: View): Boolean =
+        Build.VERSION.SDK_INT >= 31 && host.context.windowBlurWorks() && getSharedPreferences("launcher", MODE_PRIVATE).getBoolean("blur", true)
+
+    /**
+     * Blur of the apps behind the overlay by the phone itself. It is slow on many phones, so it is only the fallback for when the picture of the
+     * screen is not available, and it is switched off the moment the panel starts to close (the apps clear up at once).
+     */
+    private fun setWindowBlur(host: HostFrame, on: Boolean) {
+        if (Build.VERSION.SDK_INT < 31) return
+        val lp = host.layoutParams as? WindowManager.LayoutParams ?: return
+        val want = on && windowBlurAllowed(host)
+        if (want == (lp.blurBehindRadius > 0)) return
+        if (want) {
+            lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+            lp.blurBehindRadius = 40
+        } else {
+            lp.flags = lp.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
+            lp.blurBehindRadius = 0
+        }
+        try {
+            (getSystemService(Context.WINDOW_SERVICE) as WindowManager).updateViewLayout(host, lp)
+        } catch (e: Exception) {
+            // the window is already gone
         }
     }
 
@@ -465,6 +516,17 @@ class PanelAccessibilityService : AccessibilityService() {
             }
             quick.onGone = gone
             notifs.onGone = gone
+            // Step 24c: the moment a page starts to close, the blurred picture fades out fast and the phone's own blur is switched off, so the apps
+            // behind clear up at once (not after the whole slide-away). Looked at one moment later, so a switch between the two pages keeps the blur.
+            val sync: () -> Unit = {
+                host.post {
+                    val on = quick.wantsBlur || notifs.wantsBlur
+                    host.setBackdropVisible(on)
+                    if (!on) setWindowBlur(host, false)
+                }
+            }
+            quick.onOpenChanged = sync
+            notifs.onOpenChanged = sync
             Built(host, quick, notifs)
         } catch (e: Exception) {
             null
@@ -486,14 +548,20 @@ class PanelAccessibilityService : AccessibilityService() {
                 PixelFormat.TRANSLUCENT
             )
             if (Build.VERSION.SDK_INT >= 28) params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
-            if (Build.VERSION.SDK_INT >= 31 && ctx.windowBlurWorks() && getSharedPreferences("launcher", MODE_PRIVATE).getBoolean("blur", true)) {
-                params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-                params.blurBehindRadius = 60
-            }
             frame = built.host
             wm.addView(built.host, params)
             built.host.applyFallbackInsets()
-            backdropBitmap?.let { built.host.showBackdrop(it) }
+            val picture = backdropBitmap
+            if (picture != null) {
+                built.host.showBackdrop(picture)
+            } else if (shotState == SHOT_PENDING) {
+                // the picture is on its way: only if it is late does the phone's own blur step in
+                ui.postDelayed({
+                    if (frame === built.host && backdropBitmap == null) setWindowBlur(built.host, true)
+                }, 300L)
+            } else {
+                setWindowBlur(built.host, true)
+            }
             if (startOnNotifs) built.notifs.open() else built.quick.open()
             built.host.requestFocus()
         } catch (e: Exception) {
@@ -517,6 +585,8 @@ class PanelAccessibilityService : AccessibilityService() {
 
         /** The blurred picture of the screen behind the panel (Step 24); it fades in when it is ready. */
         private val backdrop = ImageView(context)
+        private var picture: Bitmap? = null
+        private var backdropWanted = true
 
         init {
             isFocusable = true
@@ -527,9 +597,17 @@ class PanelAccessibilityService : AccessibilityService() {
         }
 
         fun showBackdrop(bitmap: Bitmap) {
+            picture = bitmap
             backdrop.setImageBitmap(bitmap)
+            if (backdropWanted) setBackdropVisible(true)
+        }
+
+        /** Fades the blurred picture in (a little slower) or out (quickly, so the apps behind clear up at once). */
+        fun setBackdropVisible(visible: Boolean) {
+            backdropWanted = visible
             backdrop.animate().cancel()
-            backdrop.animate().alpha(1f).setDuration(180).start()
+            if (visible && picture == null) return
+            backdrop.animate().alpha(if (visible) 1f else 0f).setDuration(if (visible) 140L else 80L).start()
         }
 
         override fun dispatchKeyEvent(event: KeyEvent): Boolean {
@@ -565,6 +643,10 @@ class PanelAccessibilityService : AccessibilityService() {
     }
 
     companion object {
+        private const val SHOT_NONE = 0
+        private const val SHOT_PENDING = 1
+        private const val SHOT_READY = 2
+
         /** The running service (null when it is off); the Settings test button uses it. */
         @Volatile
         var instance: PanelAccessibilityService? = null

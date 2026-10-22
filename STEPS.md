@@ -645,6 +645,14 @@ Under the brightness slider (above the notifications) the panel now has three mo
 - Popups of the panel (Bluetooth, Location...) become overlay windows there. No new manifest permission except the Accessibility service itself. Permissions page, `docs/privacy-policy.html` updated. Google Play treats Accessibility as a restricted permission (needs its own declaration): see PLAY_STORE.md.
 - Not tested on a real phone: compile-checked only, and the pure recognising rule is JVM-tested. Version 1.0.20 (code 130).
 
+## Step 24c - panel blur and un-blur are fast
+
+- **Dismissing:** the blurred picture behind the panel now fades out in 80 ms the moment the panel starts to close, and the phone's own window blur is switched off at the same moment, so the apps behind look sharp again at once (before, they stayed blurred for the whole slide-away).
+- **Opening / closing animations are faster** (open 150 / 210 ms, close 110 / 150 ms; the Home screen's blur follows in 150 ms).
+- **The phone's window blur is only a fallback now.** It is slow on many phones, so when the picture of the screen can be taken (Android 11+, screenshot permission allowed) only that picture is used. If the picture is not available or is late (over 0.3 s) the window blur steps in.
+- A switch between the Quick panel and the Notifications page keeps the blur (no flash).
+- Version 1.0.24 (code 134). Compile-checked only; not tested on a real phone.
+
 ## Step 24b - the Quick panel ignores the phone's dark / light mode
 
 - The Quick panel, its pop-ups and the Notifications page now use their own look (`PanelLook`) and **never follow the phone's dark / light mode**, on the Home screen and in the "In every app" overlay alike. They stay the dark frosted glass with white text, like the reference phone, whatever the phone is set to.

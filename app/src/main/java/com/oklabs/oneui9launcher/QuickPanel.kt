@@ -621,8 +621,8 @@ class QuickPanel(
         scrim.background = PanelTheme.scrim(if (context.windowBlurWorks()) 150 else 200, PanelLook.dark)
         scrim.alpha = 0f
         card.translationY = -context.resources.displayMetrics.heightPixels.toFloat()
-        scrim.animate().alpha(1f).setDuration(220).start()
-        card.animate().translationY(0f).setDuration(260).setInterpolator(DecelerateInterpolator(1.6f)).start()
+        scrim.animate().alpha(1f).setDuration(150).start()
+        card.animate().translationY(0f).setDuration(210).setInterpolator(DecelerateInterpolator(1.6f)).start()
         onOpenChanged?.invoke()
     }
 
@@ -647,8 +647,8 @@ class QuickPanel(
             return
         }
         closing = true
-        scrim.animate().alpha(0f).setDuration(180).start()
-        card.animate().translationY(-(card.height + context.dp(40)).toFloat()).setDuration(210)
+        scrim.animate().alpha(0f).setDuration(110).start()
+        card.animate().translationY(-(card.height + context.dp(40)).toFloat()).setDuration(150)
             .withEndAction {
                 closing = false
                 visibility = View.GONE
