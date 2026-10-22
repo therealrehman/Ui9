@@ -2,7 +2,7 @@
 <resources>
 
     <!-- No grey scrim behind the status / navigation bars. -->
-    <style name="Theme.OneUI.Home" parent="Theme.OneUI.Home.Base">
+    <style name="Theme.OneUI.Home" parent="Theme.OneUI.Home.NoAnim">
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
         <item name="android:enforceNavigationBarContrast">false</item>
         <item name="android:enforceStatusBarContrast">false</item>

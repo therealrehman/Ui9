@@ -222,6 +222,20 @@ class QuickGlyph(context: Context, var kind: Int) : View(context) {
                 canvas.drawPath(path, paint)
                 canvas.drawCircle(cx, cy + s * 0.06f, s * 0.12f, paint)
             }
+            NFC -> {
+                stroke(s, 0.075f)
+                val nx = cx - s * 0.2f
+                for (i in 1..3) arc(canvas, nx, cy, s * 0.14f * i, -48f, 96f)
+                fill()
+                canvas.drawCircle(nx, cy, s * 0.045f, paint)
+            }
+            NIGHT -> {
+                stroke(s, 0.07f)
+                canvas.drawCircle(cx, cy, s * 0.3f, paint)
+                fill()
+                oval.set(cx - s * 0.3f, cy - s * 0.3f, cx + s * 0.3f, cy + s * 0.3f)
+                canvas.drawArc(oval, 90f, 180f, true, paint)
+            }
             SUN -> {
                 stroke(s, 0.07f)
                 canvas.drawCircle(cx, cy, s * 0.15f, paint)
@@ -410,6 +424,8 @@ class QuickGlyph(context: Context, var kind: Int) : View(context) {
         const val BELL = 27
         const val ALARM = 28
         const val POWER = 29
+        const val NFC = 30
+        const val NIGHT = 31
     }
 }
 

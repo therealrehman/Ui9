@@ -718,3 +718,15 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
   The panel is now as tall as the screen; the Media output / Devices row and the volume card stay above it. Switch the player off with Settings > Gestures > Volume and media.
 - The old media card between Media output and the volume card is gone (the player replaces it).
 - Compile-checked only by reading; not built or tested on a real phone. Version 1.0.16 (code 126).
+
+## Step 26a - one-tap buttons, no popup; no slide when Home appears
+
+- **Every Quick panel button now switches with one tap and no popup.** Torch, sound mode (and auto rotate / Do not disturb once allowed) are switched directly.
+  Wi-Fi, Bluetooth, mobile data, flight mode, location, hotspot, battery saver, dark mode, cast, NFC and night light are switched by the Quick panel service
+  (Accessibility): it opens the phone's own Quick settings for a moment, presses that button by its name and closes it again. The panel stays open and the button updates.
+  The service now needs "retrieve window content" (only to find the button by name); switch the service off and on once in Accessibility after installing.
+- New buttons: **NFC** and **Night light / Eye comfort** (under "Available buttons" in the editor). Hotspot now shows On / Off.
+- The "Open settings" popup is gone. Without the service a tap opens the phone's own screen for that button instead (and says so).
+- **Unlock glitch**: the Home window has no opening / closing animation and no "preview" picture any more, so the apps no longer slide up from the bottom (or show twice) when the phone is unlocked.
+- Next (26b): swipe left / right through pages of buttons in a loop.
+- Compile-checked only by reading; not built or tested on a real phone.

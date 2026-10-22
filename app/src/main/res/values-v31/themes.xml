@@ -2,7 +2,7 @@
 <resources>
 
     <!-- Android 12+: a see-through window, so the wallpaper behind it can be blurred (Step 8b). -->
-    <style name="Theme.OneUI.Home" parent="Theme.OneUI.Home.Base">
+    <style name="Theme.OneUI.Home" parent="Theme.OneUI.Home.NoAnim">
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
         <item name="android:enforceNavigationBarContrast">false</item>
         <item name="android:enforceStatusBarContrast">false</item>

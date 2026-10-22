@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Step 26: a do-nothing animation, so the Home screen appears without any slide / zoom when the phone is unlocked or Home is pressed. -->
+<set xmlns:android="http://schemas.android.com/apk/res/android">
+    <alpha android:fromAlpha="1.0" android:toAlpha="1.0" android:duration="1" />
+</set>

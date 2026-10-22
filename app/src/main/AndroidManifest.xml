@@ -18,6 +18,8 @@
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    <!-- Step 26: shows whether NFC is on (the button itself is switched by the Quick panel service). -->
+    <uses-permission android:name="android.permission.NFC" />
 
     <!-- Android 11+ hides other apps unless declared. These let the launcher see every
          launchable app plus the default Phone / Messages / Browser / Camera / Settings. -->

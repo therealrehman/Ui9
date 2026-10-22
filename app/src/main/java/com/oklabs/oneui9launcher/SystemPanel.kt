@@ -24,6 +24,8 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
+import android.graphics.Rect
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.Toast
@@ -234,6 +236,7 @@ class PanelAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val e = event ?: return
+        if (forcing) return // Step 26: the phone's Quick settings is open on purpose, do not swap it for our panel
         if (e.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         if (!SystemPanel.wanted(this)) {
             removeStrip()
@@ -268,6 +271,198 @@ class PanelAccessibilityService : AccessibilityService() {
         showPanel()
         // the phone's own panel goes away (Android 12+); older phones get a Back, which closes it on most
         if (Build.VERSION.SDK_INT >= 31) performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE) else performGlobalAction(GLOBAL_ACTION_BACK)
+    }
+
+    // ------------------------------------------------------------------ one-tap switching (Step 26)
+
+    @Volatile
+    private var forcing = false
+
+    private fun norm(t: CharSequence?): String {
+        if (t == null) return ""
+        val sb = StringBuilder()
+        var space = true
+        for (ch in t.toString().lowercase()) {
+            if (ch.isLetterOrDigit()) {
+                sb.append(ch)
+                space = false
+            } else if (!space) {
+                sb.append(' ')
+                space = true
+            }
+        }
+        return sb.toString().trim()
+    }
+
+    private fun startsWithWord(text: String, v: String): Boolean = text == v || text.startsWith("$v ")
+
+    /** The windows of the phone's System UI (its Quick settings); other apps' windows only when no System UI window can be read. */
+    private fun shadeRoots(): List<AccessibilityNodeInfo> {
+        val all = ArrayList<AccessibilityNodeInfo>()
+        try {
+            for (w in windows) {
+                val r = w.root ?: continue
+                if (r.packageName?.toString() == packageName) continue
+                all.add(r)
+            }
+        } catch (e: Exception) {
+            // no window list on this phone
+        }
+        if (all.isEmpty()) rootInActiveWindow?.let { if (it.packageName?.toString() != packageName) all.add(it) }
+        val sys = all.filter { SystemPanelLogic.isSystemUi(it.packageName?.toString()) }
+        return if (sys.isNotEmpty()) sys else all
+    }
+
+    private fun collect(node: AccessibilityNodeInfo?, out: MutableList<AccessibilityNodeInfo>, depth: Int) {
+        if (node == null || depth > 28) return
+        out.add(node)
+        for (i in 0 until node.childCount) collect(node.getChild(i), out, depth + 1)
+    }
+
+    private fun clickTarget(node: AccessibilityNodeInfo, minTop: Int): AccessibilityNodeInfo? {
+        val screenH = resources.displayMetrics.heightPixels
+        var cur: AccessibilityNodeInfo? = node
+        var up = 0
+        val r = Rect()
+        while (cur != null && up <= 3) {
+            cur.getBoundsInScreen(r)
+            if (r.height() > screenH * 0.35f) return null // a big container, not a button
+            if (cur.isClickable && cur.isEnabled && (r.centerY() > minTop)) return cur
+            cur = cur.parent
+            up++
+        }
+        return null
+    }
+
+    private fun findTile(roots: List<AccessibilityNodeInfo>, variants: List<String>): AccessibilityNodeInfo? {
+        val minTop = (statusBarPx() * 1.3f).toInt()
+        val nodes = ArrayList<AccessibilityNodeInfo>()
+        for (r in roots) collect(r, nodes, 0)
+        val named = nodes.filter { it.isVisibleToUser }
+        for (v in variants) {
+            val key = norm(v)
+            for (n in named) {
+                val t = norm(n.text)
+                val d = norm(n.contentDescription)
+                if (!(startsWithWord(t, key) || startsWithWord(d, key))) continue
+                val target = clickTarget(n, minTop) ?: continue
+                return target
+            }
+        }
+        return null
+    }
+
+    private fun scrollTiles(roots: List<AccessibilityNodeInfo>): Boolean {
+        val nodes = ArrayList<AccessibilityNodeInfo>()
+        for (r in roots) collect(r, nodes, 0)
+        val minTop = statusBarPx()
+        val r = Rect()
+        for (n in nodes) {
+            if (!n.isScrollable) continue
+            n.getBoundsInScreen(r)
+            if (r.centerY() < minTop) continue
+            if (n.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) return true
+        }
+        return false
+    }
+
+    /** After a tap that opened a small dialog instead (the "Internet" tile on stock Android): press the switch inside it. */
+    private fun pressDialogSwitch(roots: List<AccessibilityNodeInfo>, variants: List<String>): Boolean {
+        val nodes = ArrayList<AccessibilityNodeInfo>()
+        for (r in roots) collect(r, nodes, 0)
+        for (v in variants) {
+            val key = norm(v)
+            if (key == "internet") continue
+            for (n in nodes) {
+                val cls = n.className?.toString() ?: ""
+                if (!(n.isCheckable || cls.contains("Switch"))) continue
+                if (!n.isVisibleToUser) continue
+                val t = norm(n.text)
+                val d = norm(n.contentDescription)
+                if (startsWithWord(t, key) || startsWithWord(d, key)) {
+                    if (n.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
+                }
+            }
+        }
+        return false
+    }
+
+    private fun closeShade() {
+        if (Build.VERSION.SDK_INT >= 31) performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE) else {
+            performGlobalAction(GLOBAL_ACTION_BACK)
+            ui.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 160L)
+        }
+    }
+
+    /**
+     * Opens the phone's own Quick settings, presses the button whose name is one of [variants], and closes it again. [done] gets true when the
+     * button was pressed. The panel of the launcher stays where it is the whole time.
+     */
+    fun forceToggle(variants: List<String>, done: (Boolean) -> Unit) {
+        if (forcing || variants.isEmpty()) {
+            done(false)
+            return
+        }
+        forcing = true
+        val finish: (Boolean) -> Unit = { ok ->
+            ui.postDelayed({
+                forcing = false
+                done(ok)
+            }, 450L)
+        }
+        performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)
+        var tries = 0
+        var scrolls = 0
+        val step = object : Runnable {
+            override fun run() {
+                tries++
+                val roots = try {
+                    shadeRoots()
+                } catch (e: Exception) {
+                    emptyList()
+                }
+                val tile = try {
+                    findTile(roots, variants)
+                } catch (e: Exception) {
+                    null
+                }
+                if (tile != null) {
+                    val label = norm(tile.text) + " " + norm(tile.contentDescription)
+                    val ok = tile.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                    ui.postDelayed({
+                        var dialog = false
+                        if (label.contains("internet")) {
+                            dialog = try {
+                                pressDialogSwitch(shadeRoots(), variants)
+                            } catch (e: Exception) {
+                                false
+                            }
+                        }
+                        ui.postDelayed({
+                            if (dialog) performGlobalAction(GLOBAL_ACTION_BACK)
+                            ui.postDelayed({ closeShade() }, if (dialog) 200L else 0L)
+                            finish(ok)
+                        }, if (dialog) 250L else 120L)
+                    }, 380L)
+                    return
+                }
+                if (tries >= 6 && tries % 4 == 2 && scrolls < 4) {
+                    scrolls++
+                    try {
+                        scrollTiles(roots)
+                    } catch (e: Exception) {
+                        // ignore, keep looking
+                    }
+                }
+                if (tries >= 30) {
+                    closeShade()
+                    finish(false)
+                    return
+                }
+                ui.postDelayed(this, 130L)
+            }
+        }
+        ui.postDelayed(step, 500L)
     }
 
     // ------------------------------------------------------------------ the top-edge strip (Step 24)

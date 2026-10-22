@@ -11,7 +11,33 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 
-    <style name="Theme.OneUI.Home" parent="Theme.OneUI.Home.Base" />
+    <!-- Step 26: the Home screen window has no opening / closing animation and no "preview" picture of its old state. Both made the apps
+         slide up from the bottom (and show twice) for a moment when the phone was unlocked. -->
+    <style name="Anim.OneUI.None" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/launcher_none</item>
+        <item name="android:activityOpenExitAnimation">@anim/launcher_none</item>
+        <item name="android:activityCloseEnterAnimation">@anim/launcher_none</item>
+        <item name="android:activityCloseExitAnimation">@anim/launcher_none</item>
+        <item name="android:taskOpenEnterAnimation">@anim/launcher_none</item>
+        <item name="android:taskOpenExitAnimation">@anim/launcher_none</item>
+        <item name="android:taskCloseEnterAnimation">@anim/launcher_none</item>
+        <item name="android:taskCloseExitAnimation">@anim/launcher_none</item>
+        <item name="android:taskToFrontEnterAnimation">@anim/launcher_none</item>
+        <item name="android:taskToFrontExitAnimation">@anim/launcher_none</item>
+        <item name="android:taskToBackEnterAnimation">@anim/launcher_none</item>
+        <item name="android:taskToBackExitAnimation">@anim/launcher_none</item>
+        <item name="android:wallpaperOpenEnterAnimation">@anim/launcher_none</item>
+        <item name="android:wallpaperOpenExitAnimation">@anim/launcher_none</item>
+        <item name="android:wallpaperCloseEnterAnimation">@anim/launcher_none</item>
+        <item name="android:wallpaperCloseExitAnimation">@anim/launcher_none</item>
+    </style>
+
+    <style name="Theme.OneUI.Home.NoAnim" parent="Theme.OneUI.Home.Base">
+        <item name="android:windowAnimationStyle">@style/Anim.OneUI.None</item>
+        <item name="android:windowDisablePreview">true</item>
+    </style>
+
+    <style name="Theme.OneUI.Home" parent="Theme.OneUI.Home.NoAnim" />
 
     <!-- Step 6c2: setup screen of the launcher's own widgets (wallpaper shows behind the preview). -->
     <style name="Theme.OneUI.Setup" parent="Theme.OneUI.Home.Base" />

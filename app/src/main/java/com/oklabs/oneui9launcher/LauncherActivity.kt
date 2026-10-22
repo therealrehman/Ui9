@@ -305,6 +305,7 @@ class LauncherActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        noTransition()
         isForeground = true
         if (Backup.reloadHome || HomeStore.configChanged(this)) { // Home settings changed something / a backup was restored: build the screen again
             recreate()
@@ -338,8 +339,25 @@ class LauncherActivity : Activity() {
         super.onDestroy()
     }
 
+    /** Step 26: no slide / zoom when Home appears (unlock, Home button); the theme already has none, this covers the newer phones that ask the app. */
+    private fun noTransition() {
+        try {
+            if (Build.VERSION.SDK_INT >= 34) {
+                overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
+                overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+            } else {
+                @Suppress("DEPRECATION")
+                overridePendingTransition(0, 0)
+            }
+            if (Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(false) // no old picture of the Home screen shown over the new one
+        } catch (e: Exception) {
+            // not supported on this phone
+        }
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        noTransition()
         // Home button pressed while we are already open (or coming back from another app).
         if (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_HOME)) {
             goHome()

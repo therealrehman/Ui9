@@ -539,12 +539,10 @@ class QuickPanel(
         tile.setOnClickListener {
             tile.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
             system.tap(id)
-            if (id in IN_PLACE) {
-                handler.postDelayed({ refresh() }, 200)
-                handler.postDelayed({ refresh() }, 800)
-            } else {
-                close(false) // it opened a phone settings screen: Home is waiting when the person comes back
-            }
+            // Step 26: every button switches right here; the panel only closes when the tap had to open a phone screen (system.onLeave)
+            handler.postDelayed({ refresh() }, 200)
+            handler.postDelayed({ refresh() }, 800)
+            handler.postDelayed({ refresh() }, 1800)
         }
         tile.setOnLongClickListener {
             system.longPress(id)
@@ -671,6 +669,8 @@ class QuickPanel(
         filter.addAction(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
         filter.addAction(LocationManager.MODE_CHANGED_ACTION)
         filter.addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
+        filter.addAction("android.nfc.action.ADAPTER_STATE_CHANGED")
+        filter.addAction("android.net.wifi.WIFI_AP_STATE_CHANGED")
         try {
             if (Build.VERSION.SDK_INT >= 33) {
                 context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
@@ -803,8 +803,6 @@ class QuickPanel(
         const val KEY_BRIGHT_TOP = "qp_bright_top"
         const val MAX_WIDTH_DP = 600
 
-        /** Buttons that change right there (the panel stays open); the others open a phone settings screen. */
-        val IN_PLACE = setOf("sound", "torch", "rotate", "dnd", "bluetooth", "location", "hotspot", "battery", "dark", "cast")
     }
 }
 

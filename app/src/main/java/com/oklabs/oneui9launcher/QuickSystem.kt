@@ -19,6 +19,7 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.MediaStore
 import android.provider.Settings
+import android.nfc.NfcAdapter
 
 /** What a Quick panel button shows right now: lit or not, the small second line, and which icon. */
 class TileState(val on: Boolean, val sub: String, val glyph: Int)
@@ -43,7 +44,9 @@ object QuickTiles {
         QuickTileDef("battery", "Battery saver", QuickGlyph.BATTERY),
         QuickTileDef("dark", "Dark mode", QuickGlyph.DARK),
         QuickTileDef("cast", "Screen cast", QuickGlyph.CAST),
-        QuickTileDef("camera", "Camera", QuickGlyph.CAMERA)
+        QuickTileDef("camera", "Camera", QuickGlyph.CAMERA),
+        QuickTileDef("nfc", "NFC", QuickGlyph.NFC),
+        QuickTileDef("night", "Night light", QuickGlyph.NIGHT)
     )
 
     /** What a fresh install shows (the first ten); the other buttons wait under "Available buttons" in the editor. */
@@ -220,18 +223,30 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
                 val on = locationOn()
                 TileState(on, if (on) "On" else "Off", QuickGlyph.LOCATION)
             }
-            "hotspot" -> TileState(false, "Settings", QuickGlyph.HOTSPOT)
+            "hotspot" -> {
+                val on = hotspotOn()
+                TileState(on, if (on) "On" else "Off", QuickGlyph.HOTSPOT)
+            }
+            "nfc" -> {
+                val adapter = NfcAdapter.getDefaultAdapter(app)
+                if (adapter == null) TileState(false, "Not available", QuickGlyph.NFC)
+                else TileState(adapter.isEnabled, if (adapter.isEnabled) "On" else "Off", QuickGlyph.NFC)
+            }
+            "night" -> {
+                val on = nightOn()
+                TileState(on, if (on) "On" else "Off", QuickGlyph.NIGHT)
+            }
             "battery" -> {
                 val pm = app.getSystemService(Context.POWER_SERVICE) as? PowerManager
                 val on = pm?.isPowerSaveMode == true
                 TileState(on, if (on) "On" else "Off", QuickGlyph.BATTERY)
             }
             "dark" -> {
-                val night = app.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+                val night = android.content.res.Resources.getSystem().configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
                 val on = night == Configuration.UI_MODE_NIGHT_YES
                 TileState(on, if (on) "On" else "Off", QuickGlyph.DARK)
             }
-            "cast" -> TileState(false, "Settings", QuickGlyph.CAST)
+            "cast" -> TileState(false, "Tap", QuickGlyph.CAST)
             "camera" -> TileState(false, "Open", QuickGlyph.CAMERA)
             else -> TileState(false, "", QuickGlyph.GEAR)
         }
@@ -262,6 +277,24 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
         return false
     }
 
+    /** The hotspot state is not in the public API; the hidden call is tried and a phone that blocks it just shows "Off". */
+    private fun hotspotOn(): Boolean = try {
+        val wifi = app.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+        val m = WifiManager::class.java.getDeclaredMethod("isWifiApEnabled")
+        m.isAccessible = true
+        (m.invoke(wifi) as? Boolean) == true
+    } catch (e: Throwable) {
+        false
+    }
+
+    /** Night light (stock Android) or Eye comfort (Samsung / some others). */
+    private fun nightOn(): Boolean = try {
+        Settings.Secure.getInt(app.contentResolver, "night_display_activated", 0) == 1 ||
+            Settings.System.getInt(app.contentResolver, "blue_light_filter", 0) == 1
+    } catch (e: Exception) {
+        false
+    }
+
     private fun locationOn(): Boolean {
         if (Build.VERSION.SDK_INT >= 28) {
             val lm = app.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return false
@@ -273,7 +306,70 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
 
     // ------------------------------------------------------------------ taps
 
+    /**
+     * Step 26: every button switches with ONE tap and no popup. What the app may change itself (torch, sound mode, and auto rotate / Do not
+     * disturb once allowed) is switched directly. Everything else Android keeps for the system (Wi-Fi, Bluetooth, mobile data, flight mode,
+     * location, hotspot, battery saver, dark mode, cast, NFC, night light) is switched by the Accessibility service: it opens the phone's own
+     * Quick settings for a moment, presses that button for you and closes it again. Without the service the phone's own screen opens instead.
+     */
     fun tap(id: String) {
+        when (id) {
+            "sound" -> cycleSound()
+            "torch" -> toggleTorch()
+            "camera" -> {
+                open(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
+                onLeave?.invoke()
+            }
+            "rotate" -> if (Settings.System.canWrite(app)) toggleRotate() else force(id)
+            "dnd" -> if (notifications()?.isNotificationPolicyAccessGranted == true) toggleDnd() else force(id)
+            else -> force(id)
+        }
+    }
+
+    /** Called when a tap sent the person to a phone screen: the panel should close. */
+    var onLeave: (() -> Unit)? = null
+
+    private fun labels(id: String): List<String> = when (id) {
+        "wifi" -> listOf("wi-fi", "wifi", "internet")
+        "bluetooth" -> listOf("bluetooth")
+        "data" -> listOf("mobile data", "cellular data", "mobile network", "internet")
+        "airplane" -> listOf("flight mode", "airplane mode", "aeroplane mode", "airplane")
+        "rotate" -> listOf("auto rotate", "auto rotation", "autorotate", "rotation lock", "rotate", "portrait", "landscape")
+        "dnd" -> listOf("do not disturb", "dnd")
+        "location" -> listOf("location")
+        "hotspot" -> listOf("mobile hotspot", "hotspot", "tethering")
+        "battery" -> listOf("battery saver", "power saving", "power saver", "battery saving")
+        "dark" -> listOf("dark mode", "dark theme", "dark")
+        "cast" -> listOf("screen cast", "cast screen", "smart view", "screen mirroring", "cast")
+        "nfc" -> listOf("nfc")
+        "night" -> listOf("night light", "eye comfort", "night mode", "reading mode")
+        else -> emptyList()
+    }
+
+    private var forceBusy = false
+
+    private fun force(id: String) {
+        val svc = PanelAccessibilityService.instance
+        if (svc == null) {
+            say("Turn on the Quick panel service (Accessibility) to switch this in one tap")
+            fallback(id)
+            return
+        }
+        if (forceBusy) return
+        forceBusy = true
+        svc.forceToggle(labels(id)) { ok ->
+            forceBusy = false
+            if (!ok) {
+                say("Could not find that button in the phone's Quick settings")
+                fallback(id)
+            } else {
+                onChanged?.invoke()
+            }
+        }
+    }
+
+    /** No service (or the phone has no such button): the phone's own screen for it. */
+    private fun fallback(id: String) {
         when (id) {
             "wifi" -> open(
                 when {
@@ -282,75 +378,18 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
                     else -> Settings.ACTION_WIFI_SETTINGS
                 }
             )
-            "bluetooth" -> popup(id, "Bluetooth", Settings.ACTION_BLUETOOTH_SETTINGS)
+            "bluetooth" -> open(Settings.ACTION_BLUETOOTH_SETTINGS)
             "data" -> open(if (Build.VERSION.SDK_INT >= 29) Settings.Panel.ACTION_INTERNET_CONNECTIVITY else Settings.ACTION_WIRELESS_SETTINGS)
-            "airplane" -> open(if (Build.VERSION.SDK_INT >= 29) Settings.Panel.ACTION_INTERNET_CONNECTIVITY else Settings.ACTION_AIRPLANE_MODE_SETTINGS)
-            "sound" -> cycleSound()
-            "torch" -> toggleTorch()
-            "rotate" -> toggleRotate()
-            "dnd" -> toggleDnd()
-            "location" -> popup(id, "Location", Settings.ACTION_LOCATION_SOURCE_SETTINGS)
-            "hotspot" -> popup(id, "Mobile hotspot", null)
-            "battery" -> popup(id, "Battery saver", Settings.ACTION_BATTERY_SAVER_SETTINGS)
-            "dark" -> popup(id, "Dark mode", Settings.ACTION_DISPLAY_SETTINGS)
-            "cast" -> popup(id, "Screen cast", Settings.ACTION_CAST_SETTINGS)
-            "camera" -> open(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
+            "airplane" -> open(Settings.ACTION_AIRPLANE_MODE_SETTINGS)
+            "rotate", "dark", "night" -> open(Settings.ACTION_DISPLAY_SETTINGS)
+            "dnd" -> open(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+            "location" -> open(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+            "hotspot" -> openHotspot()
+            "battery" -> open(Settings.ACTION_BATTERY_SAVER_SETTINGS)
+            "cast" -> open(Settings.ACTION_CAST_SETTINGS)
+            "nfc" -> open(Settings.ACTION_NFC_SETTINGS)
         }
-    }
-
-    /** Called when a popup sent the person to a phone screen: the panel should close. */
-    var onLeave: (() -> Unit)? = null
-
-    /**
-     * Step 21c: one small popup for the buttons Android will not let an app switch (Bluetooth, location, hotspot...): the real state
-     * and an "Open settings" button. Wi-Fi, mobile data and flight mode use the phone's own popup panel instead.
-     */
-    private fun popup(id: String, title: String, action: String?) {
-        val c = ctx
-        val st = state(id)
-        val box = android.widget.LinearLayout(c)
-        box.orientation = android.widget.LinearLayout.VERTICAL
-        box.setPadding(c.dp(22), c.dp(20), c.dp(22), c.dp(18))
-        box.background = roundRect(PanelLook.panel(250), c.dpf(28f))
-        val t = android.widget.TextView(c)
-        t.text = title
-        t.setTextColor(PanelLook.text)
-        t.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 19f)
-        box.addView(t)
-        val s = android.widget.TextView(c)
-        s.text = if (st.sub.isNotEmpty() && st.sub != "Settings") st.sub else "Android lets only the system switch this one"
-        s.setTextColor(PanelLook.textA(190))
-        s.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14f)
-        val sp = android.widget.LinearLayout.LayoutParams(-1, -2)
-        sp.topMargin = c.dp(6)
-        box.addView(s, sp)
-        val dialog = android.app.Dialog(c)
-        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
-        val b = android.widget.TextView(c)
-        b.text = "Open settings"
-        b.gravity = android.view.Gravity.CENTER
-        b.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15f)
-        b.setTextColor(if (PanelLook.dark) android.graphics.Color.rgb(24, 26, 32) else android.graphics.Color.WHITE)
-        b.background = roundRect(PanelLook.text, c.dpf(24f))
-        b.setPadding(0, c.dp(12), 0, c.dp(12))
-        b.isClickable = true
-        b.setOnClickListener {
-            dialog.dismiss()
-            if (action != null) open(action) else openHotspot()
-            onLeave?.invoke()
-        }
-        val bp = android.widget.LinearLayout.LayoutParams(-1, -2)
-        bp.topMargin = c.dp(18)
-        box.addView(b, bp)
-        dialog.setContentView(box)
-        dialog.window?.apply {
-            // Step 22: in the system-wide panel there is no Activity, so the popup is an accessibility overlay window
-            if (c !is android.app.Activity) setType(android.view.WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY)
-            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
-            setLayout(minOf(c.resources.displayMetrics.widthPixels - c.dp(48), c.dp(420)), -2)
-            setGravity(android.view.Gravity.CENTER)
-        }
-        dialog.show()
+        onLeave?.invoke()
     }
 
     /** Long-press: the phone's full settings page for the button. */
@@ -368,6 +407,8 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
             "battery" -> open(Settings.ACTION_BATTERY_SAVER_SETTINGS)
             "cast" -> open(Settings.ACTION_CAST_SETTINGS)
             "camera" -> open(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
+            "nfc" -> open(Settings.ACTION_NFC_SETTINGS)
+            "night" -> open(Settings.ACTION_DISPLAY_SETTINGS)
         }
     }
 
@@ -397,8 +438,7 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
                     try {
                         am.ringerMode = AudioManager.RINGER_MODE_SILENT
                     } catch (e: SecurityException) {
-                        say("Mute needs \"Do not disturb\" access: allow it, then tap again")
-                        open(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+                        am.ringerMode = AudioManager.RINGER_MODE_NORMAL // Mute needs Do not disturb access: skip it
                     }
                 }
                 else -> am.ringerMode = AudioManager.RINGER_MODE_NORMAL
