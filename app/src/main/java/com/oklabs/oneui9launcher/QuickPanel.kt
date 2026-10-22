@@ -170,6 +170,160 @@ class PillSlider(context: Context, glyphKind: Int) : FrameLayout(context) {
 }
 
 /**
+ * Step 26b: the round buttons live on pages inside one frosted box. Drag left / right and the pages follow the finger; after the last page comes the
+ * first again (a loop). Dots under the pages show where you are. With one page it behaves like a plain box.
+ */
+class TilePager(context: Context, private val pages: List<View>) : FrameLayout(context) {
+
+    private var index = 0
+    private var downX = 0f
+    private var downY = 0f
+    private var dragging = false
+    private var neighbor: View? = null
+    private var neighborIndex = 0
+    private var dir = 0
+    private var offset = 0f
+    private var velocity: android.view.VelocityTracker? = null
+    private var settle: android.animation.ValueAnimator? = null
+    private val slop = ViewConfiguration.get(context).scaledTouchSlop
+    private val dotPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+
+    init {
+        setWillNotDraw(false)
+        for ((i, p) in pages.withIndex()) {
+            addView(p, LayoutParams(MATCH, WRAP))
+            p.visibility = if (i == 0) View.VISIBLE else View.INVISIBLE
+        }
+    }
+
+    val multi: Boolean get() = pages.size > 1
+
+    fun containsRaw(x: Float, y: Float): Boolean {
+        val loc = IntArray(2)
+        getLocationOnScreen(loc)
+        return x >= loc[0] && x <= loc[0] + width && y >= loc[1] && y <= loc[1] + height
+    }
+
+    private fun pageWidth(): Float = (width - paddingLeft - paddingRight).toFloat().coerceAtLeast(1f)
+
+    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+        if (!multi) return false
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                settle?.cancel()
+                downX = ev.x
+                downY = ev.y
+                dragging = false
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val dx = ev.x - downX
+                val dy = ev.y - downY
+                if (abs(dx) > slop && abs(dx) > abs(dy) * 1.2f) {
+                    beginDrag(ev)
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    private fun beginDrag(ev: MotionEvent) {
+        dragging = true
+        parent?.requestDisallowInterceptTouchEvent(true)
+        velocity?.recycle()
+        velocity = android.view.VelocityTracker.obtain()
+        velocity?.addMovement(ev)
+        downX = ev.x
+        offset = 0f
+    }
+
+    override fun onTouchEvent(ev: MotionEvent): Boolean {
+        if (!multi) return false
+        if (!dragging) return ev.actionMasked == MotionEvent.ACTION_DOWN // tap on empty space: keep the gesture
+        velocity?.addMovement(ev)
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_MOVE -> place(ev.x - downX)
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                velocity?.computeCurrentVelocity(1000)
+                val vx = velocity?.xVelocity ?: 0f
+                velocity?.recycle()
+                velocity = null
+                dragging = false
+                val w = pageWidth()
+                val go = ev.actionMasked == MotionEvent.ACTION_UP && (abs(offset) > w * 0.25f || abs(vx) > 900f && vx * offset > 0f)
+                settleTo(if (go) (if (offset < 0) -w else w) else 0f)
+            }
+        }
+        return true
+    }
+
+    /** Puts the current page at [dx] and the page that comes next (or before) beside it. */
+    private fun place(dx: Float) {
+        offset = dx
+        val w = pageWidth()
+        val newDir = if (dx < 0) 1 else -1
+        if (newDir != dir || neighbor == null) {
+            neighbor?.visibility = View.INVISIBLE
+            dir = newDir
+            neighborIndex = (index + dir + pages.size) % pages.size
+            neighbor = pages[neighborIndex]
+            neighbor?.visibility = View.VISIBLE
+        }
+        pages[index].translationX = dx
+        neighbor?.translationX = if (dx < 0) w + dx else -w + dx
+    }
+
+    private fun settleTo(target: Float) {
+        val from = offset
+        val a = android.animation.ValueAnimator.ofFloat(from, target)
+        a.duration = 170
+        a.interpolator = DecelerateInterpolator(1.4f)
+        a.addUpdateListener { place(it.animatedValue as Float) }
+        a.addListener(object : android.animation.AnimatorListenerAdapter() {
+            private var cancelled = false
+            override fun onAnimationCancel(animation: android.animation.Animator) {
+                cancelled = true
+            }
+
+            override fun onAnimationEnd(animation: android.animation.Animator) {
+                if (cancelled) return
+                val moved = target != 0f && neighbor != null
+                if (moved) {
+                    pages[index].visibility = View.INVISIBLE
+                    index = neighborIndex
+                }
+                for (p in pages) p.translationX = 0f
+                neighbor?.visibility = if (moved) View.VISIBLE else View.INVISIBLE
+                pages[index].visibility = View.VISIBLE
+                neighbor = null
+                dir = 0
+                offset = 0f
+                invalidate()
+            }
+        })
+        settle = a
+        a.start()
+    }
+
+    override fun dispatchDraw(canvas: android.graphics.Canvas) {
+        super.dispatchDraw(canvas)
+        if (!multi) return
+        val r = context.dpf(2.5f)
+        val gap = context.dpf(11f)
+        val total = (pages.size - 1) * gap
+        val y = height - context.dpf(9f)
+        var x = width / 2f - total / 2f
+        val shown = if (neighbor != null && abs(offset) > pageWidth() / 2f) neighborIndex else index
+        for (i in pages.indices) {
+            dotPaint.color = PanelLook.text
+            dotPaint.alpha = if (i == shown) 235 else 85
+            canvas.drawCircle(x, y, r, dotPaint)
+            x += gap
+        }
+    }
+}
+
+/**
  * Step 16a: the Quick panel (Samsung One UI style). Swipe down on the Home screen and it slides down from the top:
  * time and date, two wide buttons (Wi-Fi, Bluetooth), a grid of round buttons and the brightness slider.
  * Tap outside, swipe up, Back or Home closes it. Which buttons it holds is [QuickTiles.order] (Step 16b makes that editable).
@@ -200,6 +354,7 @@ class QuickPanel(
     private val body = CappedScrollView(context)
     private val tiles = ArrayList<Pair<String, TileView>>()
     private var slider: PillSlider? = null
+    private var tilePager: TilePager? = null
     private var editor: QuickEditor? = null
     private var notifs: QuickNotifs? = null
     private var cards: QuickCards? = null
@@ -235,7 +390,8 @@ class QuickPanel(
                     }
                     val dx = ev.x - downX
                     if (editor == null && slider?.isDragging != true && dx < -slop * 3f && -dx > abs(ev.y - downY) * 2f &&
-                        !(notifs?.cardsAtRaw(rawDownX, rawDownY) ?: false)
+                        !(notifs?.cardsAtRaw(rawDownX, rawDownY) ?: false) &&
+                        !(tilePager?.let { it.multi && it.containsRaw(rawDownX, rawDownY) } ?: false)
                     ) {
                         onSwitchPage?.invoke()
                         return true
@@ -326,40 +482,52 @@ class QuickPanel(
         wideParams.topMargin = c.dp(14)
         content.addView(wideRow, wideParams)
 
-        // The rest: round buttons, four to a row, all inside ONE dark frosted rectangle (like the reference phone).
+        // The rest: round buttons, four to a row, eight to a page, all inside ONE dark frosted rectangle (like the reference phone).
+        // Step 26b: more than one page = drag left / right, the pages loop.
         val rest = order.drop(2)
-        val grid = LinearLayout(c)
-        grid.orientation = LinearLayout.VERTICAL
-        grid.setPadding(c.dp(6), c.dp(6), c.dp(6), c.dp(12))
-        grid.background = GradientDrawable().apply {
-            setColor(PanelLook.glass(80))
-            cornerRadius = c.dpf(30f)
-            setStroke(c.dp(1), PanelLook.inkA(22))
-        }
-        var index = 0
-        while (index < rest.size) {
-            val row = LinearLayout(c)
-            row.orientation = LinearLayout.HORIZONTAL
-            for (col in 0 until COLUMNS) {
-                val def = rest.getOrNull(index + col)
-                if (def == null) {
-                    row.addView(View(c), LinearLayout.LayoutParams(0, c.dp(1), 1f))
-                    continue
+        val perPage = COLUMNS * 2
+        val pageViews = ArrayList<View>()
+        var start = 0
+        while (start < rest.size) {
+            val chunk = rest.subList(start, minOf(rest.size, start + perPage))
+            val page = LinearLayout(c)
+            page.orientation = LinearLayout.VERTICAL
+            var index = 0
+            while (index < chunk.size) {
+                val row = LinearLayout(c)
+                row.orientation = LinearLayout.HORIZONTAL
+                for (col in 0 until COLUMNS) {
+                    val def = chunk.getOrNull(index + col)
+                    if (def == null) {
+                        row.addView(View(c), LinearLayout.LayoutParams(0, c.dp(1), 1f))
+                        continue
+                    }
+                    val tile = TileView(c, def, wide = false)
+                    row.addView(tile, LinearLayout.LayoutParams(0, WRAP, 1f))
+                    tiles.add(Pair(def.id, tile))
+                    wire(def.id, tile)
                 }
-                val tile = TileView(c, def, wide = false)
-                row.addView(tile, LinearLayout.LayoutParams(0, WRAP, 1f))
-                tiles.add(Pair(def.id, tile))
-                wire(def.id, tile)
+                val rp = LinearLayout.LayoutParams(MATCH, WRAP)
+                rp.topMargin = c.dp(if (index == 0) 6 else 12)
+                page.addView(row, rp)
+                index += COLUMNS
             }
-            val rp = LinearLayout.LayoutParams(MATCH, WRAP)
-            rp.topMargin = c.dp(if (index == 0) 6 else 12)
-            grid.addView(row, rp)
-            index += COLUMNS
+            pageViews.add(page)
+            start += perPage
         }
-        if (rest.isNotEmpty()) {
+        tilePager = null
+        if (pageViews.isNotEmpty()) {
+            val pager = TilePager(c, pageViews)
+            pager.setPadding(c.dp(6), c.dp(6), c.dp(6), c.dp(if (pageViews.size > 1) 22 else 12))
+            pager.background = GradientDrawable().apply {
+                setColor(PanelLook.glass(80))
+                cornerRadius = c.dpf(30f)
+                setStroke(c.dp(1), PanelLook.inkA(22))
+            }
+            tilePager = pager
             val gp = LinearLayout.LayoutParams(MATCH, WRAP)
             gp.topMargin = c.dp(14)
-            content.addView(grid, gp)
+            content.addView(pager, gp)
         }
 
         if (!brightnessOnTop()) addBrightness(c, 18)
@@ -598,7 +766,8 @@ class QuickPanel(
 
     fun open() {
         if (isOpen) return
-        card.animate().cancel()
+        card.animate().setUpdateListener(null).cancel()
+        card.setLayerType(View.LAYER_TYPE_NONE, null)
         scrim.animate().cancel()
         closing = false
         editor = null
@@ -645,9 +814,16 @@ class QuickPanel(
             return
         }
         closing = true
-        scrim.animate().alpha(0f).setDuration(110).start()
-        card.animate().translationY(-(card.height + context.dp(40)).toFloat()).setDuration(150)
+        // Step 26b: the veil fades exactly with the slide (same clock) and the card is drawn as one picture while it moves, so no faint
+        // shade is left over the Home screen for a moment after a swipe up.
+        card.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        card.animate().translationY(-(card.height + context.dp(40)).toFloat()).setDuration(170)
+            .setInterpolator(android.view.animation.AccelerateInterpolator(1.15f))
+            .setUpdateListener { a -> scrim.alpha = 1f - a.animatedFraction }
             .withEndAction {
+                card.animate().setUpdateListener(null)
+                card.setLayerType(View.LAYER_TYPE_NONE, null)
+                scrim.alpha = 0f
                 closing = false
                 visibility = View.GONE
                 onGone?.invoke()

@@ -220,6 +220,8 @@ class PanelAccessibilityService : AccessibilityService() {
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
+        coverOff()
+        forcing = false
         hidePanel()
         removeStrip()
         if (receiverOn) {
@@ -394,75 +396,164 @@ class PanelAccessibilityService : AccessibilityService() {
         }
     }
 
+    // A frozen picture of the screen laid over everything while the phone's own Quick settings flashes by underneath (activity mode only:
+    // the service's own panel overlay already sits above the phone's panel).
+    private var cover: View? = null
+
+    private fun coverOn(then: () -> Unit) {
+        if (frame != null || cover != null) {
+            then()
+            return
+        }
+        var added = false
+        fun add(bmp: Bitmap?) {
+            if (added) return
+            added = true
+            try {
+                val v = ImageView(this)
+                v.scaleType = ImageView.ScaleType.FIT_XY
+                if (bmp != null) v.setImageBitmap(bmp) else v.setBackgroundColor(android.graphics.Color.rgb(12, 13, 17))
+                v.isClickable = true
+                val lp = WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+                    PixelFormat.TRANSLUCENT
+                )
+                if (Build.VERSION.SDK_INT >= 28) lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                (getSystemService(Context.WINDOW_SERVICE) as WindowManager).addView(v, lp)
+                cover = v
+            } catch (e: Exception) {
+                cover = null
+            }
+            then()
+        }
+        val shoot = Build.VERSION.SDK_INT >= 30 &&
+            ((serviceInfo?.capabilities ?: 0) and AccessibilityServiceInfo.CAPABILITY_CAN_TAKE_SCREENSHOT) != 0
+        if (!shoot) {
+            add(null)
+            return
+        }
+        ui.postDelayed({ add(null) }, 350L) // the picture is late: a plain dark cover is better than the phone's panel showing
+        try {
+            takeScreenshot(Display.DEFAULT_DISPLAY, worker, object : TakeScreenshotCallback {
+                override fun onSuccess(screenshot: ScreenshotResult) {
+                    var soft: Bitmap? = null
+                    try {
+                        val hw = Bitmap.wrapHardwareBuffer(screenshot.hardwareBuffer, screenshot.colorSpace)
+                        soft = hw?.copy(Bitmap.Config.ARGB_8888, false)
+                        hw?.recycle()
+                    } catch (e: Exception) {
+                        soft = null
+                    } finally {
+                        try {
+                            screenshot.hardwareBuffer.close()
+                        } catch (e: Exception) {
+                            // already closed
+                        }
+                    }
+                    val result = soft
+                    ui.post { add(result) }
+                }
+
+                override fun onFailure(errorCode: Int) {
+                    ui.post { add(null) }
+                }
+            })
+        } catch (e: Exception) {
+            add(null)
+        }
+    }
+
+    private fun coverOff() {
+        val v = cover ?: return
+        cover = null
+        try {
+            (getSystemService(Context.WINDOW_SERVICE) as WindowManager).removeViewImmediate(v)
+        } catch (e: Exception) {
+            // already removed
+        }
+    }
+
     /**
      * Opens the phone's own Quick settings, presses the button whose name is one of [variants], and closes it again. [done] gets true when the
-     * button was pressed. The panel of the launcher stays where it is the whole time.
+     * button was pressed. A frozen picture of the screen covers the phone's panel the whole time, so nothing of it is ever seen.
      */
     fun forceToggle(variants: List<String>, done: (Boolean) -> Unit) {
-        if (forcing || variants.isEmpty()) {
+        if (forcing) {
+            done(true) // a second tap while one is running: ignored quietly
+            return
+        }
+        if (variants.isEmpty()) {
             done(false)
             return
         }
         forcing = true
         val finish: (Boolean) -> Unit = { ok ->
+            done(ok)
             ui.postDelayed({
+                coverOff()
                 forcing = false
-                done(ok)
-            }, 450L)
+            }, 330L)
         }
-        performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)
-        var tries = 0
-        var scrolls = 0
-        val step = object : Runnable {
-            override fun run() {
-                tries++
-                val roots = try {
-                    shadeRoots()
-                } catch (e: Exception) {
-                    emptyList()
-                }
-                val tile = try {
-                    findTile(roots, variants)
-                } catch (e: Exception) {
-                    null
-                }
-                if (tile != null) {
-                    val label = norm(tile.text) + " " + norm(tile.contentDescription)
-                    val ok = tile.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                    ui.postDelayed({
-                        var dialog = false
-                        if (label.contains("internet")) {
-                            dialog = try {
-                                pressDialogSwitch(shadeRoots(), variants)
-                            } catch (e: Exception) {
-                                false
-                            }
-                        }
-                        ui.postDelayed({
-                            if (dialog) performGlobalAction(GLOBAL_ACTION_BACK)
-                            ui.postDelayed({ closeShade() }, if (dialog) 200L else 0L)
-                            finish(ok)
-                        }, if (dialog) 250L else 120L)
-                    }, 380L)
-                    return
-                }
-                if (tries >= 6 && tries % 4 == 2 && scrolls < 4) {
-                    scrolls++
-                    try {
-                        scrollTiles(roots)
+        coverOn {
+            performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)
+            var tries = 0
+            var scrolls = 0
+            val step = object : Runnable {
+                override fun run() {
+                    tries++
+                    val roots = try {
+                        shadeRoots()
                     } catch (e: Exception) {
-                        // ignore, keep looking
+                        emptyList()
                     }
+                    val tile = try {
+                        findTile(roots, variants)
+                    } catch (e: Exception) {
+                        null
+                    }
+                    if (tile != null) {
+                        val label = norm(tile.text) + " " + norm(tile.contentDescription)
+                        val ok = tile.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                        if (label.contains("internet")) {
+                            ui.postDelayed({
+                                val dialog = try {
+                                    pressDialogSwitch(shadeRoots(), variants)
+                                } catch (e: Exception) {
+                                    false
+                                }
+                                if (dialog) performGlobalAction(GLOBAL_ACTION_BACK)
+                                ui.postDelayed({ closeShade() }, if (dialog) 120L else 0L)
+                                finish(ok)
+                            }, 220L)
+                        } else {
+                            ui.postDelayed({
+                                closeShade()
+                                finish(ok)
+                            }, 70L)
+                        }
+                        return
+                    }
+                    if (tries >= 5 && tries % 4 == 1 && scrolls < 4) {
+                        scrolls++
+                        try {
+                            scrollTiles(roots)
+                        } catch (e: Exception) {
+                            // ignore, keep looking
+                        }
+                    }
+                    if (tries >= 45) {
+                        closeShade()
+                        finish(false)
+                        return
+                    }
+                    ui.postDelayed(this, 50L)
                 }
-                if (tries >= 30) {
-                    closeShade()
-                    finish(false)
-                    return
-                }
-                ui.postDelayed(this, 130L)
             }
+            ui.postDelayed(step, 90L)
         }
-        ui.postDelayed(step, 500L)
     }
 
     // ------------------------------------------------------------------ the top-edge strip (Step 24)

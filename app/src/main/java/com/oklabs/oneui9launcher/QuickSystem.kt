@@ -92,9 +92,17 @@ object QuickTiles {
 
     /** The buttons on the panel, in order (the first two are drawn wide). */
     fun order(context: Context): List<QuickTileDef> {
-        val saved = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, null)
-        return parse(saved).mapNotNull { def(it) }
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        var ids = parse(prefs.getString(KEY, null))
+        // Step 26b: once, every button the panel knows is put on it (the extra pages hold the ones that did not fit), then the editor decides
+        if (!prefs.getBoolean(KEY_ALL, false)) {
+            ids = ids + ALL.map { it.id }.filter { it !in ids }
+            prefs.edit().putString(KEY, ids.joinToString(",")).putBoolean(KEY_ALL, true).apply()
+        }
+        return ids.mapNotNull { def(it) }
     }
+
+    private const val KEY_ALL = "qp_tiles_all26"
 
     fun save(context: Context, ids: List<String>) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY, ids.joinToString(",")).apply()

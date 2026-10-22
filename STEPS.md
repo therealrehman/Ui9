@@ -730,3 +730,11 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - **Unlock glitch**: the Home window has no opening / closing animation and no "preview" picture any more, so the apps no longer slide up from the bottom (or show twice) when the phone is unlocked.
 - Next (26b): swipe left / right through pages of buttons in a loop.
 - Compile-checked only by reading; not built or tested on a real phone.
+
+## Step 26b - hidden force-switching, looping button pages, smooth close
+
+- **The phone's own panel is never seen while a button is forced**: a frozen picture of the screen covers it (overlay of the Quick panel service) and the whole press takes a fraction of a second.
+- **The Quick panel now holds every button** (NFC, Night light and Camera added once to your list). The round buttons sit on pages of eight: **drag left / right and the pages loop** (after the last comes the first), dots show the page.
+  A swipe left anywhere else on the panel (clock, sliders, notifications area) still goes to the Notifications page.
+- **Swipe up to close**: the veil now fades on the same clock as the slide and the panel is drawn as one picture while it moves, so no faint shade is left on the Home screen.
+- Compile-checked only by reading; not built or tested on a real phone.
