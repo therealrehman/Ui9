@@ -645,6 +645,14 @@ Under the brightness slider (above the notifications) the panel now has three mo
 - Popups of the panel (Bluetooth, Location...) become overlay windows there. No new manifest permission except the Accessibility service itself. Permissions page, `docs/privacy-policy.html` updated. Google Play treats Accessibility as a restricted permission (needs its own declaration): see PLAY_STORE.md.
 - Not tested on a real phone: compile-checked only, and the pure recognising rule is JVM-tested. Version 1.0.20 (code 130).
 
+## Step 26 - the back layer of the panels is 100 % solid
+
+- The layer at the very back of the **Quick panel** and the **Notifications page** (the coloured veil / gradient) now has an opacity of 100 %. The icons of the
+  Home screen, the dock and the text of the app underneath (for example Settings) no longer show through it, on the Home screen and in the "In every app" panel alike.
+  It is one number: `PanelTheme.BACK_OPACITY` (255). Lower it (for example 235) to let a little of the background through again.
+- The buttons, sliders and cards keep their own frosted look on top of it.
+- Version 1.0.26 (code 136). Compile-checked only by reading; not tested on a phone.
+
 ## Step 25 - no blur behind the Quick panel, ten more panel gradients
 
 - **Glitch fixed ("apps shown twice" after swiping the panel up):** in other apps the panel used to put a blurred picture of the screen (and the phone's window blur)

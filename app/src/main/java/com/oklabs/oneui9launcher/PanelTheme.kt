@@ -83,10 +83,17 @@ object PanelTheme {
         return Color.argb(alpha, Color.red(deep), Color.green(deep), Color.blue(deep))
     }
 
-    /** The veil behind the panel; [strength] is the normal veil transparency (0..255). */
+    /**
+     * Step 26: the layer at the very back of the panel is completely solid (100 % opaque): nothing of the Home screen or of the app
+     * underneath shows through any more. [strength] is no longer used; it stays so the callers did not have to change.
+     */
+    const val BACK_OPACITY = 255
+
+    /** The veil behind the panel (solid, see [BACK_OPACITY]). */
+    @Suppress("UNUSED_PARAMETER")
     fun scrim(strength: Int, dark: Boolean): Drawable {
-        val base = baseRgb() ?: return ColorDrawable(PanelLook.veil(strength))
-        val a = (strength + 40).coerceAtMost(235)
+        val base = baseRgb() ?: return ColorDrawable(PanelLook.veil(BACK_OPACITY))
+        val a = BACK_OPACITY
         if (index > solids.size) {
             val colors = grads[index - solids.size - 1].colors
             val shown = IntArray(colors.size) {
