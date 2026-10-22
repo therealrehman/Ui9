@@ -189,6 +189,9 @@ class QuickPanel(
     /** Step 17c: a swipe to the left on the panel asks for the Notifications page. */
     var onSwitchPage: (() -> Unit)? = null
 
+    /** Step 22: told when the panel is completely gone (after the closing slide); the system-wide overlay removes its window then. */
+    var onGone: (() -> Unit)? = null
+
     private val scrim = View(context)
     private val card = SwipeCard(context)
 
@@ -640,6 +643,7 @@ class QuickPanel(
         if (!animated) {
             visibility = View.GONE
             onOpenChanged?.invoke()
+            onGone?.invoke()
             return
         }
         closing = true
@@ -648,6 +652,7 @@ class QuickPanel(
             .withEndAction {
                 closing = false
                 visibility = View.GONE
+                onGone?.invoke()
             }.start()
         // The blur fades while the panel slides away.
         post { onOpenChanged?.invoke() }

@@ -169,3 +169,7 @@ No login is needed.
 - **Data safety form:** still "no data collected, no data shared". "Report a problem" only opens the user's own email app with a message the user can edit and sends nothing by itself.
 - **Icons:** the new icons are original drawings for generic system apps. Do not add logos of other companies (Facebook, WhatsApp, Instagram, Chrome, YouTube, Gmail...) to the pack:
   that is a trademark / impersonation problem for a Play listing.
+
+## Accessibility service (Step 22)
+
+"Open in every app" is optional and off by default. Declaration text: "The Accessibility service is used only to detect that the system status-bar panel opened (window-state events, no content retrieval) so the app can close it and show its own Quick panel. It does not read, store or transmit screen content." If Google rejects the declaration, remove the service from AndroidManifest.xml; the launcher works without it.

@@ -26,4 +26,5 @@
     <string name="widget_clock_desc">Time and date. The numbers grow and shrink with the widget. Tap to open the Clock app.</string>
     <string name="widget_clock_small_desc">A small clock with the date. Tap to open the Clock app.</string>
     <string name="widget_date_desc">Weekday, day and month on a glass tile. Tap to open the Calendar.</string>
+    <string name="panel_service_desc">Opens the launcher\'s Quick panel instead of the phone\'s own panel when you pull down the status bar in any app. It only notices that the phone\'s panel opened; it does not read what is on your screen.</string>
 </resources>

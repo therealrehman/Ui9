@@ -219,6 +219,13 @@ object LegalText {
             true
         ),
         Permission(
+            "Accessibility service (optional)",
+            "Only if you turn on “Open in every app” in Settings > Quick panel. The service listens only for “a window changed” events, to notice that the phone's own status-bar panel opened, " +
+                "closes that panel and shows this app's Quick panel instead. It cannot read the text or content of other apps, and nothing is saved, shared or sent anywhere. " +
+                "Switch it off in Android Settings > Accessibility.",
+            true
+        ),
+        Permission(
             "Device administrator (lock the screen only)",
             "Only if you turn on “Double-tap to lock”. It lets the app lock your screen when you double-tap an empty spot. " +
                 "It cannot wipe data, change passwords or read anything. Switch it off in Settings > Security > Device admin apps.",

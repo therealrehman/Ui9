@@ -636,6 +636,15 @@ Under the brightness slider (above the notifications) the panel now has three mo
 - "System launcher shows up sometimes": no code change, cause not found without a phone. Check the phone's battery / autostart settings for this app (some phones kill the launcher in the background), and Settings > Set as default. A crash is saved by the app and shown in Settings.
 - Version 1.0.19 (code 129). Compile-checked only.
 
+## Step 22 - Quick panel in every app (optional)
+
+- **Settings > Quick panel > In every app:** switch **Open in every app**. Pull the status bar down in any app and the launcher's Quick panel opens instead of the phone's own panel (swipe sideways for the Notifications page).
+- **How it works (honest):** Android does not let an app replace the phone's panel. `PanelAccessibilityService` listens only to "window changed" events (no screen text is read), notices System UI opening its panel, closes it (`GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE`, Android 12+; older phones get Back) and shows the Quick panel in an accessibility overlay window (`SystemPanel.kt`). Expect a short flicker.
+- **Phones differ:** the phone's panel is recognised by its window name / title ("Notification shade"). If it does not open on your phone: switch on **Detect any system panel**, and send me the line "Last system window seen" from that page so I can add your phone's name. **Show panel now** tests the overlay itself.
+- **Setup:** the switch sends you to Android's Accessibility screen (a dialog explains first). On Android 13+ for apps installed outside Google Play, allow "Restricted settings" in App info first or the switch stays grey.
+- Popups of the panel (Bluetooth, Location...) become overlay windows there. No new manifest permission except the Accessibility service itself. Permissions page, `docs/privacy-policy.html` updated. Google Play treats Accessibility as a restricted permission (needs its own declaration): see PLAY_STORE.md.
+- Not tested on a real phone: compile-checked only, and the pure recognising rule is JVM-tested. Version 1.0.20 (code 130).
+
 ## Cloud build (Bitrise) - no Termux build needed
 
 `push.sh` puts the project on GitHub; Bitrise builds the APK from there.

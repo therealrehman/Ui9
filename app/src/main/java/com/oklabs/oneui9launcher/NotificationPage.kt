@@ -45,6 +45,9 @@ class NotificationPage(
     /** Step 17c: a swipe to the right on the page asks for the Quick panel. */
     var onSwitchPage: (() -> Unit)? = null
 
+    /** Step 22: told when the page is completely gone (system-wide overlay). */
+    var onGone: (() -> Unit)? = null
+
     private val veil = View(context)
     private val column = Column(context)
     private var clearButton = TextView(context)
@@ -254,6 +257,7 @@ class NotificationPage(
         if (!animated) {
             visibility = View.GONE
             onOpenChanged?.invoke()
+            onGone?.invoke()
             return
         }
         closing = true
@@ -262,6 +266,7 @@ class NotificationPage(
             .withEndAction {
                 closing = false
                 visibility = View.GONE
+                onGone?.invoke()
             }.start()
         // The blur fades while the page slides away.
         post { onOpenChanged?.invoke() }

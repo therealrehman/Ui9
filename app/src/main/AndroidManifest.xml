@@ -198,6 +198,20 @@
             </intent-filter>
         </receiver>
 
+        <!-- Step 22: the optional system-wide Quick panel (Settings > Quick panel > Open in every app). -->
+        <service
+            android:name=".PanelAccessibilityService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/panel_accessibility" />
+        </service>
+
     </application>
 
 </manifest>

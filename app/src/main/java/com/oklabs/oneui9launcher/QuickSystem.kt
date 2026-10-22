@@ -344,6 +344,8 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
         box.addView(b, bp)
         dialog.setContentView(box)
         dialog.window?.apply {
+            // Step 22: in the system-wide panel there is no Activity, so the popup is an accessibility overlay window
+            if (c !is android.app.Activity) setType(android.view.WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY)
             setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
             setLayout(minOf(c.resources.displayMetrics.widthPixels - c.dp(48), c.dp(420)), -2)
             setGravity(android.view.Gravity.CENTER)

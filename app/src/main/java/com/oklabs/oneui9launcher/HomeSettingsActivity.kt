@@ -114,7 +114,7 @@ class HomeSettingsActivity : Activity() {
     override fun onResume() {
         super.onResume()
         // Back from the phone's own settings screens (default Home app, notification access): show the new state.
-        if (::holder.isInitialized && (stack.last() == MAIN || stack.last() == BADGES)) show()
+        if (::holder.isInitialized && (stack.last() == MAIN || stack.last() == BADGES || stack.last() == QUICK)) show()
     }
 
     @Deprecated("Deprecated in Java")
@@ -649,6 +649,28 @@ class HomeSettingsActivity : Activity() {
         )
         kit.note(box, "Split: a swipe down on one half of the Home screen opens the Quick panel and on the other half the notifications. Notification panel: the launcher's own full-screen page (needs Notification access) or the phone's own panel.")
 
+        kit.label(box, "In every app (optional)")
+        val spOn = SystemPanel.wanted(this) && SystemPanel.serviceEnabled(this)
+        kit.card(
+            box,
+            kit.toggle(-1, 0, "Open in every app", if (spOn) "On: pull the status bar down in any app" else "Off", spOn) { on ->
+                prefs().edit().putBoolean(SystemPanel.PREF_ON, on).apply()
+                if (on && !SystemPanel.serviceEnabled(this)) askAccessibility() else show()
+            },
+            kit.toggle(-1, 0, "Detect any system panel", "Try this if the panel does not open on your phone", SystemPanel.loose(this)) { on ->
+                prefs().edit().putBoolean(SystemPanel.PREF_LOOSE, on).apply()
+            },
+            kit.row(-1, 0, "Show panel now", "Test the panel over this screen") {
+                if (!SystemPanel.showNow()) toast("Switch on \"Open in every app\" and allow the Accessibility service first")
+            }
+        )
+        kit.note(
+            box,
+            "Android does not let an app replace the phone's own panel. This uses an Accessibility service: when the phone's panel opens, it is closed at once and this Quick panel is shown instead. " +
+                "It only notices that a window opened, it does not read your screen. Needs Android 12 or newer to close the phone's panel cleanly, and it can flicker a little. " +
+                "Last system window seen: " + (SystemPanel.lastSeen(this).ifEmpty { "none yet" })
+        )
+
         kit.label(box, "Layout")
         kit.card(
             box,
@@ -678,6 +700,24 @@ class HomeSettingsActivity : Activity() {
             box,
             kit.row(-1, 0, "Reset Quick panel", "Buttons, side and slider position go back to the start") { askResetQuick() }
         )
+    }
+
+    /** Explains the Accessibility service before Android's own screen opens. */
+    private fun askAccessibility() {
+        AlertDialog.Builder(this)
+            .setTitle("Allow the Accessibility service")
+            .setMessage(
+                getString(R.string.app_name) + " uses Android's Accessibility service for one thing: to notice that the phone's own status-bar panel opened, so it can close it and show the Quick panel instead. " +
+                    "It does not read your screen, passwords or messages, and nothing leaves the phone. In the list that opens, choose " + getString(R.string.app_name) + " and switch it on.\n\n" +
+                    "If the switch is greyed out (Android 13+ for apps installed outside Google Play): open Settings > Apps > " + getString(R.string.app_name) +
+                    ", tap the three dots and choose \"Allow restricted settings\", then try again."
+            )
+            .setPositiveButton("Continue") { _, _ -> SystemPanel.openAccessibilitySettings(this) }
+            .setNegativeButton("Not now") { _, _ ->
+                prefs().edit().putBoolean(SystemPanel.PREF_ON, false).apply()
+                show()
+            }
+            .show()
     }
 
     private fun askResetQuick() {
