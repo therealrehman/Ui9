@@ -21,11 +21,15 @@ object Look {
     private var mode = AUTO
     private var systemDark = true
 
+    /** Step 21: true while the lock screen is open - panels stay dark regardless of the mode, like the reference phone. Set back to false when it closes. */
+    var forceDark: Boolean = false
+
     /** True while the panels are dark. */
     val dark: Boolean
-        get() = when (mode) {
-            LIGHT -> false
-            DARK -> true
+        get() = when {
+            forceDark -> true
+            mode == LIGHT -> false
+            mode == DARK -> true
             else -> systemDark
         }
 
