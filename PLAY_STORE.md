@@ -172,4 +172,4 @@ No login is needed.
 
 ## Accessibility service (Step 22)
 
-"Open in every app" is optional and off by default. Declaration text: "The Accessibility service is used only to detect that the system status-bar panel opened (window-state events, no content retrieval) so the app can close it and show its own Quick panel. It does not read, store or transmit screen content." If Google rejects the declaration, remove the service from AndroidManifest.xml; the launcher works without it.
+"Open in every app" is optional and off by default. Declaration text: "The Accessibility service is used only to catch a pull-down at the top edge with an invisible overlay (and, as a fallback, to detect window-state events, no content retrieval) so the app can show its own Quick panel. It uses the screenshot capability only to blur the screen behind that panel, in memory; nothing is read, stored or transmitted." If Google rejects the declaration, remove the service from AndroidManifest.xml; the launcher works without it.

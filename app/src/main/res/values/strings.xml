@@ -11,10 +11,10 @@
     <string name="developer_name" translatable="false">Ok Labs</string>
     <string name="contact_email" translatable="false">a.rehmanmazher11@gmail.com</string>
     <!-- Public home of the policy pages (docs/ on GitHub Pages). Leave YOUR_NAME in until the pages are online: the app then hides the "open online" rows. -->
-    <string name="website_url" translatable="false">https://YOUR_NAME.github.io/OneUI9Launcher/</string>
+    <string name="website_url" translatable="false">https://therealrehman.github.io/Ui9/</string>
     <!-- Play Store: public addresses of the policy pages (see PLAY_STORE.md). Change YOUR_NAME to your GitHub name. -->
-    <string name="privacy_url" translatable="false">https://YOUR_NAME.github.io/OneUI9Launcher/privacy-policy.html</string>
-    <string name="terms_url" translatable="false">https://YOUR_NAME.github.io/OneUI9Launcher/terms.html</string>
+    <string name="privacy_url" translatable="false">https://therealrehman.github.io/Ui9/privacy-policy.html</string>
+    <string name="terms_url" translatable="false">https://therealrehman.github.io/Ui9/terms.html</string>
 
     <!-- Step 6c1: the launcher's own widgets (names show in the widget picker) -->
     <string name="widget_clock_label">Clock</string>
@@ -26,5 +26,5 @@
     <string name="widget_clock_desc">Time and date. The numbers grow and shrink with the widget. Tap to open the Clock app.</string>
     <string name="widget_clock_small_desc">A small clock with the date. Tap to open the Clock app.</string>
     <string name="widget_date_desc">Weekday, day and month on a glass tile. Tap to open the Calendar.</string>
-    <string name="panel_service_desc">Opens the launcher\'s Quick panel instead of the phone\'s own panel when you pull down the status bar in any app. It only notices that the phone\'s panel opened; it does not read what is on your screen.</string>
+    <string name="panel_service_desc">Opens the launcher\'s Quick panel instead of the phone\'s own panel when you pull down the status bar in any app. It places an invisible bar over the status bar to catch the pull-down, and takes a picture of the screen only to blur it behind the panel (the picture is never saved or sent). It does not read what is on your screen.</string>
 </resources>

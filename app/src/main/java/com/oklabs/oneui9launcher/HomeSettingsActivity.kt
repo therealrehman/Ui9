@@ -655,7 +655,12 @@ class HomeSettingsActivity : Activity() {
             box,
             kit.toggle(-1, 0, "Open in every app", if (spOn) "On: pull the status bar down in any app" else "Off", spOn) { on ->
                 prefs().edit().putBoolean(SystemPanel.PREF_ON, on).apply()
+                SystemPanel.refreshStrip()
                 if (on && !SystemPanel.serviceEnabled(this)) askAccessibility() else show()
+            },
+            kit.toggle(-1, 0, "Catch swipes at the top edge", "Recommended: the phone's own panel never flashes, and it stops the panel popping up by itself", SystemPanel.strip(this)) { on ->
+                prefs().edit().putBoolean(SystemPanel.PREF_STRIP, on).apply()
+                SystemPanel.refreshStrip()
             },
             kit.toggle(-1, 0, "Detect any system panel", "Try this if the panel does not open on your phone", SystemPanel.loose(this)) { on ->
                 prefs().edit().putBoolean(SystemPanel.PREF_LOOSE, on).apply()
@@ -666,8 +671,8 @@ class HomeSettingsActivity : Activity() {
         )
         kit.note(
             box,
-            "Android does not let an app replace the phone's own panel. This uses an Accessibility service: when the phone's panel opens, it is closed at once and this Quick panel is shown instead. " +
-                "It only notices that a window opened, it does not read your screen. Needs Android 12 or newer to close the phone's panel cleanly, and it can flicker a little. " +
+            "Android does not let an app replace the phone's own panel. This uses an Accessibility service: an invisible bar over the status bar catches the pull-down (so the phone's panel never opens, no flicker) and this Quick panel opens instead, over a blurred picture of the app you were in. " +
+                "It does not read your screen; the picture is only blurred and shown, never saved or sent. With \"Catch swipes\" off it falls back to noticing the phone's panel and closing it (it can flicker). Tapping the status bar itself does nothing while the bar is on. " +
                 "Last system window seen: " + (SystemPanel.lastSeen(this).ifEmpty { "none yet" })
         )
 

@@ -645,6 +645,16 @@ Under the brightness slider (above the notifications) the panel now has three mo
 - Popups of the panel (Bluetooth, Location...) become overlay windows there. No new manifest permission except the Accessibility service itself. Permissions page, `docs/privacy-policy.html` updated. Google Play treats Accessibility as a restricted permission (needs its own declaration): see PLAY_STORE.md.
 - Not tested on a real phone: compile-checked only, and the pure recognising rule is JVM-tested. Version 1.0.20 (code 130).
 
+## Step 24 - Quick panel from the top edge: no flicker, no pop-ups, blurred apps behind
+
+- **No flash of the phone's own panel:** with "In every app" on, a thin invisible bar now sits exactly over the status bar (accessibility overlay). A pull-down that starts there never reaches the phone's panel, so nothing of it ever shows; the launcher's panel opens after about 10 dp of movement. The panel is built and the screen is pictured the moment the finger touches the edge, so it appears at once.
+- **No more panel popping up by itself:** the old way (watching for the phone's panel to open) is only a fallback now (Settings > Quick panel > In every app > *Catch swipes at the top edge* off). With the bar on, heads-up notifications, the volume panel etc. can no longer trigger the panel.
+- **Blurred apps behind the panel:** a picture of the app you were in is taken (`AccessibilityService.takeScreenshot`, Android 11+), shrunk and blurred in memory and shown behind the panel (it fades in). Android 12+ also blurs the window behind the panel (radius 60). If the phone refuses the picture, only the window blur is used.
+- The bar follows the screen: it is removed while the screen is off or locked and comes back when you unlock. The swipe follows the Home setting "Swipe down opens" (Notifications / Quick panel / Split); "Phone's panel" hands over to the phone's own notifications.
+- **Trade-offs:** tapping the status bar itself (its icons, "tap to scroll to top") does nothing while the bar is on; in full-screen apps (video, games) a pull-down from the top opens the panel. Switch *Catch swipes at the top edge* off if you do not like that.
+- **After updating:** the new "take pictures" permission only reaches the service after it is switched off and on again in Android Settings > Accessibility. Without it the panel still works (window blur only).
+- Compile-checked only; not tested on a real phone. Version 1.0.22 (code 132).
+
 ## Step 23 - widget fonts, colours and a stacked clock
 
 - **Ten fonts** for the Clock, Mini clock and Date widgets (widget setup screen > Font): Light, Thin, Regular, Medium, Bold, Black, Narrow, Serif, Playful, Script. Each name is shown in its own font. They are Android's built-in font families (no font files). A widget can not change a font while it runs, so each layout holds ten text blocks and shows only the chosen one.
