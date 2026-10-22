@@ -555,6 +555,56 @@ internal class SettingsKit(private val ctx: Context) {
         return block
     }
 
+    /** Step 21b: the Quick panel colour: white glass, five colours, five gradients. */
+    fun panelThemeDots(title: String, selected: Int, onPick: (Int) -> Unit): View {
+        val block = LinearLayout(ctx)
+        block.orientation = LinearLayout.VERTICAL
+        block.setPadding(dp(16), dp(14), dp(16), dp(14))
+        val head = TextView(ctx)
+        head.text = title
+        head.setTextColor(Look.text)
+        head.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+        block.addView(head, LinearLayout.LayoutParams(wrap, wrap))
+        val name = TextView(ctx)
+        name.setTextColor(Look.textA(170))
+        name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+        val row = LinearLayout(ctx)
+        row.orientation = LinearLayout.HORIZONTAL
+        val dots = ArrayList<View>()
+        fun paintAll(current: Int) {
+            name.text = PanelTheme.name(current)
+            for ((i, view) in dots.withIndex()) {
+                val shape = PanelTheme.swatch(i)
+                shape.setStroke(dp(if (i == current) 3 else 1), if (i == current) Look.text else Look.inkA(80))
+                view.background = shape
+            }
+        }
+        for (i in 0 until PanelTheme.COUNT) {
+            val dot = View(ctx)
+            dot.isClickable = true
+            dot.contentDescription = PanelTheme.name(i)
+            dot.setOnClickListener {
+                paintAll(i)
+                onPick(i)
+            }
+            val lp = LinearLayout.LayoutParams(dp(36), dp(36))
+            lp.rightMargin = dp(12)
+            row.addView(dot, lp)
+            dots.add(dot)
+        }
+        paintAll(selected)
+        val scroller = android.widget.HorizontalScrollView(ctx)
+        scroller.isHorizontalScrollBarEnabled = false
+        scroller.addView(row)
+        val scrollerLp = LinearLayout.LayoutParams(match, wrap)
+        scrollerLp.topMargin = dp(12)
+        block.addView(scroller, scrollerLp)
+        val np = LinearLayout.LayoutParams(wrap, wrap)
+        np.topMargin = dp(8)
+        block.addView(name, np)
+        return block
+    }
+
     /** A title, a coloured-dots row and nothing else: [colors] are the choices, [selected] the picked colour. */
     fun colorDots(title: String, colors: IntArray, selected: Int, onPick: (Int) -> Unit): View {
         val block = LinearLayout(ctx)

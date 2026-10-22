@@ -257,6 +257,7 @@ class LauncherActivity : Activity() {
         requestedOrientation = if (HomeStore.landscape) ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         Look.load(this) // dark / light panels (Step 8c)
         IconPack.load(this) // Step 12a: the launcher's own system-app icons
+        PanelTheme.load(this)
         IconTheme.load(this) // themed icons (Step 8d); after Look, because the plate follows dark / light
         makeWindowEdgeToEdge()
         widgetHost = WidgetHost(this)
@@ -310,7 +311,6 @@ class LauncherActivity : Activity() {
             return
         }
         defaultChip.visibility = if (isDefaultHome()) View.GONE else View.VISIBLE
-        if (LockScreen.isOn(this)) LockScreen.sync(this) // keeps the lock screen service running
         updateWallpaperOffset(pager.scrollFraction())
         if (IconTheme.refresh(this)) loadApps() // the wallpaper changed: the themed icons follow its colour
     }

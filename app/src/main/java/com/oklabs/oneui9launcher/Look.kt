@@ -22,12 +22,8 @@ object Look {
     private var systemDark = true
 
     /** True while the panels are dark. */
-    /** Step 21c: the lock screen sits on a dark veil, so while it is open the panels on it are always dark. */
-    @Volatile
-    var forceDark = false
-
     val dark: Boolean
-        get() = if (forceDark) true else when (mode) {
+        get() = when (mode) {
             LIGHT -> false
             DARK -> true
             else -> systemDark
@@ -75,7 +71,8 @@ object Look {
      * Step 18: the dark "frosted glass" behind the panel buttons and cards (like the reference phone): a deep dark tint in dark mode,
      * milky white in light mode, with transparency [alpha] so the blurred wallpaper shines through.
      */
-    fun glass(alpha: Int): Int = if (dark) Color.argb(alpha, 14, 10, 30) else Color.argb(alpha, 255, 255, 255)
+    fun glass(alpha: Int): Int =
+        PanelTheme.glass(alpha, dark, if (dark) Color.argb(alpha, 14, 10, 30) else Color.argb(alpha, 255, 255, 255))
 
     /** Colour of a floating panel (card, sheet, menu) with transparency [alpha]. */
     fun panel(alpha: Int): Int =

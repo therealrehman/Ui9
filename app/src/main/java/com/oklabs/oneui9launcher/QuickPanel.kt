@@ -62,6 +62,10 @@ class PillSlider(context: Context, glyphKind: Int) : FrameLayout(context) {
     private val fill = View(context)
     private val glyph = QuickGlyph(context, glyphKind)
     private var accepted = false
+    private var moved = false
+    private var downX = 0f
+    private var downY = 0f
+    private val slop = android.view.ViewConfiguration.get(context).scaledTouchSlop
 
     init {
         track.background = roundRect(Look.glass(110), context.dpf(HEIGHT_DP / 2f))
@@ -109,18 +113,49 @@ class PillSlider(context: Context, glyphKind: Int) : FrameLayout(context) {
     override fun onTouchEvent(ev: MotionEvent): Boolean {
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                accepted = onTouchStart?.invoke() ?: true
-                if (!accepted) return true
-                isDragging = true
-                parent?.requestDisallowInterceptTouchEvent(true)
-                progress = valueAt(ev.x)
-                onChange?.invoke(progress, false)
+                // Step 22a: a touch only counts when it turns into a sideways drag or a clean tap, so a swipe up that
+                // happens to start on a slider no longer changes the volume / brightness.
+                downX = ev.x
+                downY = ev.y
+                moved = false
+                accepted = false
+                isDragging = false
             }
-            MotionEvent.ACTION_MOVE -> if (accepted) {
-                progress = valueAt(ev.x)
-                onChange?.invoke(progress, false)
+            MotionEvent.ACTION_MOVE -> {
+                if (!accepted && !moved) {
+                    val dx = ev.x - downX
+                    val dy = ev.y - downY
+                    if (abs(dy) > slop && abs(dy) > abs(dx)) {
+                        moved = true // a vertical swipe: the panel takes it
+                        return true
+                    }
+                    if (abs(dx) > slop) {
+                        if (onTouchStart?.invoke() == false) {
+                            moved = true
+                            return true
+                        }
+                        accepted = true
+                        isDragging = true
+                        parent?.requestDisallowInterceptTouchEvent(true)
+                    }
+                }
+                if (accepted) {
+                    progress = valueAt(ev.x)
+                    onChange?.invoke(progress, false)
+                }
             }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+            MotionEvent.ACTION_UP -> {
+                if (!accepted && !moved && onTouchStart?.invoke() != false) {
+                    progress = valueAt(ev.x) // a clean tap sets the level
+                    onChange?.invoke(progress, false)
+                    onChange?.invoke(progress, true)
+                } else if (accepted) {
+                    onChange?.invoke(progress, true)
+                }
+                accepted = false
+                isDragging = false
+            }
+            MotionEvent.ACTION_CANCEL -> {
                 if (accepted) onChange?.invoke(progress, true)
                 accepted = false
                 isDragging = false
@@ -191,7 +226,7 @@ class QuickPanel(
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dy = downY - ev.y
-                    if (editor == null && slider?.isDragging != true && !body.canScrollVertically(1) && !(notifs?.scrollsAtRaw(rawDownX, rawDownY) ?: false) && dy > slop * 2 && dy > abs(ev.x - downX) * 1.5f) {
+                    if (editor == null && slider?.isDragging != true && !(notifs?.scrollsAtRaw(rawDownX, rawDownY) ?: false) && dy > slop * 2 && dy > abs(ev.x - downX) * 1.2f && (!body.canScrollVertically(1) || body.scrollY == 0 && dy > slop * 6)) {
                         close(true)
                         return true
                     }
@@ -233,7 +268,7 @@ class QuickPanel(
     init {
         visibility = View.GONE
 
-        scrim.setBackgroundColor(Look.veil(150))
+        scrim.background = PanelTheme.scrim(150, Look.dark)
         scrim.isClickable = true
         scrim.setOnClickListener { close(true) }
         addView(scrim, LayoutParams(MATCH, MATCH))
@@ -256,11 +291,10 @@ class QuickPanel(
     /** The status bar height, so the clock sits below it. */
     fun setInsets(top: Int, bottom: Int = 0) {
         insetTop = top
-        // Step 21a: the bottom of the panel stops above the navigation bar (it used to run under it).
-        val floor = maxOf(bottom, context.dp(12)) + context.dp(10)
-        card.setPadding(context.dp(18), top + context.dp(12), context.dp(18), floor)
+        // Step 22a: the panel ends right above the navigation bar (no empty strip under it).
+        card.setPadding(context.dp(18), top + context.dp(12), context.dp(18), bottom + context.dp(10))
         // the panel never grows past the screen: below this it scrolls
-        body.maxPx = (context.resources.displayMetrics.heightPixels - top - floor).coerceAtLeast(context.dp(200))
+        body.maxPx = (context.resources.displayMetrics.heightPixels - top - bottom - context.dp(24)).coerceAtLeast(context.dp(200))
     }
 
     // ------------------------------------------------------------------ building
@@ -346,7 +380,7 @@ class QuickPanel(
         val lower = LinearLayout(c)
         lower.orientation = LinearLayout.VERTICAL
         lower.setPadding(c.dp(10), c.dp(10), c.dp(10), c.dp(10))
-        // Step 21a: the box is only as tall as what is in it (no empty stretch under the player that ran off the screen).
+        lower.clipChildren = true
         lower.background = GradientDrawable().apply {
             setColor(Look.glass(70))
             cornerRadius = c.dpf(30f)
@@ -362,13 +396,13 @@ class QuickPanel(
             val n = QuickNotifs(c, false, true) { close(false) }
             n.bind()
             notifs = n
-            val np = LinearLayout.LayoutParams(MATCH, WRAP, 1f)
+            val np = LinearLayout.LayoutParams(MATCH, 0, 1f)
             np.topMargin = c.dp(if (cardsOn) 14 else 0)
             lower.addView(n, np)
         }
         if (lower.childCount > 0) {
-            val lp = LinearLayout.LayoutParams(MATCH, WRAP, if (notifs != null) 1f else 0f)
-            lp.topMargin = c.dp(12)
+            val lp = LinearLayout.LayoutParams(MATCH, 0, 1f) // Step 22a: only the space that is left; what does not fit is cropped
+            lp.topMargin = c.dp(14)
             content.addView(lower, lp)
         }
 
@@ -377,7 +411,7 @@ class QuickPanel(
         bar.background = roundRect(Look.inkA(70), c.dpf(2f))
         val barParams = LinearLayout.LayoutParams(c.dp(44), c.dp(4))
         barParams.gravity = Gravity.CENTER_HORIZONTAL
-        barParams.topMargin = c.dp(10)
+        barParams.topMargin = c.dp(8)
         barParams.bottomMargin = c.dp(0)
         content.addView(bar, barParams)
 
@@ -567,9 +601,11 @@ class QuickPanel(
         scrim.animate().cancel()
         closing = false
         editor = null
+        PanelTheme.load(context)
         build()
         system.start()
         system.onChanged = { refresh() }
+        system.onLeave = { close(false) }
         watchPhone()
         cards?.start()
         player?.start()
@@ -579,7 +615,7 @@ class QuickPanel(
         }
         visibility = View.VISIBLE
         // Without a working window blur the wallpaper stays sharp, so the dark veil is stronger to hide it.
-        scrim.setBackgroundColor(Look.veil(if (context.windowBlurWorks()) 150 else 200))
+        scrim.background = PanelTheme.scrim(if (context.windowBlurWorks()) 150 else 200, Look.dark)
         scrim.alpha = 0f
         card.translationY = -context.resources.displayMetrics.heightPixels.toFloat()
         scrim.animate().alpha(1f).setDuration(220).start()
@@ -763,7 +799,7 @@ class QuickPanel(
         const val MAX_WIDTH_DP = 600
 
         /** Buttons that change right there (the panel stays open); the others open a phone settings screen. */
-        val IN_PLACE = setOf("sound", "torch", "rotate", "dnd")
+        val IN_PLACE = setOf("sound", "torch", "rotate", "dnd", "bluetooth", "location", "hotspot", "battery", "dark", "cast")
     }
 }
 

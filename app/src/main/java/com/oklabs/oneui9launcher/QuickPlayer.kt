@@ -86,7 +86,7 @@ class QuickPlayer(context: Context, private val onLeave: () -> Unit) : LinearLay
     init {
         orientation = VERTICAL
         val c = context
-        setPadding(c.dp(12), c.dp(10), c.dp(12), c.dp(4))
+        setPadding(c.dp(14), c.dp(14), c.dp(14), c.dp(10))
         background = roundRect(Look.glass(110), c.dpf(26f))
         isClickable = true
         setOnClickListener { openPlayer() }
@@ -103,7 +103,7 @@ class QuickPlayer(context: Context, private val onLeave: () -> Unit) : LinearLay
                 outline.setRoundRect(0, 0, view.width, view.height, c.dpf(16f))
             }
         }
-        top.addView(art, LayoutParams(c.dp(56), c.dp(56)))
+        top.addView(art, LayoutParams(c.dp(68), c.dp(68)))
 
         val texts = LinearLayout(c)
         texts.orientation = VERTICAL
@@ -133,8 +133,8 @@ class QuickPlayer(context: Context, private val onLeave: () -> Unit) : LinearLay
             val dur = ctl?.metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
             if (ctl != null && dur > 0) ctl.transportControls.seekTo((p * dur).toLong())
         }
-        val sp = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, c.dp(22))
-        sp.topMargin = c.dp(2)
+        val sp = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, c.dp(26))
+        sp.topMargin = c.dp(6)
         addView(seek, sp)
 
         val controls = LinearLayout(c)
@@ -143,7 +143,7 @@ class QuickPlayer(context: Context, private val onLeave: () -> Unit) : LinearLay
         controls.addView(control(QuickGlyph(c, QuickGlyph.PREV), "Previous") {
             val ctl = controller
             if (ctl != null) ctl.transportControls.skipToPrevious() else sendKey(KeyEvent.KEYCODE_MEDIA_PREVIOUS)
-        }, LayoutParams(c.dp(52), c.dp(44)))
+        }, LayoutParams(c.dp(56), c.dp(52)))
 
         val playWrap = FrameLayout(c)
         playWrap.background = GradientDrawable().apply {
@@ -162,7 +162,7 @@ class QuickPlayer(context: Context, private val onLeave: () -> Unit) : LinearLay
                 sendKey(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
             }
         }
-        val pp = LayoutParams(c.dp(48), c.dp(48))
+        val pp = LayoutParams(c.dp(56), c.dp(56))
         pp.leftMargin = c.dp(14)
         pp.rightMargin = c.dp(14)
         controls.addView(playWrap, pp)
@@ -170,7 +170,7 @@ class QuickPlayer(context: Context, private val onLeave: () -> Unit) : LinearLay
         controls.addView(control(QuickGlyph(c, QuickGlyph.NEXT), "Next") {
             val ctl = controller
             if (ctl != null) ctl.transportControls.skipToNext() else sendKey(KeyEvent.KEYCODE_MEDIA_NEXT)
-        }, LayoutParams(c.dp(52), c.dp(44)))
+        }, LayoutParams(c.dp(56), c.dp(52)))
         addView(controls, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         bind()
@@ -180,7 +180,7 @@ class QuickPlayer(context: Context, private val onLeave: () -> Unit) : LinearLay
         glyph.tint = Look.text
         glyph.contentDescription = description
         glyph.isClickable = true
-        glyph.setPadding(context.dp(9), context.dp(9), context.dp(9), context.dp(9))
+        glyph.setPadding(context.dp(11), context.dp(11), context.dp(11), context.dp(11))
         glyph.setOnClickListener { onTap() }
         return glyph
     }

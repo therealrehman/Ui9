@@ -111,7 +111,7 @@ class NotificationPage(
     init {
         visibility = View.GONE
 
-        veil.setBackgroundColor(Look.veil(135))
+        veil.background = PanelTheme.scrim(135, Look.dark)
         veil.isClickable = true
         veil.setOnClickListener { close(true) }
         addView(veil, LayoutParams(MATCH, MATCH))
@@ -233,7 +233,8 @@ class NotificationPage(
         }
         visibility = View.VISIBLE
         // Without a working window blur the wallpaper stays sharp, so the dark veil is stronger to hide it.
-        veil.setBackgroundColor(Look.veil(if (context.windowBlurWorks()) 140 else 195))
+        PanelTheme.load(context)
+        veil.background = PanelTheme.scrim(if (context.windowBlurWorks()) 140 else 195, Look.dark)
         veil.alpha = 0f
         column.alpha = 0f
         column.translationY = -context.dp(48).toFloat()

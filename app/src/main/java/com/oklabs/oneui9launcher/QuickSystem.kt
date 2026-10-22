@@ -282,20 +282,73 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
                     else -> Settings.ACTION_WIFI_SETTINGS
                 }
             )
-            "bluetooth" -> open(Settings.ACTION_BLUETOOTH_SETTINGS)
+            "bluetooth" -> popup(id, "Bluetooth", Settings.ACTION_BLUETOOTH_SETTINGS)
             "data" -> open(if (Build.VERSION.SDK_INT >= 29) Settings.Panel.ACTION_INTERNET_CONNECTIVITY else Settings.ACTION_WIRELESS_SETTINGS)
-            "airplane" -> open(Settings.ACTION_AIRPLANE_MODE_SETTINGS)
+            "airplane" -> open(if (Build.VERSION.SDK_INT >= 29) Settings.Panel.ACTION_INTERNET_CONNECTIVITY else Settings.ACTION_AIRPLANE_MODE_SETTINGS)
             "sound" -> cycleSound()
             "torch" -> toggleTorch()
             "rotate" -> toggleRotate()
             "dnd" -> toggleDnd()
-            "location" -> open(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
-            "hotspot" -> openHotspot()
-            "battery" -> open(Settings.ACTION_BATTERY_SAVER_SETTINGS)
-            "dark" -> open(Settings.ACTION_DISPLAY_SETTINGS)
-            "cast" -> open(Settings.ACTION_CAST_SETTINGS)
+            "location" -> popup(id, "Location", Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+            "hotspot" -> popup(id, "Mobile hotspot", null)
+            "battery" -> popup(id, "Battery saver", Settings.ACTION_BATTERY_SAVER_SETTINGS)
+            "dark" -> popup(id, "Dark mode", Settings.ACTION_DISPLAY_SETTINGS)
+            "cast" -> popup(id, "Screen cast", Settings.ACTION_CAST_SETTINGS)
             "camera" -> open(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
         }
+    }
+
+    /** Called when a popup sent the person to a phone screen: the panel should close. */
+    var onLeave: (() -> Unit)? = null
+
+    /**
+     * Step 21c: one small popup for the buttons Android will not let an app switch (Bluetooth, location, hotspot...): the real state
+     * and an "Open settings" button. Wi-Fi, mobile data and flight mode use the phone's own popup panel instead.
+     */
+    private fun popup(id: String, title: String, action: String?) {
+        val c = ctx
+        val st = state(id)
+        val box = android.widget.LinearLayout(c)
+        box.orientation = android.widget.LinearLayout.VERTICAL
+        box.setPadding(c.dp(22), c.dp(20), c.dp(22), c.dp(18))
+        box.background = roundRect(Look.panel(250), c.dpf(28f))
+        val t = android.widget.TextView(c)
+        t.text = title
+        t.setTextColor(Look.text)
+        t.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 19f)
+        box.addView(t)
+        val s = android.widget.TextView(c)
+        s.text = if (st.sub.isNotEmpty() && st.sub != "Settings") st.sub else "Android lets only the system switch this one"
+        s.setTextColor(Look.textA(190))
+        s.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14f)
+        val sp = android.widget.LinearLayout.LayoutParams(-1, -2)
+        sp.topMargin = c.dp(6)
+        box.addView(s, sp)
+        val dialog = android.app.Dialog(c)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val b = android.widget.TextView(c)
+        b.text = "Open settings"
+        b.gravity = android.view.Gravity.CENTER
+        b.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15f)
+        b.setTextColor(if (Look.dark) android.graphics.Color.rgb(24, 26, 32) else android.graphics.Color.WHITE)
+        b.background = roundRect(Look.text, c.dpf(24f))
+        b.setPadding(0, c.dp(12), 0, c.dp(12))
+        b.isClickable = true
+        b.setOnClickListener {
+            dialog.dismiss()
+            if (action != null) open(action) else openHotspot()
+            onLeave?.invoke()
+        }
+        val bp = android.widget.LinearLayout.LayoutParams(-1, -2)
+        bp.topMargin = c.dp(18)
+        box.addView(b, bp)
+        dialog.setContentView(box)
+        dialog.window?.apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+            setLayout(minOf(c.resources.displayMetrics.widthPixels - c.dp(48), c.dp(420)), -2)
+            setGravity(android.view.Gravity.CENTER)
+        }
+        dialog.show()
     }
 
     /** Long-press: the phone's full settings page for the button. */
