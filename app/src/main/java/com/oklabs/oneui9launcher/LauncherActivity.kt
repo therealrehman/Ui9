@@ -710,8 +710,9 @@ class LauncherActivity : Activity() {
     }
 
     private fun animateOverlayBlur() {
+        // Step 25: the Quick panel no longer blurs what is behind it (blur + closing slide made the apps behind flash twice);
+        // it uses a plain, stronger veil instead (see QuickPanel.open).
         val open = folderLayer.isOpen || (::widgetPicker.isInitialized && widgetPicker.isOpen) ||
-            (::quickPanel.isInitialized && quickPanel.wantsBlur) ||
             (::notifPage.isInitialized && notifPage.wantsBlur)
         blurAnimator?.cancel()
         val anim = ValueAnimator.ofFloat(overlayBlur, if (open) 1f else 0f)

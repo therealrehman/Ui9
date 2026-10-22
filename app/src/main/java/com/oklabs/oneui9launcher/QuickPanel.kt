@@ -617,8 +617,8 @@ class QuickPanel(
             Notifs.addListener(notifsListener)
         }
         visibility = View.VISIBLE
-        // Without a working window blur the wallpaper stays sharp, so the dark veil is stronger to hide it.
-        scrim.background = PanelTheme.scrim(if (context.windowBlurWorks()) 150 else 200, PanelLook.dark)
+        // Step 25: nothing is blurred behind the panel any more, so the veil alone must hide the Home screen: stronger than before.
+        scrim.background = PanelTheme.scrim(205, PanelLook.dark)
         scrim.alpha = 0f
         card.translationY = -context.resources.displayMetrics.heightPixels.toFloat()
         scrim.animate().alpha(1f).setDuration(150).start()

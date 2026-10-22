@@ -380,7 +380,8 @@ class PanelAccessibilityService : AccessibilityService() {
 
     /** A picture of whatever is on the screen, blurred, for behind the panel (Android 11+; the window blur of the overlay is the fallback). */
     private fun canShoot(): Boolean =
-        Build.VERSION.SDK_INT >= 30 && ((serviceInfo?.capabilities ?: 0) and AccessibilityServiceInfo.CAPABILITY_CAN_TAKE_SCREENSHOT) != 0
+        BLUR_BEHIND_PANEL && Build.VERSION.SDK_INT >= 30 &&
+            ((serviceInfo?.capabilities ?: 0) and AccessibilityServiceInfo.CAPABILITY_CAN_TAKE_SCREENSHOT) != 0
 
     private fun requestBackdrop() {
         backdropBitmap = null // never show the picture of an earlier screen
@@ -446,7 +447,8 @@ class PanelAccessibilityService : AccessibilityService() {
     // ------------------------------------------------------------------ the phone's window blur (only when no picture is available)
 
     private fun windowBlurAllowed(host: View): Boolean =
-        Build.VERSION.SDK_INT >= 31 && host.context.windowBlurWorks() && getSharedPreferences("launcher", MODE_PRIVATE).getBoolean("blur", true)
+        BLUR_BEHIND_PANEL && Build.VERSION.SDK_INT >= 31 && host.context.windowBlurWorks() &&
+            getSharedPreferences("launcher", MODE_PRIVATE).getBoolean("blur", true)
 
     /**
      * Blur of the apps behind the overlay by the phone itself. It is slow on many phones, so it is only the fallback for when the picture of the
@@ -646,6 +648,13 @@ class PanelAccessibilityService : AccessibilityService() {
         private const val SHOT_NONE = 0
         private const val SHOT_PENDING = 1
         private const val SHOT_READY = 2
+
+        /**
+         * Step 25: false = nothing is blurred behind the Quick panel in other apps (no picture of the screen, no window blur), only the
+         * panel's own veil. The blurred picture and the live app behind it did not line up while the panel closed, so the apps showed twice.
+         * Set to true to bring the old frosted backdrop back.
+         */
+        private const val BLUR_BEHIND_PANEL = false
 
         /** The running service (null when it is off); the Settings test button uses it. */
         @Volatile

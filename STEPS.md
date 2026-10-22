@@ -10,7 +10,7 @@ cd ~/storage/downloads && unzip -oq "$(ls -t OneUI9Launcher-step01*.zip | head -
 ```
 
 Each new step ships as a full project zip. Use the same command with the new zip name
-(step02, step03, step04, step05a, step05b, step05c, step06a, step06b1, step06b2, step06c1, step06c2, step07a, step07b, step07c, step08a, step08b, step08c, step08d, step09a, step09b, step10a, step10b, step10c, step10d, step11, step12, step13, step14, step15, step16a, step16b, step16c, step16d, step16e, step17a, step17b, step17c, step18, step19). Your `local.properties` is kept between steps.
+(step02, step03, step04, step05a, step05b, step05c, step06a, step06b1, step06b2, step06c1, step06c2, step07a, step07b, step07c, step08a, step08b, step08c, step08d, step09a, step09b, step10a, step10b, step10c, step10d, step11, step12, step13, step14, step15, step16a, step16b, step16c, step16d, step16e, step17a, step17b, step17c, step18, step19, step25). Your `local.properties` is kept between steps.
 
 ## Status
 
@@ -644,6 +644,17 @@ Under the brightness slider (above the notifications) the panel now has three mo
 - **Setup:** the switch sends you to Android's Accessibility screen (a dialog explains first). On Android 13+ for apps installed outside Google Play, allow "Restricted settings" in App info first or the switch stays grey.
 - Popups of the panel (Bluetooth, Location...) become overlay windows there. No new manifest permission except the Accessibility service itself. Permissions page, `docs/privacy-policy.html` updated. Google Play treats Accessibility as a restricted permission (needs its own declaration): see PLAY_STORE.md.
 - Not tested on a real phone: compile-checked only, and the pure recognising rule is JVM-tested. Version 1.0.20 (code 130).
+
+## Step 25 - no blur behind the Quick panel, ten more panel gradients
+
+- **Glitch fixed ("apps shown twice" after swiping the panel up):** in other apps the panel used to put a blurred picture of the screen (and the phone's window blur)
+  behind itself. While it closed, that picture and the live app behind it did not line up, so the apps looked doubled. The frosted backdrop of the Quick panel is
+  now off everywhere: in other apps, and on the Home screen (the Home screen behind the Quick panel is no longer blurred). The panel's own veil is stronger
+  (205 instead of 150 / 200) so the apps behind stay calm. The Notifications page keeps its blur on the Home screen.
+  To bring the old backdrop back in other apps, set `BLUR_BEHIND_PANEL = true` in `SystemPanel.kt`.
+- **Ten more gradients for the Quick panel** (Settings > Quick panel > Panel colour, scroll the dots): Twilight, Cherry, Arctic, Neon, Sand, Lagoon, Plum, Citrus,
+  Steel, Dawn. They sit after the five older gradients (saved choices 0-10 are unchanged); the dock and wallpaper gradients are not touched.
+- Compile-checked only by reading; not built or tested on a phone. Version 1.0.25 (code 135).
 
 ## Step 24c - panel blur and un-blur are fast
 

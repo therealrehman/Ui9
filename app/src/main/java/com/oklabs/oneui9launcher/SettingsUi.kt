@@ -555,7 +555,7 @@ internal class SettingsKit(private val ctx: Context) {
         return block
     }
 
-    /** Step 21b: the Quick panel colour: white glass, five colours, five gradients. */
+    /** Step 21b: the Quick panel colour: white glass, five colours, fifteen gradients (Step 25). */
     fun panelThemeDots(title: String, selected: Int, onPick: (Int) -> Unit): View {
         val block = LinearLayout(ctx)
         block.orientation = LinearLayout.VERTICAL
