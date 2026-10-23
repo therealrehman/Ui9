@@ -892,8 +892,9 @@ class QuickPanel(
             .setUpdateListener {
                 val p = 1f - (card.translationY / (h0 * 0.35f)).coerceIn(0f, 1f)
                 // Step 33: top to bottom, opacity 0 -> 100 on a soft curve, the panel sharpening from a blur while it lands
-                card.alpha = Motion.smooth(Motion.ramp(p, 0.85f))
-                scrim.alpha = Motion.smooth(Motion.ramp(p, 0.95f))
+                // Step 35: fast, 0 -> 100 within the first 60% of the move
+                card.alpha = Motion.smooth(Motion.ramp(p, 0.6f))
+                scrim.alpha = Motion.smooth(Motion.ramp(p, 0.7f))
                 scrim.translationY = card.translationY
                 Motion.setBlur(card, Motion.BLUR_PX * (1f - Motion.ramp(p, 0.9f)))
             }
@@ -929,18 +930,19 @@ class QuickPanel(
             return
         }
         closing = true
-        // Step 31: slides up and fades 100 -> 0 together; the card is one picture while it moves.
+        // Step 35: the moment the swipe up is accepted the opacity falls straight from 100% to 20%, then runs down to 0 while the panel
+        // slides up fast. No blur while closing (changing a blur on every frame was a source of glitches); the card is one picture while it moves.
+        card.alpha = Motion.CLOSE_START_ALPHA
+        scrim.alpha = Motion.CLOSE_START_ALPHA
         card.setLayerType(View.LAYER_TYPE_HARDWARE, null)
         val travel = -(card.height * 0.35f + context.dp(24))
         card.animate().translationY(travel).setDuration(Motion.CLOSE_MS)
             .setInterpolator(Motion.CLOSE)
             .setUpdateListener {
                 val q = (card.translationY / travel).coerceIn(0f, 1f)
-                // Step 33: opacity falls through about 30% and lands softly on 0, the panel blurring as it goes
                 card.alpha = Motion.fadeOut(q)
                 scrim.alpha = Motion.fadeOut(q)
                 scrim.translationY = card.translationY
-                Motion.setBlur(card, Motion.BLUR_PX * Motion.ramp(q, 0.9f))
             }
             .withEndAction {
                 card.animate().setUpdateListener(null)

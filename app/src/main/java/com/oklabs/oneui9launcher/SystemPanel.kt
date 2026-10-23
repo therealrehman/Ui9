@@ -206,12 +206,16 @@ class PanelAccessibilityService : AccessibilityService() {
 
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == Intent.ACTION_SCREEN_OFF) {
-                hidePanel()
-                ui.removeCallbacks(stripSync)
-                removeStrip()
-            } else {
-                syncStripSoon(700L) // screen on / unlocked: wait until the lock screen has gone
+            try {
+                if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                    hidePanel()
+                    ui.removeCallbacks(stripSync)
+                    removeStrip()
+                } else {
+                    syncStripSoon(700L) // screen on / unlocked: wait until the lock screen has gone
+                }
+            } catch (e: Exception) {
+                // Step 35: an error here would end the whole app process, and the phone then stops this service for good
             }
         }
     }
@@ -255,6 +259,15 @@ class PanelAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // Step 35: nothing may throw out of here: a crash ends the app's process and the phone then leaves this service stopped.
+        try {
+            handleEvent(event)
+        } catch (e: Exception) {
+            // ignored on purpose
+        }
+    }
+
+    private fun handleEvent(event: AccessibilityEvent?) {
         val e = event ?: return
         if (forcing) return // Step 26: the phone's Quick settings is open on purpose, do not swap it for our panel
         if (e.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return

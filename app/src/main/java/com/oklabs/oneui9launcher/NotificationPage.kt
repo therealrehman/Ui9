@@ -248,7 +248,7 @@ class NotificationPage(
         column.translationY = -context.dp(56).toFloat()
         Motion.setBlur(column, Motion.BLUR_PX)
         veil.animate().alpha(1f).translationY(0f).setDuration(Motion.OPEN_MS).setInterpolator(Motion.OPEN).start()
-        // Step 33: the page fades 0 -> 100 while it sharpens from a blur
+        // Step 33: the page fades 0 -> 100 while it sharpens from a blur (Step 35: faster)
         column.animate().alpha(1f).translationY(0f).setDuration(Motion.OPEN_MS).setInterpolator(Motion.OPEN)
             .setUpdateListener { Motion.setBlur(column, Motion.BLUR_PX * (1f - Motion.ramp(column.alpha, 0.9f))) }
             .withEndAction {
@@ -275,15 +275,16 @@ class NotificationPage(
             return
         }
         closing = true
+        // Step 35: straight from 100% to 20% the moment the swipe up is accepted, then down to 0 fast; no blur while closing.
+        veil.alpha = Motion.CLOSE_START_ALPHA
+        column.alpha = Motion.CLOSE_START_ALPHA
         veil.animate().alpha(0f).translationY(-context.resources.displayMetrics.heightPixels * 0.12f).setDuration(Motion.CLOSE_MS)
             .setInterpolator(Motion.CLOSE).start()
-        // Step 33: opacity falls through about 30% and lands softly on 0, the page blurring as it goes
         val travel = -context.dp(56).toFloat()
         column.animate().translationY(travel).setDuration(Motion.CLOSE_MS).setInterpolator(Motion.CLOSE)
             .setUpdateListener {
                 val q = (column.translationY / travel).coerceIn(0f, 1f)
                 column.alpha = Motion.fadeOut(q)
-                Motion.setBlur(column, Motion.BLUR_PX * Motion.ramp(q, 0.9f))
             }
             .withEndAction {
                 column.animate().setUpdateListener(null)

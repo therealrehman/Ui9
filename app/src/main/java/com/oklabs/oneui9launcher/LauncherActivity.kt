@@ -300,7 +300,10 @@ class LauncherActivity : Activity() {
 
     override fun onStop() {
         widgetHost.stopListening()
-        fadeHomeIn = true
+        // Step 35: the soft appearance is only for coming back from an app. After the screen went off (lock / unlock) there is none:
+        // the system still shows the last picture of Home for a moment, and a fading, zooming second copy on top of it was the "double icons".
+        val power = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+        fadeHomeIn = power?.isInteractive != false
         super.onStop()
     }
 
@@ -312,16 +315,13 @@ class LauncherActivity : Activity() {
      * (Step 31) it was drawn by the system next to the app that was leaving or being unlocked, which showed that app twice.
      */
     private fun playHomeFade() {
+        // Step 35: opacity only, no zoom (a zoomed copy next to the system's own picture of Home looked like two sets of icons).
         root.animate().cancel()
+        root.scaleX = 1f
+        root.scaleY = 1f
         root.alpha = 0f
-        root.scaleX = 0.97f
-        root.scaleY = 0.97f
-        root.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(Motion.OPEN_MS - 60L).setInterpolator(Motion.OPEN)
-            .withEndAction {
-                root.alpha = 1f
-                root.scaleX = 1f
-                root.scaleY = 1f
-            }.start()
+        root.animate().alpha(1f).setDuration(Motion.OPEN_MS).setInterpolator(Motion.OPEN)
+            .withEndAction { root.alpha = 1f }.start()
     }
 
     override fun onResume() {
@@ -335,9 +335,34 @@ class LauncherActivity : Activity() {
         defaultChip.visibility = if (isDefaultHome()) View.GONE else View.VISIBLE
         updateWallpaperOffset(pager.scrollFraction())
         if (IconTheme.refresh(this)) loadApps() // the wallpaper changed: the themed icons follow its colour
+        val keyguard = getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
         if (fadeHomeIn) {
             fadeHomeIn = false
-            playHomeFade()
+            if (keyguard?.isKeyguardLocked == true) {
+                root.animate().cancel()
+                root.alpha = 1f
+                root.scaleX = 1f
+                root.scaleY = 1f
+            } else {
+                playHomeFade()
+            }
+        } else {
+            root.animate().cancel()
+            root.alpha = 1f
+            root.scaleX = 1f
+            root.scaleY = 1f
+        }
+        // Step 35: if the phone stopped the Quick panel service on its own, start it again (or say so); checked a moment after the launcher is up
+        handler.removeCallbacks(keepService)
+        handler.postDelayed(keepService, 2500L)
+    }
+
+    private val keepService = Runnable {
+        if (!isForeground) return@Runnable
+        when (ServiceKeeper.check(this)) {
+            ServiceKeeper.Result.NEEDS_USER ->
+                Toast.makeText(this, "The phone stopped the Quick panel service. Turn it on again: Settings > Accessibility.", Toast.LENGTH_LONG).show()
+            else -> {}
         }
     }
 
