@@ -238,10 +238,13 @@ class NotificationPage(
         // Without a working window blur the wallpaper stays sharp, so the dark veil is stronger to hide it.
         PanelTheme.load(context)
         veil.background = PanelTheme.scrim(if (context.windowBlurWorks()) 140 else 195, PanelLook.dark)
-        veil.alpha = 0f
+        // Step 27: the solid veil slides in like a curtain instead of fading over Home
+        val h = context.resources.displayMetrics.heightPixels.toFloat()
+        veil.alpha = 1f
+        veil.translationY = -h
         column.alpha = 0f
         column.translationY = -context.dp(48).toFloat()
-        veil.animate().alpha(1f).setDuration(150).start()
+        veil.animate().translationY(0f).setDuration(210).setInterpolator(DecelerateInterpolator(1.6f)).start()
         column.animate().alpha(1f).translationY(0f).setDuration(210).setInterpolator(DecelerateInterpolator(1.6f)).start()
         onOpenChanged?.invoke()
     }
@@ -261,10 +264,12 @@ class NotificationPage(
             return
         }
         closing = true
-        veil.animate().alpha(0f).setDuration(110).start()
+        veil.animate().translationY(-context.resources.displayMetrics.heightPixels.toFloat()).setDuration(150)
+            .setInterpolator(android.view.animation.AccelerateInterpolator(1.1f)).start()
         column.animate().alpha(0f).translationY(-context.dp(48).toFloat()).setDuration(140)
             .withEndAction {
                 closing = false
+                veil.translationY = 0f
                 visibility = View.GONE
                 onGone?.invoke()
             }.start()

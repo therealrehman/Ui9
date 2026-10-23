@@ -748,3 +748,29 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - Wi-Fi and mobile data are also found by their place (the two big buttons on top) for phones that show the network name instead of "Wi-Fi".
 - New names: Personal hotspot, Eye Protection. Icons of the extra buttons are a plain grid symbol for now.
 - Compile-checked only by reading; not built or tested on a real phone.
+
+## Step 27b - no faint shade over Home when a panel closes
+
+- The solid veil of the Quick panel and the Notifications page no longer fades in or out over the Home screen (a fading solid layer looked like a faint shade); it slides with the panel like one curtain.
+
+## Step 28a - reaching the phone's own buttons by every way, and a report
+
+- Finding a button now has three levels: a strict one (visible, clickable), a relaxed one (also views the phone marks hidden / not important, a clickable view next to the name) and
+  a last one that taps the place of the name with a real finger-tap (new permission "perform gestures"). A press the phone ignores as a click is repeated as a finger-tap.
+- If the phone does not show its Quick settings, the notification shade is pulled down first and then its Quick settings.
+- Nothing stays blocked after an error: a press that never finished counts as over after 9 seconds.
+- When a button cannot be found, a **report** of what the launcher can see in the phone's Quick settings is copied to the clipboard (paste it in the chat). Long-press the pencil on the Quick panel: reads the phone's buttons again and copies the report.
+- Without the service, a tap opens Accessibility settings instead of a phone screen of that button.
+- The report is only written on those two occasions and never saved or sent anywhere by the launcher.
+- Compile-checked only by reading; not built or tested on a real phone.
+
+## Step 28b - more ways to reach the phone's buttons
+
+- The phone's panel is now found by window type ("system" windows), not by the app name "systemui": phones that keep their control center in another app are covered.
+  Other apps' windows are used only when no system window can be read (so a press never lands inside the app under the panel).
+- If the panel still does not show, a real swipe down from the top-right corner is sent (control center on phones that keep it on the right).
+- **Optional, one time:** `adb shell pm grant com.oklabs.oneui9launcher android.permission.WRITE_SECURE_SETTINGS` - then Location, Dark mode and Battery saver are switched
+  directly (no Accessibility, no flash). If the write does not work the usual way is used. From Termux: `pkg install android-tools`, then Developer options > Wireless debugging > Pair device,
+  `adb pair 127.0.0.1:<pair port>`, `adb connect 127.0.0.1:<port>`, and the grant line above.
+- Buttons found on the phone show the first letter of their name instead of a grid symbol.
+- Compile-checked only by reading; not built or tested on a real phone.

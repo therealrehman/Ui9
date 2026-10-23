@@ -22,6 +22,9 @@ class QuickGlyph(context: Context, var kind: Int) : View(context) {
     private val path = Path()
     private val oval = RectF()
 
+    /** Buttons found on the phone have no drawing of their own: this first letter of their name is drawn instead of the grid. */
+    var letter: String? = null
+
     /** Colour of the drawing. */
     var tint: Int = Color.WHITE
         set(value) {
@@ -236,7 +239,13 @@ class QuickGlyph(context: Context, var kind: Int) : View(context) {
                 oval.set(cx - s * 0.3f, cy - s * 0.3f, cx + s * 0.3f, cy + s * 0.3f)
                 canvas.drawArc(oval, 90f, 180f, true, paint)
             }
-            GRID -> {
+            GRID -> if (letter != null) {
+                fill()
+                paint.textAlign = Paint.Align.CENTER
+                paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                paint.textSize = s * 0.74f
+                canvas.drawText(letter!!, cx, cy - (paint.ascent() + paint.descent()) / 2f, paint)
+            } else {
                 fill()
                 val q = s * 0.17f
                 val g = s * 0.05f

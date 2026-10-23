@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Lets the quick menu start the system "Uninstall app?" dialog (Android 9+ needs this). -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
@@ -18,6 +19,8 @@
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    <!-- Step 28b: optional. Only when the person grants it once with adb (pm grant), Location, Dark mode and Battery saver are switched directly. -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:ignore="ProtectedPermissions" />
     <!-- Step 26: shows whether NFC is on (the button itself is switched by the Quick panel service). -->
     <uses-permission android:name="android.permission.NFC" />
 

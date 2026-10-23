@@ -722,6 +722,14 @@ class QuickPanel(
             Toast.makeText(context, "Reading your phone's buttons...", Toast.LENGTH_SHORT).show()
             system.scan { ok ->
                 if (ok) prefs.edit().putBoolean("qp_scanned", true).apply()
+                if (again) {
+                    val copied = PanelAccessibilityService.instance?.copyReport() == true
+                    Toast.makeText(
+                        context,
+                        if (copied) "Phone button report copied: paste it in the chat" else if (ok) "Phone buttons read" else "Could not read the phone's Quick settings",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
                 if (isOpen && editor == null) build()
             }
         }, 450L)
@@ -812,10 +820,16 @@ class QuickPanel(
         visibility = View.VISIBLE
         // Step 25: nothing is blurred behind the panel any more, so the veil alone must hide the Home screen: stronger than before.
         scrim.background = PanelTheme.scrim(205, PanelLook.dark)
-        scrim.alpha = 0f
-        card.translationY = -context.resources.displayMetrics.heightPixels.toFloat()
-        scrim.animate().alpha(1f).setDuration(150).start()
-        card.animate().translationY(0f).setDuration(210).setInterpolator(DecelerateInterpolator(1.6f)).start()
+        // Step 27: the veil is solid, so it must not fade over the Home screen (that looked like a faint shade). It slides together with the
+        // panel instead, like one curtain: nothing of it is ever half-see-through.
+        val h0 = -context.resources.displayMetrics.heightPixels.toFloat()
+        scrim.alpha = 1f
+        scrim.translationY = h0
+        card.translationY = h0
+        card.animate().translationY(0f).setDuration(210).setInterpolator(DecelerateInterpolator(1.6f))
+            .setUpdateListener { scrim.translationY = card.translationY }
+            .withEndAction { scrim.translationY = 0f }
+            .start()
         onOpenChanged?.invoke()
     }
 
@@ -840,16 +854,15 @@ class QuickPanel(
             return
         }
         closing = true
-        // Step 26b: the veil fades exactly with the slide (same clock) and the card is drawn as one picture while it moves, so no faint
-        // shade is left over the Home screen for a moment after a swipe up.
+        // Step 27: veil and panel leave together as one curtain (no fading veil over Home), the card is one picture while it moves.
         card.setLayerType(View.LAYER_TYPE_HARDWARE, null)
         card.animate().translationY(-(card.height + context.dp(40)).toFloat()).setDuration(170)
-            .setInterpolator(android.view.animation.AccelerateInterpolator(1.15f))
-            .setUpdateListener { a -> scrim.alpha = 1f - a.animatedFraction }
+            .setInterpolator(android.view.animation.AccelerateInterpolator(1.1f))
+            .setUpdateListener { scrim.translationY = card.translationY }
             .withEndAction {
                 card.animate().setUpdateListener(null)
                 card.setLayerType(View.LAYER_TYPE_NONE, null)
-                scrim.alpha = 0f
+                scrim.translationY = 0f
                 closing = false
                 visibility = View.GONE
                 onGone?.invoke()
@@ -917,7 +930,9 @@ class QuickPanel(
     private class TileView(context: Context, private val def: QuickTileDef, private val wide: Boolean) : LinearLayout(context) {
 
         private val circle = FrameLayout(context)
-        private val glyph = QuickGlyph(context, def.glyph)
+        private val glyph = QuickGlyph(context, def.glyph).also {
+            if (def.id.startsWith(QuickTiles.CUSTOM_PREFIX)) it.letter = def.label.trim().take(1).uppercase()
+        }
         private val label = TextView(context)
         private val sub = TextView(context)
         private var lastOn: Boolean? = null

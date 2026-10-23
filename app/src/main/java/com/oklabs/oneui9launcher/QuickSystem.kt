@@ -373,8 +373,45 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
             }
             "rotate" -> if (Settings.System.canWrite(app)) toggleRotate() else force(id)
             "dnd" -> if (notifications()?.isNotificationPolicyAccessGranted == true) toggleDnd() else force(id)
-            else -> force(id)
+            else -> if (!secureToggle(id)) force(id)
         }
+    }
+
+    private fun canSecure(): Boolean =
+        app.checkSelfPermission(android.Manifest.permission.WRITE_SECURE_SETTINGS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Step 28b: with the one-time adb grant (WRITE_SECURE_SETTINGS) these are switched by writing the phone's own setting, with no help of the
+     * Accessibility service. If the write fails or the phone does not take it, the usual way (the phone's Quick settings) is used.
+     * Returns true when the switch was done here.
+     */
+    private fun secureToggle(id: String): Boolean {
+        if (!canSecure()) return false
+        val cr = app.contentResolver
+        try {
+            when (id) {
+                "location" -> {
+                    val on = locationOn()
+                    Settings.Secure.putInt(cr, Settings.Secure.LOCATION_MODE, if (on) Settings.Secure.LOCATION_MODE_OFF else Settings.Secure.LOCATION_MODE_HIGH_ACCURACY)
+                    return Settings.Secure.getInt(cr, Settings.Secure.LOCATION_MODE, -1) == (if (on) Settings.Secure.LOCATION_MODE_OFF else Settings.Secure.LOCATION_MODE_HIGH_ACCURACY)
+                }
+                "dark" -> {
+                    val night = android.content.res.Resources.getSystem().configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+                    val want = if (night == Configuration.UI_MODE_NIGHT_YES) 1 else 2
+                    Settings.Secure.putInt(cr, "ui_night_mode", want)
+                    return Settings.Secure.getInt(cr, "ui_night_mode", -1) == want
+                }
+                "battery" -> {
+                    val on = (app.getSystemService(Context.POWER_SERVICE) as PowerManager).isPowerSaveMode
+                    val want = if (on) 0 else 1
+                    Settings.Global.putInt(cr, "low_power", want)
+                    return Settings.Global.getInt(cr, "low_power", -1) == want
+                }
+            }
+        } catch (e: Exception) {
+            return false
+        }
+        return false
     }
 
     /** Called when a tap sent the person to a phone screen: the panel should close. */
@@ -427,20 +464,23 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
     }
 
     private var forceBusy = false
+    private var forceAt = 0L
 
     private fun force(id: String) {
         val svc = PanelAccessibilityService.instance
         if (svc == null) {
-            say("Turn on the Quick panel service (Accessibility) to switch this in one tap")
-            fallback(id)
+            say("Turn on \"Quick panel\" in Accessibility: then every button switches in one tap")
+            open(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            onLeave?.invoke()
             return
         }
-        if (forceBusy) return
+        if (forceBusy && android.os.SystemClock.uptimeMillis() - forceAt < 9000L) return
         forceBusy = true
+        forceAt = android.os.SystemClock.uptimeMillis()
         svc.forceToggle(labels(id)) { ok, on ->
             forceBusy = false
             if (!ok) {
-                say("Could not find that button in the phone's Quick settings")
+                say("Could not find that button. A report was copied: paste it in the chat with Claude")
                 fallback(id)
             } else {
                 if (on != null && id.startsWith(QuickTiles.CUSTOM_PREFIX)) QuickTiles.cacheState(app, id, on)
