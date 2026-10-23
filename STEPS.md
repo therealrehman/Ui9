@@ -807,3 +807,8 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - Home screen: fades in 0 -> 100 with a tiny zoom (240 ms) when you come back from an app, unlock or press Home (`res/anim/launcher_fade_in.xml`, theme + `noTransition()`).
 - Apps drawer: while dragging, Home fades out and the Apps screen fades in (0 -> 100) with an eased curve.
 - Not built or run on a phone. Closing an app is drawn by the phone itself, so only the Home side of that move can be changed.
+
+## Step 32 - swipe works from empty spaces of the Quick panel
+- Cause: the swipe (up = close, left = Notifications) was only read for touches that began on a button; a touch on an empty space is taken by the card itself, which never read it.
+- Now one `swipeEvent()` (raw positions) is used by the card (both for buttons and empty spaces) and by the dark area beside the panel.
+- Not built or run on a phone.

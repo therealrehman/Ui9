@@ -367,42 +367,54 @@ class QuickPanel(
     private var receiverOn = false
     private val handler = Handler(Looper.getMainLooper())
 
-    /** Closing after a swipe up. */
-    private inner class SwipeCard(context: Context) : LinearLayout(context) {
-        private val slop = ViewConfiguration.get(context).scaledTouchSlop
-        private var downX = 0f
-        private var downY = 0f
-        private var rawDownX = 0f
-        private var rawDownY = 0f
+    private val swipeSlop = ViewConfiguration.get(context).scaledTouchSlop
+    private var sDownX = 0f
+    private var sDownY = 0f
+    private var swiped = false
 
-        override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
-            when (ev.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    downX = ev.x
-                    downY = ev.y
-                    rawDownX = ev.rawX
-                    rawDownY = ev.rawY
+    /**
+     * Step 32: the swipe up (close) and swipe left (Notifications) are read from raw positions and from ANY touch on the panel, also on
+     * empty spaces and beside the buttons (before, only touches that started on a button or a card were read). True = the swipe was taken.
+     */
+    private fun swipeEvent(ev: MotionEvent): Boolean {
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                sDownX = ev.rawX
+                sDownY = ev.rawY
+                swiped = false
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (swiped) return true
+                val slop = swipeSlop
+                val dy = sDownY - ev.rawY
+                if (editor == null && gallery == null && slider?.isDragging != true && !(notifs?.scrollsAtRaw(sDownX, sDownY) ?: false) && dy > slop * 2 && dy > abs(ev.rawX - sDownX) * 1.2f && (!body.canScrollVertically(1) || body.scrollY == 0 && dy > slop * 6)) {
+                    swiped = true
+                    close(true)
+                    return true
                 }
-                MotionEvent.ACTION_MOVE -> {
-                    val dy = downY - ev.y
-                    if (editor == null && gallery == null && slider?.isDragging != true && !(notifs?.scrollsAtRaw(rawDownX, rawDownY) ?: false) && dy > slop * 2 && dy > abs(ev.x - downX) * 1.2f && (!body.canScrollVertically(1) || body.scrollY == 0 && dy > slop * 6)) {
-                        close(true)
-                        return true
-                    }
-                    val dx = ev.x - downX
-                    if (editor == null && gallery == null && slider?.isDragging != true && dx < -slop * 3f && -dx > abs(ev.y - downY) * 2f &&
-                        !(notifs?.cardsAtRaw(rawDownX, rawDownY) ?: false) &&
-                        !(tilePager?.let { it.multi && it.containsRaw(rawDownX, rawDownY) } ?: false)
-                    ) {
-                        onSwitchPage?.invoke()
-                        return true
-                    }
+                val dx = ev.rawX - sDownX
+                if (editor == null && gallery == null && slider?.isDragging != true && dx < -slop * 3f && -dx > abs(ev.rawY - sDownY) * 2f &&
+                    !(notifs?.cardsAtRaw(sDownX, sDownY) ?: false) &&
+                    !(tilePager?.let { it.multi && it.containsRaw(sDownX, sDownY) } ?: false)
+                ) {
+                    swiped = true
+                    onSwitchPage?.invoke()
+                    return true
                 }
             }
-            return false
         }
+        return false
+    }
 
-        override fun onTouchEvent(event: MotionEvent): Boolean = true
+    /** Closing after a swipe up. */
+    private inner class SwipeCard(context: Context) : LinearLayout(context) {
+        override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = swipeEvent(ev)
+
+        // a touch that starts on an empty space ends up here (no child took it), so the swipe is read here too
+        override fun onTouchEvent(event: MotionEvent): Boolean {
+            swipeEvent(event)
+            return true
+        }
     }
 
     private val receiver = object : BroadcastReceiver() {
@@ -431,6 +443,7 @@ class QuickPanel(
         scrim.background = PanelTheme.scrim(150, PanelLook.dark)
         scrim.isClickable = true
         scrim.setOnClickListener { close(true) }
+        scrim.setOnTouchListener { _, ev -> swipeEvent(ev) || (swiped && ev.actionMasked != MotionEvent.ACTION_DOWN) } // Step 32: swipe beside the buttons works too
         addView(scrim, LayoutParams(MATCH, MATCH))
 
         // Step 17b: no card any more - the buttons float over the blurred wallpaper, like the reference.
