@@ -833,3 +833,11 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - **"Accessibility keeps switching off":** the phone stops the Quick panel service when the app's process dies (a crash, or a "clean background apps" on Vivo and others) and then leaves it in the list as switched on but never starts it again. (a) Nothing can throw out of the service's event and screen-on/off handlers any more, so it does not take the process down with it. (b) New `ServiceKeeper`: when the launcher is in front and the service is listed as on but not running, it switches it off and on by itself if the launcher was given WRITE_SECURE_SETTINGS (`adb shell pm grant com.oklabs.oneui9launcher android.permission.WRITE_SECURE_SETTINGS`, once); otherwise it says once "The phone stopped the Quick panel service..." so you can switch it on again.
 - Vivo: iManager > App manager > Autostart: allow the launcher; Battery > Background power consumption: allow high consumption; lock the launcher in Recents. These stop the phone from killing it.
 - Changed files only (copy over the project, like step 34): `Motion.kt`, `QuickPanel.kt`, `NotificationPage.kt`, `LauncherActivity.kt`, `SystemPanel.kt`, new `ServiceKeeper.kt`, `build.gradle.kts`, `STEPS.md`. Version 1.0.40 (code 150). Not built or run on a phone.
+
+## Step 36 - Huawei AppGallery pack
+- **Store build only** (`app/src/release/...`, no change for the debug build): WRITE_SECURE_SETTINGS is removed from the manifest; the Quick panel service looks only at the phone's own system windows
+  (`R.bool.qs_other_windows` = false in release) - it never reads or presses anything in another app.
+- The Accessibility dialog text and `docs/privacy-policy.html` now state what the service really does (blur picture in memory, finding and pressing the phone's own Quick settings buttons by name).
+  `bash appgallery.sh prepare` changes the dialog text in `HomeSettingsActivity.kt` (the file itself is not in this zip).
+- New: `docs/APPGALLERY.md` (steps, store texts, privacy answers, reviewer notes), `store/appgallery/icon-216.png` + `icon-512.png`, `appgallery.sh` (`prepare` / `check`).
+- Version 1.0.41 (code 151). Changed files: `build.gradle.kts`, `SystemPanel.kt`, `STEPS.md`, `docs/privacy-policy.html`; new files as listed. Not built or run on a phone; the release (R8) build was not run by me.

@@ -712,8 +712,8 @@ class HomeSettingsActivity : Activity() {
         AlertDialog.Builder(this)
             .setTitle("Allow the Accessibility service")
             .setMessage(
-                getString(R.string.app_name) + " uses Android's Accessibility service for one thing: to notice that the phone's own status-bar panel opened, so it can close it and show the Quick panel instead. " +
-                    "It does not read your screen, passwords or messages, and nothing leaves the phone. In the list that opens, choose " + getString(R.string.app_name) + " and switch it on.\n\n" +
+                getString(R.string.app_name) + " uses Android's Accessibility service only for the optional Quick panel: to notice that the phone's own status-bar panel opened and show the Quick panel instead, to take a picture of the screen in memory to blur it behind the panel, and, when you tap a button such as Wi-Fi or Bluetooth, to open the phone's own Quick settings for a moment, find that button by its name and press it for you. " +
+                    "It does not read your messages, passwords or other apps, it keeps nothing, and nothing leaves the phone. The launcher works fully without this service, and you can switch it off at any time in Settings > Accessibility. In the list that opens, choose " + getString(R.string.app_name) + " and switch it on.\n\n" +
                     "If the switch is greyed out (Android 13+ for apps installed outside Google Play): open Settings > Apps > " + getString(R.string.app_name) +
                     ", tap the three dots and choose \"Allow restricted settings\", then try again."
             )

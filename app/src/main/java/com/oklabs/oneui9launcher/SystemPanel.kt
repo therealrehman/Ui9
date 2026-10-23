@@ -360,6 +360,16 @@ class PanelAccessibilityService : AccessibilityService() {
             // no window list on this phone
         }
         if (system.isNotEmpty()) return system
+        // Step 36: the store build (res/values of the release type) looks ONLY at the phone's own system windows. The debug build may fall back
+        // to other windows on phones that keep their control center outside the system window types.
+        if (!resources.getBoolean(R.bool.qs_other_windows)) {
+            val active = try {
+                rootInActiveWindow
+            } catch (e: Exception) {
+                null
+            }
+            return if (active != null && SystemPanelLogic.isSystemUi(active.packageName?.toString())) listOf(active) else emptyList()
+        }
         if (other.isNotEmpty()) return other
         val active = rootInActiveWindow
         return if (active != null && active.packageName?.toString() != packageName) listOf(active) else emptyList()
