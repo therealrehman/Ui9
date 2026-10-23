@@ -356,6 +356,7 @@ class QuickPanel(
     private var slider: PillSlider? = null
     private var tilePager: TilePager? = null
     private var editor: QuickEditor? = null
+    private var gallery: IconGallery? = null // Step 30b: the "Change icons" screen
     private var notifs: QuickNotifs? = null
     private var cards: QuickCards? = null
     private var player: QuickPlayer? = null
@@ -384,12 +385,12 @@ class QuickPanel(
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dy = downY - ev.y
-                    if (editor == null && slider?.isDragging != true && !(notifs?.scrollsAtRaw(rawDownX, rawDownY) ?: false) && dy > slop * 2 && dy > abs(ev.x - downX) * 1.2f && (!body.canScrollVertically(1) || body.scrollY == 0 && dy > slop * 6)) {
+                    if (editor == null && gallery == null && slider?.isDragging != true && !(notifs?.scrollsAtRaw(rawDownX, rawDownY) ?: false) && dy > slop * 2 && dy > abs(ev.x - downX) * 1.2f && (!body.canScrollVertically(1) || body.scrollY == 0 && dy > slop * 6)) {
                         close(true)
                         return true
                     }
                     val dx = ev.x - downX
-                    if (editor == null && slider?.isDragging != true && dx < -slop * 3f && -dx > abs(ev.y - downY) * 2f &&
+                    if (editor == null && gallery == null && slider?.isDragging != true && dx < -slop * 3f && -dx > abs(ev.y - downY) * 2f &&
                         !(notifs?.cardsAtRaw(rawDownX, rawDownY) ?: false) &&
                         !(tilePager?.let { it.multi && it.containsRaw(rawDownX, rawDownY) } ?: false)
                     ) {
@@ -702,6 +703,10 @@ class QuickPanel(
             onOpenSettings()
             close(false)
         }
+        gear.setOnLongClickListener {
+            startGallery()
+            true
+        }
         row.addView(gear, LinearLayout.LayoutParams(c.dp(44), c.dp(44)))
         return row
     }
@@ -733,7 +738,7 @@ class QuickPanel(
             return
         }
         handler.postDelayed({
-            if (!isOpen || editor != null) return@postDelayed
+            if (!isOpen || editor != null || gallery != null) return@postDelayed
             Toast.makeText(context, "Reading your phone's buttons...", Toast.LENGTH_SHORT).show()
             system.scan { ok, note, count ->
                 prefs.edit().putInt("qp_scan_tries", prefs.getInt("qp_scan_tries", 0) + 1).apply()
@@ -746,7 +751,7 @@ class QuickPanel(
                     else -> "Could not read the phone's panel ($note)" + (if (copied) ". Report copied: paste it in the chat" else "")
                 }
                 Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-                if (isOpen && editor == null) build()
+                if (isOpen && editor == null && gallery == null) build()
             }
         }, 450L)
     }
@@ -771,7 +776,7 @@ class QuickPanel(
     // ------------------------------------------------------------------ edit buttons (Step 16b)
 
     /** True while the "Edit buttons" screen is showing instead of the panel. */
-    val isEditing: Boolean get() = editor != null
+    val isEditing: Boolean get() = editor != null || gallery != null
 
     private fun startEdit() {
         if (editor != null) return
@@ -792,6 +797,27 @@ class QuickPanel(
         content.addView(e, LinearLayout.LayoutParams(MATCH, WRAP))
     }
 
+    /** Step 30b: long-press on the gear = pick an icon for any button. */
+    private fun startGallery() {
+        if (editor != null || gallery != null) return
+        content.removeAllViews()
+        tiles.clear()
+        slider = null
+        notifs = null
+        cards?.stop()
+        cards = null
+        player?.stop()
+        player = null
+        val g = IconGallery(context, QuickTiles.order(context)) { finishGallery() }
+        gallery = g
+        content.addView(g, LinearLayout.LayoutParams(MATCH, WRAP))
+    }
+
+    private fun finishGallery() {
+        gallery = null
+        build()
+    }
+
     /** Back to the panel (the buttons are read again, so a saved change shows at once). */
     private fun finishEdit() {
         editor = null
@@ -800,7 +826,9 @@ class QuickPanel(
 
     /** Back / Home: leaves the editor without saving, or else closes the panel. */
     fun back(animated: Boolean) {
-        if (editor != null) finishEdit() else close(animated)
+        if (gallery != null) {
+            if (gallery?.back() != true) finishGallery()
+        } else if (editor != null) finishEdit() else close(animated)
     }
 
     /** Re-reads the phone's state for every button and the brightness. */
@@ -820,7 +848,9 @@ class QuickPanel(
         scrim.animate().cancel()
         closing = false
         editor = null
+        gallery = null
         PanelTheme.load(context)
+        QuickIcons.load(context)
         build()
         system.start()
         system.onChanged = { refresh() }
@@ -947,7 +977,7 @@ class QuickPanel(
 
         private val circle = FrameLayout(context)
         private val glyph = QuickGlyph(context, def.glyph).also {
-            if (def.id.startsWith(QuickTiles.CUSTOM_PREFIX)) it.letter = def.label.trim().take(1).uppercase()
+            if (def.id.startsWith(QuickTiles.CUSTOM_PREFIX) && def.glyph == QuickGlyph.GRID) it.letter = def.label.trim().take(1).uppercase()
         }
         private val label = TextView(context)
         private val sub = TextView(context)
@@ -992,7 +1022,9 @@ class QuickPanel(
         fun show(state: TileState) {
             val c = context
             val on = state.on
-            glyph.show(state.glyph)
+            val picked = QuickIcons.of(def.id)
+            glyph.letter = if (picked == null && def.id.startsWith(QuickTiles.CUSTOM_PREFIX) && state.glyph == QuickGlyph.GRID) def.label.trim().take(1).uppercase() else if (picked == QuickGlyph.GRID) def.label.trim().take(1).uppercase() else null
+            glyph.show(picked ?: state.glyph)
             sub.text = state.sub
             if (lastOn != on) {
                 lastOn = on

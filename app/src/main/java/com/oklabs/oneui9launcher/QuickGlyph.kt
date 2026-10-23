@@ -355,6 +355,7 @@ class QuickGlyph(context: Context, var kind: Int) : View(context) {
                 arc(canvas, cx - s * 0.2f, cy - s * 0.2f, s * 0.1f, 180f, 110f)
                 arc(canvas, cx + s * 0.2f, cy - s * 0.2f, s * 0.1f, 250f, 110f)
             }
+            else -> QuickGlyphArt.draw(canvas, kind, s, cx, cy, tint)
         }
     }
 

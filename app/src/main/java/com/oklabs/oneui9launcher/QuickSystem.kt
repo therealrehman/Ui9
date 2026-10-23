@@ -61,7 +61,7 @@ object QuickTiles {
     fun loadCustom(context: Context) {
         val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_CUSTOM, "") ?: ""
         custom = raw.split('\n').map { it.trim() }.filter { it.isNotEmpty() }.distinct()
-            .map { QuickTileDef(CUSTOM_PREFIX + it, it, QuickGlyph.GRID) }
+            .map { QuickTileDef(CUSTOM_PREFIX + it, it, QuickGlyphs.forLabel(it)) }
     }
 
     /** Remembers the found buttons; the ones never seen before are put at the end of the panel. */
@@ -298,7 +298,7 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
             "camera" -> TileState(false, "Open", QuickGlyph.CAMERA)
             else -> if (id.startsWith(QuickTiles.CUSTOM_PREFIX)) {
                 val on = QuickTiles.cachedState(app, id)
-                TileState(on == true, when (on) { true -> "On"; false -> "Off"; null -> "" }, QuickGlyph.GRID)
+                TileState(on == true, when (on) { true -> "On"; false -> "Off"; null -> "" }, QuickTiles.def(id)?.glyph ?: QuickGlyph.GRID)
             } else TileState(false, "", QuickGlyph.GEAR)
         }
     } catch (e: Exception) {

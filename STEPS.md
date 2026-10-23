@@ -785,3 +785,18 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - **Nothing fails silently any more**: when the Quick panel opens the launcher says if the Quick panel service is off, or has no right to read the panel yet (switch off / on once), and after reading it says how many
   phone buttons it found (or what it saw: windows / views / area / names) and copies the report when it found none. Long-press the pencil reads again (up to four automatic tries).
 - Compile-checked only by reading; not built or tested on a real phone.
+
+## Step 30a - icons for every kind of Quick panel button (part 1 of 2)
+
+- 26 new icons drawn in code (original line art): screenshot, screen record, speed up / boost, share (Quick Share, vivoshare, Nearby...), QR scan, wallet / pay, eye protection, power saving (leaf), sync, bedtime (moon),
+  lock, VPN / privacy (shield), driving (car), game mode, microphone, magnifier, timer, calculator, split screen, small window, USB / reverse charging, headphones, accessibility, auto brightness, stay awake (cup), SIM.
+- Every button found in the phone's own Quick settings now gets the icon that fits its **name** (Samsung, Vivo, Xiaomi, Oppo, Realme, OnePlus, Huawei, Pixel names; 300+ keywords, e.g. "Screen record", "Eye comfort",
+  "Game Turbo", "Wireless PowerShare"). A name that fits nothing still shows its first letter.
+- Part 2 (next): more icons + an icon gallery / own icon per button.
+- Icon drawing was checked as a picture on a PC; the rest is compile-checked only. This zip holds only the changed files (copy over the project, like step 29).
+
+
+## Step 30b - more icons + icon gallery (part 2 of 2)
+- 14 new icons (music, heart, star, home, mail, clock, chat, folder, pin, book, bulb, globe, key, bolt) with matching keyword rules.
+- **Change icons**: long-press the gear in the Quick panel -> list of your buttons -> tap one -> pick any icon from the grid. "Automatic" gives back the name-based icon. Saved in prefs key `qp_icons`.
+- Not built or run on a phone. Only the save/load text logic was run as a JVM test; the rest is syntax-checked only.
