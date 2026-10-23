@@ -846,6 +846,7 @@ class QuickPanel(
         card.animate().setUpdateListener(null).cancel()
         card.setLayerType(View.LAYER_TYPE_NONE, null)
         scrim.animate().cancel()
+        card.alpha = 1f
         closing = false
         editor = null
         gallery = null
@@ -866,15 +867,24 @@ class QuickPanel(
         visibility = View.VISIBLE
         // Step 25: nothing is blurred behind the panel any more, so the veil alone must hide the Home screen: stronger than before.
         scrim.background = PanelTheme.scrim(205, PanelLook.dark)
-        // Step 27: the veil is solid, so it must not fade over the Home screen (that looked like a faint shade). It slides together with the
-        // panel instead, like one curtain: nothing of it is ever half-see-through.
+        // Step 31: slide down AND fade 0 -> 100 together (panel first, the veil a little later), one smooth curve.
         val h0 = -context.resources.displayMetrics.heightPixels.toFloat()
-        scrim.alpha = 1f
-        scrim.translationY = h0
-        card.translationY = h0
-        card.animate().translationY(0f).setDuration(210).setInterpolator(DecelerateInterpolator(1.6f))
-            .setUpdateListener { scrim.translationY = card.translationY }
-            .withEndAction { scrim.translationY = 0f }
+        scrim.alpha = 0f
+        scrim.translationY = h0 * 0.35f
+        card.alpha = 0f
+        card.translationY = h0 * 0.35f
+        card.animate().translationY(0f).setDuration(Motion.OPEN_MS).setInterpolator(Motion.OPEN)
+            .setUpdateListener {
+                val p = 1f - (card.translationY / (h0 * 0.35f)).coerceIn(0f, 1f)
+                card.alpha = Motion.ramp(p, 0.55f)
+                scrim.alpha = Motion.ramp(p, 0.9f)
+                scrim.translationY = card.translationY
+            }
+            .withEndAction {
+                card.alpha = 1f
+                scrim.alpha = 1f
+                scrim.translationY = 0f
+            }
             .start()
         onOpenChanged?.invoke()
     }
@@ -900,14 +910,23 @@ class QuickPanel(
             return
         }
         closing = true
-        // Step 27: veil and panel leave together as one curtain (no fading veil over Home), the card is one picture while it moves.
+        // Step 31: slides up and fades 100 -> 0 together; the card is one picture while it moves.
         card.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-        card.animate().translationY(-(card.height + context.dp(40)).toFloat()).setDuration(170)
-            .setInterpolator(android.view.animation.AccelerateInterpolator(1.1f))
-            .setUpdateListener { scrim.translationY = card.translationY }
+        val travel = -(card.height * 0.35f + context.dp(24))
+        card.animate().translationY(travel).setDuration(Motion.CLOSE_MS)
+            .setInterpolator(Motion.CLOSE)
+            .setUpdateListener {
+                val q = (card.translationY / travel).coerceIn(0f, 1f)
+                card.alpha = 1f - Motion.ramp(q, 0.9f)
+                scrim.alpha = 1f - q
+                scrim.translationY = card.translationY
+            }
             .withEndAction {
                 card.animate().setUpdateListener(null)
                 card.setLayerType(View.LAYER_TYPE_NONE, null)
+                card.alpha = 1f
+                card.translationY = 0f
+                scrim.alpha = 1f
                 scrim.translationY = 0f
                 closing = false
                 visibility = View.GONE

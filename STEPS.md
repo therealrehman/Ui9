@@ -800,3 +800,10 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - 14 new icons (music, heart, star, home, mail, clock, chat, folder, pin, book, bulb, globe, key, bolt) with matching keyword rules.
 - **Change icons**: long-press the gear in the Quick panel -> list of your buttons -> tap one -> pick any icon from the grid. "Automatic" gives back the name-based icon. Saved in prefs key `qp_icons`.
 - Not built or run on a phone. Only the save/load text logic was run as a JVM test; the rest is syntax-checked only.
+
+## Step 31 - smooth animations everywhere
+- New `Motion.kt`: one set of curves/times (open 300 ms soft landing, close 220 ms) used by every panel.
+- Quick panel and Notification page: slide + fade 0 -> 100 on open, 100 -> 0 on close (the veil fades too, no hard edge).
+- Home screen: fades in 0 -> 100 with a tiny zoom (240 ms) when you come back from an app, unlock or press Home (`res/anim/launcher_fade_in.xml`, theme + `noTransition()`).
+- Apps drawer: while dragging, Home fades out and the Apps screen fades in (0 -> 100) with an eased curve.
+- Not built or run on a phone. Closing an app is drawn by the phone itself, so only the Home side of that move can be changed.

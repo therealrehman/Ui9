@@ -14,21 +14,21 @@
     <!-- Step 26: the Home screen window has no opening / closing animation and no "preview" picture of its old state. Both made the apps
          slide up from the bottom (and show twice) for a moment when the phone was unlocked. -->
     <style name="Anim.OneUI.None" parent="@android:style/Animation.Activity">
-        <item name="android:activityOpenEnterAnimation">@anim/launcher_none</item>
+        <item name="android:activityOpenEnterAnimation">@anim/launcher_fade_in</item>
         <item name="android:activityOpenExitAnimation">@anim/launcher_none</item>
-        <item name="android:activityCloseEnterAnimation">@anim/launcher_none</item>
+        <item name="android:activityCloseEnterAnimation">@anim/launcher_fade_in</item>
         <item name="android:activityCloseExitAnimation">@anim/launcher_none</item>
-        <item name="android:taskOpenEnterAnimation">@anim/launcher_none</item>
+        <item name="android:taskOpenEnterAnimation">@anim/launcher_fade_in</item>
         <item name="android:taskOpenExitAnimation">@anim/launcher_none</item>
-        <item name="android:taskCloseEnterAnimation">@anim/launcher_none</item>
+        <item name="android:taskCloseEnterAnimation">@anim/launcher_fade_in</item>
         <item name="android:taskCloseExitAnimation">@anim/launcher_none</item>
-        <item name="android:taskToFrontEnterAnimation">@anim/launcher_none</item>
+        <item name="android:taskToFrontEnterAnimation">@anim/launcher_fade_in</item>
         <item name="android:taskToFrontExitAnimation">@anim/launcher_none</item>
         <item name="android:taskToBackEnterAnimation">@anim/launcher_none</item>
         <item name="android:taskToBackExitAnimation">@anim/launcher_none</item>
-        <item name="android:wallpaperOpenEnterAnimation">@anim/launcher_none</item>
+        <item name="android:wallpaperOpenEnterAnimation">@anim/launcher_fade_in</item>
         <item name="android:wallpaperOpenExitAnimation">@anim/launcher_none</item>
-        <item name="android:wallpaperCloseEnterAnimation">@anim/launcher_none</item>
+        <item name="android:wallpaperCloseEnterAnimation">@anim/launcher_fade_in</item>
         <item name="android:wallpaperCloseExitAnimation">@anim/launcher_none</item>
     </style>
 

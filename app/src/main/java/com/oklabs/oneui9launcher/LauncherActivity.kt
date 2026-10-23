@@ -343,11 +343,11 @@ class LauncherActivity : Activity() {
     private fun noTransition() {
         try {
             if (Build.VERSION.SDK_INT >= 34) {
-                overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
-                overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+                overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, R.anim.launcher_fade_in, R.anim.launcher_none)
+                overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, R.anim.launcher_fade_in, R.anim.launcher_none)
             } else {
                 @Suppress("DEPRECATION")
-                overridePendingTransition(0, 0)
+                overridePendingTransition(R.anim.launcher_fade_in, R.anim.launcher_none)
             }
             if (Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(false) // no old picture of the Home screen shown over the new one
         } catch (e: Exception) {
@@ -648,7 +648,9 @@ class LauncherActivity : Activity() {
     /** Home screen fades out and shrinks slightly while the Apps screen comes in. */
     private fun applyDrawerProgress(p: Float) {
         homeLayer.visibility = if (p >= 1f) View.INVISIBLE else View.VISIBLE
-        homeLayer.alpha = 1f - (p * 1.4f).coerceAtMost(1f)
+        // Step 31: Home fades out and shrinks, the Apps screen fades in (0 -> 100) while it is dragged, so it feels smooth.
+        homeLayer.alpha = 1f - Motion.ramp(p, 0.7f)
+        apps.alpha = Motion.ramp(p, 0.6f)
         val scale = 1f - 0.06f * p
         homeLayer.scaleX = scale
         homeLayer.scaleY = scale

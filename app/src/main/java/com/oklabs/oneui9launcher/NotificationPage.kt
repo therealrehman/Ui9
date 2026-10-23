@@ -238,14 +238,15 @@ class NotificationPage(
         // Without a working window blur the wallpaper stays sharp, so the dark veil is stronger to hide it.
         PanelTheme.load(context)
         veil.background = PanelTheme.scrim(if (context.windowBlurWorks()) 140 else 195, PanelLook.dark)
-        // Step 27: the solid veil slides in like a curtain instead of fading over Home
+        // Step 31: veil and list slide a little and fade 0 -> 100 on the same smooth curve
         val h = context.resources.displayMetrics.heightPixels.toFloat()
-        veil.alpha = 1f
-        veil.translationY = -h
+        veil.alpha = 0f
+        veil.translationY = -h * 0.12f
+        veil.translationX = 0f
         column.alpha = 0f
-        column.translationY = -context.dp(48).toFloat()
-        veil.animate().translationY(0f).setDuration(210).setInterpolator(DecelerateInterpolator(1.6f)).start()
-        column.animate().alpha(1f).translationY(0f).setDuration(210).setInterpolator(DecelerateInterpolator(1.6f)).start()
+        column.translationY = -context.dp(56).toFloat()
+        veil.animate().alpha(1f).translationY(0f).setDuration(Motion.OPEN_MS).setInterpolator(Motion.OPEN).start()
+        column.animate().alpha(1f).translationY(0f).setDuration(Motion.OPEN_MS).setInterpolator(Motion.OPEN).start()
         onOpenChanged?.invoke()
     }
 
@@ -264,12 +265,13 @@ class NotificationPage(
             return
         }
         closing = true
-        veil.animate().translationY(-context.resources.displayMetrics.heightPixels.toFloat()).setDuration(150)
-            .setInterpolator(android.view.animation.AccelerateInterpolator(1.1f)).start()
-        column.animate().alpha(0f).translationY(-context.dp(48).toFloat()).setDuration(140)
+        veil.animate().alpha(0f).translationY(-context.resources.displayMetrics.heightPixels * 0.12f).setDuration(Motion.CLOSE_MS)
+            .setInterpolator(Motion.CLOSE).start()
+        column.animate().alpha(0f).translationY(-context.dp(56).toFloat()).setDuration(Motion.CLOSE_MS).setInterpolator(Motion.CLOSE)
             .withEndAction {
                 closing = false
                 veil.translationY = 0f
+                veil.alpha = 1f
                 visibility = View.GONE
                 onGone?.invoke()
             }.start()
