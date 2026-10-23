@@ -819,3 +819,9 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - **Double image after unlock removed:** Step 31 had put a fade + zoom into the Home window's system animations; the system drew that next to the app being unlocked / left, so each app showed with a second one under it that then dismissed. The window animations are back to "none" (as in Step 26), and the soft Home appearance (0 -> 100 + tiny zoom) is now drawn **inside** the launcher window (`playHomeFade`), so it can not show an app twice.
 - The strip over the status bar (In every app) is now added / removed 0.35-0.7 s after the last change instead of at once, so no window is created in the middle of the unlock animation.
 - Changed files only (copy over the project, like step 32): `Motion.kt`, `QuickPanel.kt`, `NotificationPage.kt`, `LauncherActivity.kt`, `SystemPanel.kt`, `res/values/themes.xml`. Version 1.0.38 (code 148). Not built or run on a phone.
+
+## Step 34 - panel closes at once, less blur
+- **Swipe up is much faster:** closing takes 130 ms (was 240), starting at full speed and slowing only at the very end.
+- **Gone at once:** the moment the swipe starts the opacity drops to about 20% (within the first third of the move) and then lands softly on 0 (`Motion.fadeOut`).
+- **Less blur:** 9 px instead of 26 px (about a third), for opening and closing, Quick panel and Notification page.
+- Changed files only (copy over the project): `Motion.kt`, `build.gradle.kts`, `STEPS.md`. Version 1.0.39 (code 149). Not built or run on a phone.

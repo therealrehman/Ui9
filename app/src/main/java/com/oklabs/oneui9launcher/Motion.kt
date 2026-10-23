@@ -12,14 +12,14 @@ object Motion {
     /** Starts fast, lands very softly (panels opening). */
     val OPEN: Interpolator = PathInterpolator(0.2f, 0f, 0f, 1f)
 
-    /** Starts gently, leaves quickly (panels closing). */
-    val CLOSE: Interpolator = PathInterpolator(0.4f, 0f, 1f, 1f)
+    /** Step 34: gone at once (panels closing): the move starts at full speed and only slows at the very end. */
+    val CLOSE: Interpolator = PathInterpolator(0.15f, 0.7f, 0.3f, 1f)
 
     const val OPEN_MS = 300L
-    const val CLOSE_MS = 240L
+    const val CLOSE_MS = 130L
 
-    /** How blurred (in pixels) a panel is when it is not (yet / any more) fully there. */
-    const val BLUR_PX = 26f
+    /** How blurred (in pixels) a panel is when it is not (yet / any more) fully there. Step 34: about a third of before (was 26). */
+    const val BLUR_PX = 9f
 
     /** 0..1 -> 0..1 reaching full at [full] (e.g. 0.6 = fully visible at 60% of the move). */
     fun ramp(p: Float, full: Float): Float = (p / full).coerceIn(0f, 1f)
@@ -31,10 +31,10 @@ object Motion {
     }
 
     /**
-     * Step 33: opacity while a panel goes away, 1 -> 0 as [q] goes 0 -> 1. It is about 30% at two thirds of the way and then lands softly on 0
-     * (no sudden last drop).
+     * Step 34: opacity while a panel goes away, 1 -> 0 as [q] goes 0 -> 1. The moment the swipe starts it drops to about 20% (within the first
+     * third of the move) and then lands softly on 0: the panel is gone at once, without a hard cut.
      */
-    fun fadeOut(q: Float): Float = 1f - smooth(q)
+    fun fadeOut(q: Float): Float = 0.8f * (1f - smooth(ramp(q, 0.3f))) + 0.2f * (1f - smooth(q))
 
     /** Blurs [view] and everything in it by [radius] pixels (0 = sharp). Android 12+; older phones simply skip the blur. */
     fun setBlur(view: View, radius: Float) {
