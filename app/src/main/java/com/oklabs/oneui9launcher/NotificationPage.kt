@@ -226,8 +226,9 @@ class NotificationPage(
 
     fun open() {
         if (isOpen) return
-        column.animate().cancel()
+        column.animate().setUpdateListener(null).cancel()
         veil.animate().cancel()
+        Motion.setBlur(column, 0f)
         closing = false
         build()
         if (!watching) {
@@ -245,20 +246,29 @@ class NotificationPage(
         veil.translationX = 0f
         column.alpha = 0f
         column.translationY = -context.dp(56).toFloat()
+        Motion.setBlur(column, Motion.BLUR_PX)
         veil.animate().alpha(1f).translationY(0f).setDuration(Motion.OPEN_MS).setInterpolator(Motion.OPEN).start()
-        column.animate().alpha(1f).translationY(0f).setDuration(Motion.OPEN_MS).setInterpolator(Motion.OPEN).start()
+        // Step 33: the page fades 0 -> 100 while it sharpens from a blur
+        column.animate().alpha(1f).translationY(0f).setDuration(Motion.OPEN_MS).setInterpolator(Motion.OPEN)
+            .setUpdateListener { Motion.setBlur(column, Motion.BLUR_PX * (1f - Motion.ramp(column.alpha, 0.9f))) }
+            .withEndAction {
+                column.animate().setUpdateListener(null)
+                Motion.setBlur(column, 0f)
+            }
+            .start()
         onOpenChanged?.invoke()
     }
 
     fun close(animated: Boolean) {
         if (!isOpen || closing) return
-        column.animate().cancel()
+        column.animate().setUpdateListener(null).cancel()
         veil.animate().cancel()
         if (watching) {
             watching = false
             Notifs.removeListener(listener)
         }
         if (!animated) {
+            Motion.setBlur(column, 0f)
             visibility = View.GONE
             onOpenChanged?.invoke()
             onGone?.invoke()
@@ -267,8 +277,18 @@ class NotificationPage(
         closing = true
         veil.animate().alpha(0f).translationY(-context.resources.displayMetrics.heightPixels * 0.12f).setDuration(Motion.CLOSE_MS)
             .setInterpolator(Motion.CLOSE).start()
-        column.animate().alpha(0f).translationY(-context.dp(56).toFloat()).setDuration(Motion.CLOSE_MS).setInterpolator(Motion.CLOSE)
+        // Step 33: opacity falls through about 30% and lands softly on 0, the page blurring as it goes
+        val travel = -context.dp(56).toFloat()
+        column.animate().translationY(travel).setDuration(Motion.CLOSE_MS).setInterpolator(Motion.CLOSE)
+            .setUpdateListener {
+                val q = (column.translationY / travel).coerceIn(0f, 1f)
+                column.alpha = Motion.fadeOut(q)
+                Motion.setBlur(column, Motion.BLUR_PX * Motion.ramp(q, 0.9f))
+            }
             .withEndAction {
+                column.animate().setUpdateListener(null)
+                Motion.setBlur(column, 0f)
+                column.alpha = 1f
                 closing = false
                 veil.translationY = 0f
                 veil.alpha = 1f

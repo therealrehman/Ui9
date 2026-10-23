@@ -812,3 +812,10 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - Cause: the swipe (up = close, left = Notifications) was only read for touches that began on a button; a touch on an empty space is taken by the card itself, which never read it.
 - Now one `swipeEvent()` (raw positions) is used by the card (both for buttons and empty spaces) and by the dark area beside the panel.
 - Not built or run on a phone.
+
+## Step 33 - smoother Quick panel animation with blur, and the double image after unlock removed
+- **Quick panel and Notification page, open:** from top to bottom, opacity 0 -> 100 on a soft curve, and the panel **sharpens from a blur** (26 px -> 0) while it lands.
+- **Close:** swiping up, the opacity falls through about 30% and lands softly on 0 (no sudden last drop), and the panel **blurs** while it goes (0 -> 26 px). Close takes 240 ms. The blur is on the panel itself (Android 12+, older phones just fade); nothing behind it is blurred, so no picture of an app is shown twice.
+- **Double image after unlock removed:** Step 31 had put a fade + zoom into the Home window's system animations; the system drew that next to the app being unlocked / left, so each app showed with a second one under it that then dismissed. The window animations are back to "none" (as in Step 26), and the soft Home appearance (0 -> 100 + tiny zoom) is now drawn **inside** the launcher window (`playHomeFade`), so it can not show an app twice.
+- The strip over the status bar (In every app) is now added / removed 0.35-0.7 s after the last change instead of at once, so no window is created in the middle of the unlock animation.
+- Changed files only (copy over the project, like step 32): `Motion.kt`, `QuickPanel.kt`, `NotificationPage.kt`, `LauncherActivity.kt`, `SystemPanel.kt`, `res/values/themes.xml`. Version 1.0.38 (code 148). Not built or run on a phone.

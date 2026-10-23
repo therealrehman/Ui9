@@ -860,6 +860,7 @@ class QuickPanel(
         card.setLayerType(View.LAYER_TYPE_NONE, null)
         scrim.animate().cancel()
         card.alpha = 1f
+        Motion.setBlur(card, 0f)
         closing = false
         editor = null
         gallery = null
@@ -886,17 +887,21 @@ class QuickPanel(
         scrim.translationY = h0 * 0.35f
         card.alpha = 0f
         card.translationY = h0 * 0.35f
+        Motion.setBlur(card, Motion.BLUR_PX)
         card.animate().translationY(0f).setDuration(Motion.OPEN_MS).setInterpolator(Motion.OPEN)
             .setUpdateListener {
                 val p = 1f - (card.translationY / (h0 * 0.35f)).coerceIn(0f, 1f)
-                card.alpha = Motion.ramp(p, 0.55f)
-                scrim.alpha = Motion.ramp(p, 0.9f)
+                // Step 33: top to bottom, opacity 0 -> 100 on a soft curve, the panel sharpening from a blur while it lands
+                card.alpha = Motion.smooth(Motion.ramp(p, 0.85f))
+                scrim.alpha = Motion.smooth(Motion.ramp(p, 0.95f))
                 scrim.translationY = card.translationY
+                Motion.setBlur(card, Motion.BLUR_PX * (1f - Motion.ramp(p, 0.9f)))
             }
             .withEndAction {
                 card.alpha = 1f
                 scrim.alpha = 1f
                 scrim.translationY = 0f
+                Motion.setBlur(card, 0f)
             }
             .start()
         onOpenChanged?.invoke()
@@ -917,6 +922,7 @@ class QuickPanel(
         system.onChanged = null
         handler.removeCallbacksAndMessages(null)
         if (!animated) {
+            Motion.setBlur(card, 0f)
             visibility = View.GONE
             onOpenChanged?.invoke()
             onGone?.invoke()
@@ -930,13 +936,16 @@ class QuickPanel(
             .setInterpolator(Motion.CLOSE)
             .setUpdateListener {
                 val q = (card.translationY / travel).coerceIn(0f, 1f)
-                card.alpha = 1f - Motion.ramp(q, 0.9f)
-                scrim.alpha = 1f - q
+                // Step 33: opacity falls through about 30% and lands softly on 0, the panel blurring as it goes
+                card.alpha = Motion.fadeOut(q)
+                scrim.alpha = Motion.fadeOut(q)
                 scrim.translationY = card.translationY
+                Motion.setBlur(card, Motion.BLUR_PX * Motion.ramp(q, 0.9f))
             }
             .withEndAction {
                 card.animate().setUpdateListener(null)
                 card.setLayerType(View.LAYER_TYPE_NONE, null)
+                Motion.setBlur(card, 0f)
                 card.alpha = 1f
                 card.translationY = 0f
                 scrim.alpha = 1f

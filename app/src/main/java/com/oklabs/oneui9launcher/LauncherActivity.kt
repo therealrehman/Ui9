@@ -300,7 +300,28 @@ class LauncherActivity : Activity() {
 
     override fun onStop() {
         widgetHost.stopListening()
+        fadeHomeIn = true
         super.onStop()
+    }
+
+    /** True until the Home screen has faded in after the launcher came back to the front (first start, from an app, after unlock). */
+    private var fadeHomeIn = true
+
+    /**
+     * Step 33: the Home screen's soft appearance (opacity 0 -> 100 with a tiny zoom) is drawn inside our own window. As a window animation
+     * (Step 31) it was drawn by the system next to the app that was leaving or being unlocked, which showed that app twice.
+     */
+    private fun playHomeFade() {
+        root.animate().cancel()
+        root.alpha = 0f
+        root.scaleX = 0.97f
+        root.scaleY = 0.97f
+        root.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(Motion.OPEN_MS - 60L).setInterpolator(Motion.OPEN)
+            .withEndAction {
+                root.alpha = 1f
+                root.scaleX = 1f
+                root.scaleY = 1f
+            }.start()
     }
 
     override fun onResume() {
@@ -314,6 +335,10 @@ class LauncherActivity : Activity() {
         defaultChip.visibility = if (isDefaultHome()) View.GONE else View.VISIBLE
         updateWallpaperOffset(pager.scrollFraction())
         if (IconTheme.refresh(this)) loadApps() // the wallpaper changed: the themed icons follow its colour
+        if (fadeHomeIn) {
+            fadeHomeIn = false
+            playHomeFade()
+        }
     }
 
     override fun onPause() {
@@ -343,11 +368,11 @@ class LauncherActivity : Activity() {
     private fun noTransition() {
         try {
             if (Build.VERSION.SDK_INT >= 34) {
-                overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, R.anim.launcher_fade_in, R.anim.launcher_none)
-                overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, R.anim.launcher_fade_in, R.anim.launcher_none)
+                overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, R.anim.launcher_none, R.anim.launcher_none)
+                overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, R.anim.launcher_none, R.anim.launcher_none)
             } else {
                 @Suppress("DEPRECATION")
-                overridePendingTransition(R.anim.launcher_fade_in, R.anim.launcher_none)
+                overridePendingTransition(R.anim.launcher_none, R.anim.launcher_none)
             }
             if (Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(false) // no old picture of the Home screen shown over the new one
         } catch (e: Exception) {

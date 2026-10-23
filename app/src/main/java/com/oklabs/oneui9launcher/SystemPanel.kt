@@ -196,10 +196,23 @@ class PanelAccessibilityService : AccessibilityService() {
     private val worker: Executor by lazy { Executors.newSingleThreadExecutor() }
     private var receiverOn = false
 
+    /** Step 33: the strip is added / removed a moment after the last change, never in the middle of the unlock animation. */
+    private val stripSync = Runnable { syncStrip() }
+
+    private fun syncStripSoon(delayMs: Long) {
+        ui.removeCallbacks(stripSync)
+        ui.postDelayed(stripSync, delayMs)
+    }
+
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == Intent.ACTION_SCREEN_OFF) hidePanel()
-            syncStrip()
+            if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                hidePanel()
+                ui.removeCallbacks(stripSync)
+                removeStrip()
+            } else {
+                syncStripSoon(700L) // screen on / unlocked: wait until the lock screen has gone
+            }
         }
     }
 
@@ -258,7 +271,7 @@ class PanelAccessibilityService : AccessibilityService() {
         if (SystemPanel.strip(this)) {
             // Step 24: the pull-down is caught at the top edge, so there is no need to watch for the phone's own panel
             // (that watching is what made the panel pop up by itself now and then). Just keep the strip in step with the lock screen.
-            syncStrip()
+            syncStripSoon(350L)
             return
         }
         removeStrip()
