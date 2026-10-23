@@ -6,6 +6,7 @@ import android.accessibilityservice.GestureDescription
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.graphics.Path
+import android.graphics.PointF
 import android.app.KeyguardManager
 import android.content.BroadcastReceiver
 import android.content.ComponentName
@@ -373,18 +374,31 @@ class PanelAccessibilityService : AccessibilityService() {
         return null
     }
 
-    /** A found button: [clickable] = a view that takes a click; otherwise only its name label was found (then a real finger-tap is sent). */
-    private class Hit(val node: AccessibilityNodeInfo, val clickable: Boolean)
+    /**
+     * A found button. [clickable]: a view that takes a click. Otherwise only its name (or a tile that is not marked clickable) was found and a real
+     * finger-tap is sent at ([x], [y]).
+     */
+    private class Hit(val node: AccessibilityNodeInfo, val clickable: Boolean, val x: Float = 0f, val y: Float = 0f)
+
+    private fun screenW(): Int = resources.displayMetrics.widthPixels
+    private fun screenH(): Int = resources.displayMetrics.heightPixels
+
+    /** Where to press for a name: the middle of a view as big as a whole button, or just above a line of text (the icon sits there). */
+    private fun tapPointFor(n: AccessibilityNodeInfo): PointF {
+        val r = Rect()
+        n.getBoundsInScreen(r)
+        return if (r.height() >= screenW() * 0.1f) PointF(r.exactCenterX(), r.exactCenterY())
+        else PointF(r.exactCenterX(), r.top - screenW() * 0.08f)
+    }
 
     /** A clickable view next to a label: the label's own cell, or a clickable child of the same small cell (icon and name as siblings). */
     private fun clickableNear(n: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        val screenH = resources.displayMetrics.heightPixels
         val r = Rect()
         var cell: AccessibilityNodeInfo? = n
         var up = 0
         while (cell != null && up <= 3) {
             cell.getBoundsInScreen(r)
-            if (r.height() > screenH * 0.35f) return null
+            if (r.height() > screenH() * 0.2f || r.width() > screenW() * 0.5f) return null
             if (cell.isClickable && cell.isEnabled) return cell
             val list = ArrayList<AccessibilityNodeInfo>()
             collect(cell, list, 0)
@@ -408,7 +422,7 @@ class PanelAccessibilityService : AccessibilityService() {
 
     /**
      * level 0: strict (visible, clickable cell). level 1: also views the phone marks as hidden / not important, siblings of the label.
-     * level 2: the name label alone (a finger-tap is sent at its place).
+     * level 2: the name alone (a finger-tap is sent at its place), for phones whose buttons are not marked clickable at all.
      */
     private fun findTile(roots: List<AccessibilityNodeInfo>, variants: List<String>, level: Int): Hit? {
         val minTop = (statusBarPx() * 1.3f).toInt()
@@ -420,7 +434,10 @@ class PanelAccessibilityService : AccessibilityService() {
             if (v.startsWith("@wide")) {
                 val idx = v.removePrefix("@wide").toIntOrNull() ?: continue
                 val w = wideTiles(named, minTop).getOrNull(idx) ?: continue
-                return Hit(iconOf(w) ?: w, true)
+                val icon = iconOf(w)
+                if (icon != null) return Hit(icon, true)
+                w.getBoundsInScreen(b)
+                return Hit(w, false, b.left + b.width() * 0.2f, b.exactCenterY()) // the round icon of a wide button sits at its left
             }
             val key = norm(v)
             for (n in named) {
@@ -429,14 +446,18 @@ class PanelAccessibilityService : AccessibilityService() {
                 if (!(startsWithWord(t, key) || startsWithWord(d, key))) continue
                 n.getBoundsInScreen(b)
                 if (b.width() <= 0 || b.height() <= 0) continue
-                if (level == 0) {
-                    val target = clickTarget(n, minTop) ?: continue
-                    return Hit(target, true)
-                }
                 if (b.centerY() < minTop) continue // an icon in the status bar, not a button
+                if (level == 0) {
+                    val target = clickTarget(n, minTop)
+                    if (target != null) return Hit(target, true)
+                    continue
+                }
                 val near = clickableNear(n)
                 if (near != null) return Hit(near, true)
-                if (level >= 2) return Hit(n, false)
+                if (level >= 2) {
+                    val p = tapPointFor(n)
+                    return Hit(n, false, p.x, p.y)
+                }
             }
         }
         return null
@@ -455,17 +476,15 @@ class PanelAccessibilityService : AccessibilityService() {
         }
     }
 
-    /** Presses a found button: the click action first, a real tap when the phone ignores the action. */
+    /** Presses a found button: the click action first, a real tap when the phone ignores the action (or the view takes no click at all). */
     private fun press(hit: Hit): Boolean {
-        val r = Rect()
-        hit.node.getBoundsInScreen(r)
         if (hit.clickable) {
             if (hit.node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
+            val r = Rect()
+            hit.node.getBoundsInScreen(r)
             return tapAt(r.exactCenterX(), r.exactCenterY())
         }
-        // Only the name was found: the icon sits just above it
-        val up = resources.displayMetrics.density * 30f
-        return tapAt(r.exactCenterX(), (r.top - up).coerceAtLeast(r.exactCenterY() - up * 2))
+        return tapAt(hit.x, hit.y)
     }
 
     // ------------------------------------------------------------------ report (what the phone's Quick settings looks like to the launcher)
@@ -550,15 +569,18 @@ class PanelAccessibilityService : AccessibilityService() {
         return false
     }
 
-    /** The big buttons at the top of the phone's panel (Wi-Fi, mobile data on most phones), left to right. */
+    /** The big buttons at the top of the phone's panel (Wi-Fi, mobile data on most phones), left to right. Marked clickable or not. */
     private fun wideTiles(nodes: List<AccessibilityNodeInfo>, minTop: Int): List<AccessibilityNodeInfo> {
-        val w = resources.displayMetrics.widthPixels
-        val h = resources.displayMetrics.heightPixels
+        val w = screenW()
+        val h = screenH()
         val r = Rect()
+        val seen = HashSet<String>()
         return nodes.filter {
-            if (!it.isClickable || !it.isEnabled || !it.isVisibleToUser) return@filter false
+            if (!it.isEnabled) return@filter false
             it.getBoundsInScreen(r)
-            r.width() > w * 0.38f && r.width() < w * 0.7f && r.height() < h * 0.2f && r.centerY() > minTop && r.centerY() < h * 0.4f
+            val ok = r.width() > w * 0.38f && r.width() < w * 0.7f && r.height() > h * 0.03f && r.height() < h * 0.2f &&
+                r.centerY() > minTop && r.centerY() < h * 0.4f && (it.isClickable || it.childCount > 0)
+            ok && seen.add((r.left / 12).toString() + "," + (r.top / 12))
         }.sortedBy {
             it.getBoundsInScreen(r)
             r.left
@@ -607,72 +629,156 @@ class PanelAccessibilityService : AccessibilityService() {
         return null
     }
 
-    private val noLabels = listOf("edit", "settings", "more", "power", "brightness", "volume", "slider", "search", "media", "page", "close", "back", "menu", "user", "devices")
+    private val noLabels = listOf(
+        "edit", "settings", "more", "power", "brightness", "volume", "slider", "search", "media", "page", "close", "back", "menu", "user",
+        "devices", "auto", "notification", "notifications", "clear", "manage"
+    )
 
     private fun labelOf(n: AccessibilityNodeInfo): String {
-        val list = ArrayList<AccessibilityNodeInfo>()
-        collect(n, list, 0)
-        for (x in list) {
-            val t = x.text?.toString()?.trim() ?: ""
-            if (t.isNotEmpty()) return t
-        }
+        val t = n.text?.toString()?.trim() ?: ""
+        if (t.isNotEmpty()) return t
         val d = n.contentDescription?.toString()?.trim() ?: ""
         return d.substringBefore(',').trim()
     }
 
-    /** Every small button of the phone's panel that is on screen right now: label and on / off. */
-    private fun readTiles(roots: List<AccessibilityNodeInfo>): List<Pair<String, Boolean?>> {
-        val minTop = (statusBarPx() * 1.3f).toInt()
-        val w = resources.displayMetrics.widthPixels
-        val nodes = ArrayList<AccessibilityNodeInfo>()
-        for (r in roots) collect(r, nodes, 0)
-        val visible = nodes.filter { it.isVisibleToUser }
+    private var scanStats = ""
+    private var gridMidY = 0f
+
+    /** The sideways pager of the buttons (or, when the phone does not mark one, the middle of the screen): [top, bottom] of the buttons area. */
+    private fun gridRegion(vis: List<AccessibilityNodeInfo>, minTop: Int): Triple<Int, Int, String> {
+        val w = screenW()
+        val h = screenH()
         val r = Rect()
-        var gridTop = minTop
-        for (wd in wideTiles(visible, minTop)) {
+        var bestCount = 0
+        var best: Rect? = null
+        for (n in vis) {
+            if (!n.isScrollable) continue
+            n.getBoundsInScreen(r)
+            if (r.width() < w * 0.55f || r.height() > h * 0.6f || r.centerY() <= minTop) continue
+            val inner = ArrayList<AccessibilityNodeInfo>()
+            collect(n, inner, 0)
+            val count = inner.count { !it.text.isNullOrBlank() || !it.contentDescription.isNullOrBlank() }
+            if (count > bestCount) {
+                bestCount = count
+                best = Rect(r)
+            }
+        }
+        if (best != null && bestCount >= 3) return Triple(best.top, best.bottom, "pager")
+        var top = (h * 0.2f).toInt()
+        for (wd in wideTiles(vis, minTop)) {
             wd.getBoundsInScreen(r)
-            gridTop = maxOf(gridTop, r.bottom)
+            top = maxOf(top, r.bottom)
         }
-        val seen = HashSet<String>()
+        var bottom = (h * 0.8f).toInt()
+        for (n in vis) {
+            val cls = n.className?.toString() ?: ""
+            if (!cls.contains("SeekBar") && !cls.contains("Slider")) continue
+            n.getBoundsInScreen(r)
+            if (r.top > top + h * 0.1f) bottom = minOf(bottom, r.top)
+        }
+        return Triple(top, bottom, "guess")
+    }
+
+    private class Cand(val label: String, val node: AccessibilityNodeInfo, val x: Int, val y: Int)
+
+    /**
+     * Every small button of the phone's panel that is on screen right now: name and on / off. Works with buttons that are marked clickable
+     * and with those that are not: the names inside the buttons area are what counts.
+     */
+    private fun readTiles(roots: List<AccessibilityNodeInfo>): List<Pair<String, Boolean?>> {
+        val w = screenW()
+        val h = screenH()
+        val minTop = (statusBarPx() * 1.3f).toInt()
+        val all = ArrayList<AccessibilityNodeInfo>()
+        for (r in roots) collect(r, all, 0)
+        var vis = all.filter { it.isVisibleToUser }
+        if (vis.isEmpty()) vis = all
+        val (top, bottom, how) = gridRegion(vis, minTop)
+        gridMidY = (top + bottom) / 2f
+        val r = Rect()
+        fun gather(source: List<AccessibilityNodeInfo>): ArrayList<Cand> {
+            val seen = HashSet<String>()
+            val list = ArrayList<Cand>()
+            for (n in source) {
+                val label = labelOf(n)
+                if (label.isEmpty() || label.length > 28) continue
+                val cls = n.className?.toString() ?: ""
+                if (cls.contains("SeekBar") || cls.contains("Slider") || cls.contains("ProgressBar") || cls.contains("Switch")) continue
+                n.getBoundsInScreen(r)
+                if (r.width() <= 0 || r.height() <= 0 || r.width() > w * 0.4f || r.height() > h * 0.2f) continue
+                if (r.centerY() < top || r.centerY() > bottom || r.centerX() < 0 || r.centerX() > w) continue
+                val l = norm(label)
+                if (l.isEmpty() || l.all { it.isDigit() || it == ' ' } || noLabels.any { l == it || l.startsWith("$it ") }) continue
+                if (!seen.add(l + "@" + (r.centerX() / (w / 5)))) continue
+                list.add(Cand(label, n, r.centerX(), r.centerY()))
+            }
+            return list
+        }
+        var found = gather(vis)
+        if (found.size < 3) found = gather(all) // the phone marks its buttons "not visible": look at everything on screen
+        val row = h * 0.05f
+        found.sortWith(compareBy<Cand>({ (it.y / row).toInt() }, { it.x }))
         val out = ArrayList<Pair<String, Boolean?>>()
-        for (n in visible) {
-            val has = !n.text.isNullOrBlank() || !n.contentDescription.isNullOrBlank()
-            if (!has) continue
-            val t = clickTarget(n, gridTop) ?: continue
-            t.getBoundsInScreen(r)
-            if (r.width() > w * 0.38f) continue
-            val cls = t.className?.toString() ?: ""
-            if (cls.contains("SeekBar") || cls.contains("Slider")) continue
-            if (!seen.add(r.toShortString())) continue
-            val label = labelOf(t)
-            val l = norm(label)
-            if (l.isEmpty() || l.length > 28 || noLabels.any { l == it || l.startsWith("$it ") }) continue
-            out.add(Pair(label, readState(t)))
+        for (c in found) {
+            var cell: AccessibilityNodeInfo? = c.node
+            var up = 0
+            while (cell != null && up < 3) {
+                cell.getBoundsInScreen(r)
+                if (r.height() > h * 0.2f || r.width() > w * 0.4f) break
+                if (cell.isClickable || cell.isLongClickable) break
+                cell = cell.parent
+                up++
+            }
+            out.add(Pair(c.label, readState(cell ?: c.node.parent ?: c.node)))
         }
+        scanStats = "windows ${roots.size}, views ${all.size}, area $how, names ${out.size}"
         return out
     }
 
-    /** Opens the phone's Quick settings behind a cover, pages through all of it and hands back every button found (null: could not read it). */
-    fun scanTiles(done: (List<Pair<String, Boolean?>>?) -> Unit) {
+    private fun swipeGridLeft() {
+        if (Build.VERSION.SDK_INT < 24) return
+        try {
+            val w = screenW()
+            val y = if (gridMidY > 0f) gridMidY else screenH() * 0.45f
+            val path = Path()
+            path.moveTo(w * 0.82f, y)
+            path.lineTo(w * 0.18f, y)
+            dispatchGesture(GestureDescription.Builder().addStroke(GestureDescription.StrokeDescription(path, 0L, 230L)).build(), null, null)
+        } catch (e: Exception) {
+            // not possible on this phone
+        }
+    }
+
+    /** True when the service was given the right to read the phone's panel (it needs switching off and on once after an update that adds it). */
+    fun canReadPanel(): Boolean = ((serviceInfo?.capabilities ?: 0) and AccessibilityServiceInfo.CAPABILITY_CAN_RETRIEVE_WINDOW_CONTENT) != 0
+
+    /**
+     * Opens the phone's Quick settings behind a cover, pages through all of it and hands back every button found (null: could not read it),
+     * with one line saying what was seen (shown to the person, so a failure is never silent).
+     */
+    fun scanTiles(done: (List<Pair<String, Boolean?>>?, String) -> Unit) {
         if (stillForcing()) {
-            done(null)
+            done(null, "busy")
             return
         }
         forcing = true
         forcingSince = android.os.SystemClock.uptimeMillis()
+        scanStats = ""
         val all = LinkedHashMap<String, Boolean?>()
         val finish: (Boolean) -> Unit = { ok ->
             closeShade()
             ui.postDelayed({
                 coverOff()
                 forcing = false
-                done(if (ok) all.map { Pair(it.key, it.value) } else null)
+                val note = if (canReadPanel()) scanStats else "the service may not read the panel: switch Quick panel off and on in Accessibility"
+                done(if (ok) all.map { Pair(it.key, it.value) } else null, note)
             }, 330L)
         }
         coverOn {
             performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)
             var pages = 0
             var empty = 0
+            var swiped = false
             val step = object : Runnable {
                 override fun run() {
                     val roots = try {
@@ -698,14 +804,26 @@ class PanelAccessibilityService : AccessibilityService() {
                     }
                     if (added == 0 && all.isEmpty()) {
                         empty++
-                        if (empty > 8) {
+                        if (empty == 6 && roots.isEmpty()) swipeDownFromTop(0.85f) // the phone did not show its panel: pull it down by hand
+                        if (empty > 12) {
                             finish(false)
                             return
                         }
-                        ui.postDelayed(this, 150L)
+                        ui.postDelayed(this, 170L)
                         return
                     }
-                    if (added == 0 || pages >= 7) {
+                    if (added == 0) {
+                        if (!swiped && pages > 0) { // the page did not change by the action: one real swipe before giving up
+                            swiped = true
+                            swipeGridLeft()
+                            ui.postDelayed(this, 520L)
+                            return
+                        }
+                        finish(true)
+                        return
+                    }
+                    swiped = false
+                    if (pages >= 7) {
                         finish(true)
                         return
                     }
@@ -716,13 +834,13 @@ class PanelAccessibilityService : AccessibilityService() {
                         false
                     }
                     if (!moved) {
-                        finish(true)
-                        return
+                        swiped = true
+                        swipeGridLeft()
                     }
-                    ui.postDelayed(this, 420L)
+                    ui.postDelayed(this, 480L)
                 }
             }
-            ui.postDelayed(step, 350L)
+            ui.postDelayed(step, 400L)
         }
     }
 
@@ -861,6 +979,7 @@ class PanelAccessibilityService : AccessibilityService() {
             performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)
             var tries = 0
             var scrolls = 0
+            var stableAt = ""
             val step = object : Runnable {
                 override fun run() {
                     tries++
@@ -869,7 +988,7 @@ class PanelAccessibilityService : AccessibilityService() {
                     } catch (e: Exception) {
                         emptyList()
                     }
-                    val level = if (tries < 10) 0 else if (tries < 22) 1 else 2
+                    val level = if (tries < 4) 0 else if (tries < 8) 1 else 2
                     val hit = try {
                         findTile(roots, variants, level)
                     } catch (e: Exception) {
@@ -881,6 +1000,15 @@ class PanelAccessibilityService : AccessibilityService() {
                         ui.postDelayed({ performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS) }, 400L)
                     }
                     if (hit == null && tries == 30) swipeDownFromTop(0.85f) // control center on phones that keep it on the right side
+                    if (hit != null && !hit.clickable) {
+                        // a finger-tap goes to a place: wait until the button stopped moving (the panel is still sliding open at first)
+                        val where = (hit.x / 6).toInt().toString() + "," + (hit.y / 6).toInt()
+                        if (where != stableAt) {
+                            stableAt = where
+                            ui.postDelayed(this, 80L)
+                            return
+                        }
+                    }
                     if (hit != null) {
                         val tile = hit.node
                         val label = norm(tile.text) + " " + norm(tile.contentDescription)
@@ -910,15 +1038,20 @@ class PanelAccessibilityService : AccessibilityService() {
                         }
                         return
                     }
-                    if (tries >= 5 && tries % 6 == 5 && scrolls < 5) {
+                    if (tries >= 6 && tries % 7 == 6 && scrolls < 6) {
+                        // next page of buttons: the scroll action first, a real swipe the next time (some pagers ignore the action)
                         scrolls++
                         try {
-                            scrollTiles(roots)
+                            if (scrolls % 2 == 1) {
+                                if (!scrollTiles(roots)) swipeGridLeft()
+                            } else {
+                                swipeGridLeft()
+                            }
                         } catch (e: Exception) {
                             // ignore, keep looking
                         }
                     }
-                    if (tries >= 60) {
+                    if (tries >= 70) {
                         report = dumpShade()
                         copyReport()
                         closeShade()

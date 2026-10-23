@@ -712,24 +712,40 @@ class QuickPanel(
      */
     private fun maybeScan(again: Boolean = false) {
         val prefs = context.getSharedPreferences("launcher", Context.MODE_PRIVATE)
-        if (!again && prefs.getBoolean("qp_scanned", false)) return
-        if (PanelAccessibilityService.instance == null) {
-            if (again) Toast.makeText(context, "Turn on the Quick panel service (Accessibility) first", Toast.LENGTH_LONG).show()
+        if (!again) {
+            if (prefs.getBoolean("qp_scanned", false)) return
+            if (prefs.getInt("qp_scan_tries", 0) >= 4) return // after four empty tries only the long-press on the pencil reads again
+        }
+        val svc = PanelAccessibilityService.instance
+        if (svc == null) {
+            Toast.makeText(context, "The Quick panel service is OFF. Turn on \"Quick panel\" in Accessibility so the phone's own buttons can be found", Toast.LENGTH_LONG).show()
+            if (again) {
+                try {
+                    context.startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                } catch (e: Exception) {
+                    // no Accessibility screen
+                }
+            }
+            return
+        }
+        if (!svc.canReadPanel()) {
+            Toast.makeText(context, "Switch the \"Quick panel\" service OFF and ON once in Accessibility (the update asked for a new right)", Toast.LENGTH_LONG).show()
             return
         }
         handler.postDelayed({
             if (!isOpen || editor != null) return@postDelayed
             Toast.makeText(context, "Reading your phone's buttons...", Toast.LENGTH_SHORT).show()
-            system.scan { ok ->
-                if (ok) prefs.edit().putBoolean("qp_scanned", true).apply()
-                if (again) {
-                    val copied = PanelAccessibilityService.instance?.copyReport() == true
-                    Toast.makeText(
-                        context,
-                        if (copied) "Phone button report copied: paste it in the chat" else if (ok) "Phone buttons read" else "Could not read the phone's Quick settings",
-                        Toast.LENGTH_LONG
-                    ).show()
+            system.scan { ok, note, count ->
+                prefs.edit().putInt("qp_scan_tries", prefs.getInt("qp_scan_tries", 0) + 1).apply()
+                if (ok && count > 0) prefs.edit().putBoolean("qp_scanned", true).apply()
+                val names = QuickTiles.ALL.filter { it.id.startsWith(QuickTiles.CUSTOM_PREFIX) }.take(5).joinToString(", ") { it.label }
+                val copied = if (!ok || count == 0 || again) PanelAccessibilityService.instance?.copyReport() == true else false
+                val msg = when {
+                    ok && count > 0 -> "Found $count buttons of your phone: $names" + (if (count > 5) "..." else "")
+                    ok -> "No extra buttons found ($note)" + (if (copied) ". Report copied: paste it in the chat" else "")
+                    else -> "Could not read the phone's panel ($note)" + (if (copied) ". Report copied: paste it in the chat" else "")
                 }
+                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                 if (isOpen && editor == null) build()
             }
         }, 450L)

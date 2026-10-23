@@ -444,21 +444,24 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
         return all.any { v -> l == v || l.startsWith("$v ") }
     }
 
-    /** Reads the phone's own Quick settings (hidden behind a picture) and keeps every button the launcher has no button for. */
-    fun scan(done: (Boolean) -> Unit) {
+    /**
+     * Reads the phone's own Quick settings (hidden behind a picture) and keeps every button the launcher has no button for.
+     * [done]: worked, one line of what was seen, how many phone buttons are on the panel now.
+     */
+    fun scan(done: (Boolean, String, Int) -> Unit) {
         val svc = PanelAccessibilityService.instance
         if (svc == null) {
-            done(false)
+            done(false, "the Quick panel service is off", 0)
             return
         }
-        svc.scanTiles { found ->
+        svc.scanTiles { found, note ->
             if (found == null) {
-                done(false)
+                done(false, note, 0)
             } else {
                 val custom = found.filter { !isBuiltinLabel(it.first) }
                 QuickTiles.saveCustom(app, custom.map { it.first })
                 for ((label, on) in custom) if (on != null) QuickTiles.cacheState(app, QuickTiles.CUSTOM_PREFIX + label, on)
-                done(true)
+                done(true, note, QuickTiles.ALL.count { it.id.startsWith(QuickTiles.CUSTOM_PREFIX) })
             }
         }
     }

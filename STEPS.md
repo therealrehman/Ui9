@@ -774,3 +774,14 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
   `adb pair 127.0.0.1:<pair port>`, `adb connect 127.0.0.1:<port>`, and the grant line above.
 - Buttons found on the phone show the first letter of their name instead of a grid symbol.
 - Compile-checked only by reading; not built or tested on a real phone.
+
+## Step 29 - finding the phone's own buttons on phones whose buttons are not marked "clickable"
+
+- The earlier scan only accepted buttons that the phone marks as clickable; many phones (Vivo, and others) draw their buttons as custom views that are not. The scan now works from the **names**
+  inside the buttons area (the sideways pager when the phone marks one, otherwise the middle of the screen below the two big buttons), clickable or not, and presses with a real finger-tap just above the name
+  (the icon) when there is nothing to click. A tap is sent only after the button stopped moving (the panel slides open first).
+- Pages of buttons are changed with the scroll action first and a real swipe second.
+- The big Wi-Fi / mobile-data buttons are found whether clickable or not; the round icon at their left is pressed.
+- **Nothing fails silently any more**: when the Quick panel opens the launcher says if the Quick panel service is off, or has no right to read the panel yet (switch off / on once), and after reading it says how many
+  phone buttons it found (or what it saw: windows / views / area / names) and copies the report when it found none. Long-press the pencil reads again (up to four automatic tries).
+- Compile-checked only by reading; not built or tested on a real phone.
