@@ -20,20 +20,36 @@ Contact email: a.rehmanmazher11@gmail.com
 1. **Package name** `com.oklabs.oneui9launcher` can not change after the first upload. It contains "oneui" (a Samsung trademark word); a store reviewer
    may or may not object. A cleaner one (for example `com.oklabs.launcher`) costs nothing now and a lot later. Tell me and I change only `applicationId`
    (a separate app then: use Home settings > Back up layout and settings on the old one and Restore on the new one).
-2. **Signing key.** `bash release.sh` makes `oneui9-release.jks` + `keystore.properties` once. Back them up. Every update must use the same key
-   (or enrol in Huawei's App Signing in AppGallery Connect and follow its steps).
+2. **Signing key.** `bash make_signing_key.sh` makes `oneui9-release.jks` once. Back it up. Every update must be signed with the same key. The Huawei account does not
+   give you a key; AppGallery Connect also has an optional "App Signing" service (Distribute > Services > App Signing) - you do not need it for an APK signed with your own key.
 3. **Privacy / terms pages online** (they are in `docs/`, served by GitHub Pages): `https://therealrehman.github.io/Ui9/privacy-policy.html` and `.../terms.html`.
    Open both in a browser (no login) before you submit. They must say what the app really does (they were updated in Step 36: run `bash push.sh` so Pages shows the new text).
 
-## 2. Build and check (Termux)
+## 2. Build the signed release APK on GitHub (no Android SDK needed on the phone)
 
+One time only - make your signing key (Termux):
+```
+pkg install openjdk-17
+cd ~/OneUI9Launcher
+bash make_signing_key.sh
+```
+It puts two files in Downloads: `oneui9-release.jks` (**back it up**: cloud drive / another phone; lose it and the app can never be updated) and
+`OkLauncher-github-secrets.txt`. Open the txt and add its 4 values in GitHub: your repo > Settings > Secrets and variables > Actions > New repository secret
+(Name = the word before the colon, Secret = what follows). Then delete the txt. Never post these values anywhere.
+
+Every release:
 ```
 cd ~/OneUI9Launcher
-bash appgallery.sh prepare     # once: honest Accessibility dialog text
-bash release.sh                # builds the signed release APK (and .aab)
-bash appgallery.sh check       # checks it and puts the upload files in Downloads/AppGallery
+bash appgallery.sh prepare     # honest Accessibility text + policy links; then:
+bash push.sh                   # sends the project to GitHub (also updates the privacy page)
 ```
-`check` tells you if the APK is unsigned, debuggable, signed with a debug key, or still has WRITE_SECURE_SETTINGS.
+Then on GitHub: Actions > **Build signed release APK** > Run workflow. After about 5 minutes open the run, download the artifact **OkLauncher-release-apk**
+(a zip) into Downloads, and run:
+```
+bash appgallery.sh check
+```
+`check` unpacks that zip, tells you if the APK is unsigned, debuggable, signed with a debug key, or still has WRITE_SECURE_SETTINGS, and puts the
+upload files in `Downloads/AppGallery/`. If the GitHub run fails, send me the first red `error:` line.
 **Install and try the signed APK on your phone before uploading** (Android refuses it over the debug build: back up your layout, uninstall the debug app,
 install, restore). The release build is shrunk by R8; test: Home, Apps screen, folders, widgets, Quick panel, Notifications page, set as default Home, the
 Accessibility switch, double-tap lock. If something works in debug but not in release, tell me which.

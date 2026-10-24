@@ -841,3 +841,10 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
   `bash appgallery.sh prepare` changes the dialog text in `HomeSettingsActivity.kt` (the file itself is not in this zip).
 - New: `docs/APPGALLERY.md` (steps, store texts, privacy answers, reviewer notes), `store/appgallery/icon-216.png` + `icon-512.png`, `appgallery.sh` (`prepare` / `check`).
 - Version 1.0.41 (code 151). Changed files: `build.gradle.kts`, `SystemPanel.kt`, `STEPS.md`, `docs/privacy-policy.html`; new files as listed. Not built or run on a phone; the release (R8) build was not run by me.
+
+## Step 36b - signed release APK built on GitHub
+- Termux has no Android SDK (`bash release.sh` stops at "Android SDK not found"), so the signed release APK is built by GitHub: new `.github/workflows/release.yml` ("Build signed release APK", run by hand).
+  It reads the signing key from 4 repository secrets, builds `assembleRelease`, verifies the signature and uploads `app-release.apk` as the artifact `OkLauncher-release-apk`.
+- New `make_signing_key.sh` (Termux): makes `oneui9-release.jks` once and writes the 4 secret values to Downloads.
+- `appgallery.sh prepare` also fixes `YOUR_NAME` in privacy_url / terms_url (it fixes them to therealrehman.github.io/Ui9); `appgallery.sh check` finds the downloaded GitHub artifact by itself.
+- Changed: `appgallery.sh`, `docs/APPGALLERY.md`, `STEPS.md`; new: `.github/workflows/release.yml`, `make_signing_key.sh`. Not run on GitHub by me.

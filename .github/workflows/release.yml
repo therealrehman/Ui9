@@ -1,0 +1,50 @@
+name: Build signed release APK
+# Run it by hand: GitHub > Actions > "Build signed release APK" > Run workflow.
+# Needs four repository secrets (see docs/APPGALLERY.md, made by `bash make_signing_key.sh`):
+#   RELEASE_KEYSTORE_B64, RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD
+on:
+  workflow_dispatch:
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Accept Android licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+      - name: Check the signing secrets
+        env:
+          KS: ${{ secrets.RELEASE_KEYSTORE_B64 }}
+          SP: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          KA: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KP: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          for v in KS SP KA KP; do
+            if [ -z "${!v}" ]; then echo "::error::A signing secret is missing or empty ($v). Add the 4 secrets listed in docs/APPGALLERY.md."; exit 1; fi
+          done
+      - name: Decode the signing key
+        env:
+          KS: ${{ secrets.RELEASE_KEYSTORE_B64 }}
+        run: echo "$KS" | base64 -d > "$RUNNER_TEMP/oneui9-release.jks"
+      - name: Build the signed release APK
+        env:
+          RELEASE_STORE_FILE: ${{ runner.temp }}/oneui9-release.jks
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon -Poneui.sdk=34
+      - name: Verify the signature
+        run: |
+          APK=app/build/outputs/apk/release/app-release.apk
+          test -f "$APK" || { echo "::error::No signed APK was made (app-release.apk missing)."; ls app/build/outputs/apk/release; exit 1; }
+          SIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -n 1)
+          "$SIGNER" verify --print-certs "$APK"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OkLauncher-release-apk
+          path: app/build/outputs/apk/release/app-release.apk

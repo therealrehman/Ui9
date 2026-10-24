@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Ok Launcher - Huawei AppGallery helper (Termux).
 #   bash appgallery.sh prepare   (once, before building: makes the Accessibility dialog text match what the service really does)
-#   bash appgallery.sh check     (after "bash release.sh": checks the signed APK and collects the upload files)
+#   bash appgallery.sh check     (checks the signed release APK - from the GitHub build you downloaded, or built here - and collects the upload files)
+#   bash appgallery.sh check /path/to/app-release.apk
 cd "$(dirname "$0")" || exit 1
 MODE="${1:-check}"
 
@@ -26,9 +27,10 @@ EOF
     fi
   fi
   if grep -q "YOUR_NAME" app/src/main/res/values/strings.xml; then
-    echo "WARNING: privacy_url / terms_url in strings.xml still say YOUR_NAME."
+    sed -i 's#YOUR_NAME.github.io/OneUI9Launcher#therealrehman.github.io/Ui9#g' app/src/main/res/values/strings.xml
+    echo "Fixed: privacy_url / terms_url pointed to YOUR_NAME; they now point to therealrehman.github.io/Ui9"
   fi
-  echo "Next:  bash release.sh   then   bash appgallery.sh check"
+  echo "Next: bash push.sh, then follow docs/APPGALLERY.md section 2 (signed release APK built on GitHub)."
   exit 0
 fi
 
@@ -37,14 +39,24 @@ SDK_DIR=$(sed -n 's/^sdk\.dir=//p' local.properties 2>/dev/null | head -n 1)
 [ -z "$SDK_DIR" ] && SDK_DIR="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
 AAPT2=$(command -v aapt2)
 [ -z "$AAPT2" ] && AAPT2=$(ls -d "$SDK_DIR"/build-tools/*/aapt2 2>/dev/null | tail -n 1)
-APKSIGNER=$(ls -d "$SDK_DIR"/build-tools/*/apksigner 2>/dev/null | tail -n 1)
-APK="app/build/outputs/apk/release/app-release.apk"
-if [ ! -f "$APK" ]; then
-  if [ -f "app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
-    echo "PROBLEM: the release APK is NOT signed. Run  bash release.sh  (it creates / uses keystore.properties)."
-  else
-    echo "No release APK found. Run  bash release.sh  first."
+APKSIGNER=$(command -v apksigner)
+[ -z "$APKSIGNER" ] && APKSIGNER=$(ls -d "$SDK_DIR"/build-tools/*/apksigner 2>/dev/null | tail -n 1)
+DLD="$HOME/storage/downloads"; [ -d "$DLD" ] || DLD="$HOME/storage/shared/Download"
+APK="${2:-}"
+if [ -z "$APK" ]; then
+  Z=$(ls -t "$DLD"/OkLauncher-release-apk*.zip 2>/dev/null | head -n 1)
+  if [ -n "$Z" ]; then
+    rm -rf "$HOME/ag_release"; mkdir -p "$HOME/ag_release"
+    unzip -oq "$Z" -d "$HOME/ag_release"
+    APK="$HOME/ag_release/app-release.apk"
+    echo "Using the GitHub build you downloaded: $Z"
+  elif [ -f app/build/outputs/apk/release/app-release.apk ]; then
+    APK="app/build/outputs/apk/release/app-release.apk"
   fi
+fi
+if [ -z "$APK" ] || [ ! -f "$APK" ]; then
+  echo "No signed release APK found."
+  echo "Build it on GitHub (docs/APPGALLERY.md section 2), download the artifact zip OkLauncher-release-apk.zip to Downloads, then run this again."
   exit 1
 fi
 echo "APK: $APK ($(du -k "$APK" | cut -f1) KB)"
@@ -69,7 +81,7 @@ if [ -n "$APKSIGNER" ]; then
     echo "PROBLEM: the signature did not verify."; BAD=1
   fi
 else
-  echo "(apksigner not found: the name app-release.apk means Gradle signed it with your keystore)"
+  echo "(apksigner not found: install it with  pkg install apksigner  to check the signature here; the GitHub build already verified it)"
 fi
 [ "$BAD" = "1" ] && { echo; echo "Fix the PROBLEM lines above, build again, then re-run this check."; exit 1; }
 
@@ -85,4 +97,4 @@ echo "Ready in: $OUT"
 ls -1 "$OUT"
 echo
 echo "Upload that APK and icon-216.png in AppGallery Connect. Texts and answers: APPGALLERY.md"
-echo "Test the SIGNED APK on your phone first (it needs your debug build uninstalled; use Home settings > Back up first)."
+echo "Test this SIGNED APK on your phone first (it needs your debug build uninstalled; use Home settings > Back up first)."
