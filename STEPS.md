@@ -848,3 +848,8 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - New `make_signing_key.sh` (Termux): makes `oneui9-release.jks` once and writes the 4 secret values to Downloads.
 - `appgallery.sh prepare` also fixes `YOUR_NAME` in privacy_url / terms_url (it fixes them to therealrehman.github.io/Ui9); `appgallery.sh check` finds the downloaded GitHub artifact by itself.
 - Changed: `appgallery.sh`, `docs/APPGALLERY.md`, `STEPS.md`; new: `.github/workflows/release.yml`, `make_signing_key.sh`. Not run on GitHub by me.
+
+## Step 37 - panel colour button inside the Quick panel
+- A round **colour button** sits in the Quick panel header (left of the pencil). It shows the colour the panel has now. A tap opens a row of all 21 panel colours right under the header
+  (the same ones as Settings > Look and feel > Panels > Panel colour); a tap on one changes the veil and all the glass of the panel at once, the colour is saved, and the Notifications page uses it too. Tap the button again to close the row.
+- A sideways swipe on the row scrolls the row (it does not switch to the Notifications page). Changed file: `QuickPanel.kt` (built on the step 35 file). Version 1.0.42 (code 152). Not built or run on a phone.

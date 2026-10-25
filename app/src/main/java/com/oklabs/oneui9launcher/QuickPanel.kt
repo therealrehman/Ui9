@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.database.ContentObserver
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.location.LocationManager
 import android.app.NotificationManager
 import android.bluetooth.BluetoothAdapter
@@ -26,6 +27,7 @@ import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.TextClock
 import android.widget.TextView
@@ -355,6 +357,8 @@ class QuickPanel(
     private val tiles = ArrayList<Pair<String, TileView>>()
     private var slider: PillSlider? = null
     private var tilePager: TilePager? = null
+    private var colourStrip: View? = null // Step 37: the row of panel colours under the header
+    private var colourOpen = false
     private var editor: QuickEditor? = null
     private var gallery: IconGallery? = null // Step 30b: the "Change icons" screen
     private var notifs: QuickNotifs? = null
@@ -395,7 +399,8 @@ class QuickPanel(
                 val dx = ev.rawX - sDownX
                 if (editor == null && gallery == null && slider?.isDragging != true && dx < -slop * 3f && -dx > abs(ev.rawY - sDownY) * 2f &&
                     !(notifs?.cardsAtRaw(sDownX, sDownY) ?: false) &&
-                    !(tilePager?.let { it.multi && it.containsRaw(sDownX, sDownY) } ?: false)
+                    !(tilePager?.let { it.multi && it.containsRaw(sDownX, sDownY) } ?: false) &&
+                    !(colourStrip?.let { insideRaw(it, sDownX, sDownY) } ?: false)
                 ) {
                     swiped = true
                     onSwitchPage?.invoke()
@@ -479,6 +484,14 @@ class QuickPanel(
         val order = QuickTiles.order(c)
 
         content.addView(header(), LinearLayout.LayoutParams(MATCH, WRAP))
+        colourStrip = null
+        if (colourOpen) {
+            val strip = colourStripView()
+            colourStrip = strip
+            val slp = LinearLayout.LayoutParams(MATCH, WRAP)
+            slp.topMargin = c.dp(8)
+            content.addView(strip, slp)
+        }
         if (brightnessOnTop()) addBrightness(c, 12)
 
         // The first two buttons are wide (name + state).
@@ -690,6 +703,16 @@ class QuickPanel(
         texts.addView(date, dateLp)
         row.addView(texts, LinearLayout.LayoutParams(0, WRAP, 1f))
 
+        // Step 37: the round colour button: it shows the colour the panel has now; a tap opens / closes the row of colours right here
+        val palette = colourDot(PanelTheme.saved(c), false)
+        palette.contentDescription = "Panel colour"
+        palette.isClickable = true
+        palette.setOnClickListener {
+            colourOpen = !colourOpen
+            build()
+        }
+        row.addView(palette, LinearLayout.LayoutParams(c.dp(44), c.dp(44)))
+
         val pencil = QuickGlyph(c, QuickGlyph.PENCIL)
         pencil.tint = PanelLook.text
         pencil.contentDescription = "Edit buttons"
@@ -767,6 +790,72 @@ class QuickPanel(
                 if (isOpen && editor == null && gallery == null) build()
             }
         }, 450L)
+    }
+
+    private fun insideRaw(v: View, x: Float, y: Float): Boolean {
+        val loc = IntArray(2)
+        v.getLocationOnScreen(loc)
+        return x >= loc[0] && x <= loc[0] + v.width && y >= loc[1] && y <= loc[1] + v.height
+    }
+
+    /** A round swatch of panel colour number [i] with a ring (a bright ring = the colour in use). */
+    private fun colourDot(i: Int, selected: Boolean): View {
+        val c = context
+        val ring = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Color.TRANSPARENT)
+            setStroke(c.dp(2), if (selected) PanelLook.text else PanelLook.inkA(70))
+        }
+        val layers = LayerDrawable(arrayOf(PanelTheme.swatch(i), ring))
+        layers.setLayerInset(0, c.dp(7), c.dp(7), c.dp(7), c.dp(7))
+        layers.setLayerInset(1, c.dp(3), c.dp(3), c.dp(3), c.dp(3))
+        val v = View(c)
+        v.background = layers
+        return v
+    }
+
+    /** The row of all panel colours (the same ones as Settings > Look and feel > Panels > Panel colour). A tap changes the panel at once. */
+    private fun colourStripView(): View {
+        val c = context
+        val cur = PanelTheme.saved(c)
+        val box = LinearLayout(c)
+        box.orientation = LinearLayout.VERTICAL
+        box.setPadding(c.dp(14), c.dp(10), c.dp(6), c.dp(6))
+        box.background = GradientDrawable().apply {
+            setColor(PanelLook.glass(70))
+            cornerRadius = c.dpf(24f)
+            setStroke(c.dp(1), PanelLook.inkA(22))
+        }
+        val title = TextView(c)
+        title.text = "Panel colour: " + PanelTheme.name(cur)
+        title.setTextColor(PanelLook.textA(220))
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+        box.addView(title, LinearLayout.LayoutParams(WRAP, WRAP))
+        val scroll = HorizontalScrollView(c)
+        scroll.isHorizontalScrollBarEnabled = false
+        scroll.overScrollMode = View.OVER_SCROLL_NEVER
+        val row = LinearLayout(c)
+        row.orientation = LinearLayout.HORIZONTAL
+        for (i in 0 until PanelTheme.COUNT) {
+            val dot = colourDot(i, i == cur)
+            dot.contentDescription = PanelTheme.name(i)
+            dot.isClickable = true
+            dot.setOnClickListener { chooseColour(i) }
+            row.addView(dot, LinearLayout.LayoutParams(c.dp(44), c.dp(44)))
+        }
+        scroll.addView(row, FrameLayout.LayoutParams(WRAP, WRAP))
+        scroll.post { scroll.scrollTo(max(0, cur * c.dp(44) - scroll.width / 2 + c.dp(22)), 0) }
+        val slp = LinearLayout.LayoutParams(MATCH, WRAP)
+        slp.topMargin = c.dp(2)
+        box.addView(scroll, slp)
+        return box
+    }
+
+    private fun chooseColour(i: Int) {
+        context.getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putInt(PanelTheme.KEY, i).apply()
+        PanelTheme.load(context)
+        scrim.background = PanelTheme.scrim(205, PanelLook.dark)
+        build() // every glass of the panel is drawn again in the new colour
     }
 
     /** Tap and long-press of one button. */
@@ -864,6 +953,7 @@ class QuickPanel(
         closing = false
         editor = null
         gallery = null
+        colourOpen = false
         PanelTheme.load(context)
         QuickIcons.load(context)
         build()
