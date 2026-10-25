@@ -853,3 +853,13 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - A round **colour button** sits in the Quick panel header (left of the pencil). It shows the colour the panel has now. A tap opens a row of all 21 panel colours right under the header
   (the same ones as Settings > Look and feel > Panels > Panel colour); a tap on one changes the veil and all the glass of the panel at once, the colour is saved, and the Notifications page uses it too. Tap the button again to close the row.
 - A sideways swipe on the row scrolls the row (it does not switch to the Notifications page). Changed file: `QuickPanel.kt` (built on the step 35 file). Version 1.0.42 (code 152). Not built or run on a phone.
+
+## Step 38 - edit look of the Quick panel (red minus, Edit over the buttons, resize bar, Add a control)
+- The **pencil** now opens the edit look on the real panel (like the reference phone): header **Panel settings** (opens Settings) and **Done**, with a line of help under it.
+  Every part gets a red round **minus**: the two wide buttons (they leave the panel; the next buttons move up), the brightness slider, the volume card and the music player.
+  The round buttons are dimmed with an **Edit** pill in the middle: it opens the old button editor (add / remove / drag to change the order, as before). Taps on buttons do nothing in this look.
+- **Resize:** a white bar under the buttons. Drag it down for more rows on a page (up to 4), up for fewer (down to 1); saved as `qp_rows` (default 2, which is what it was).
+- **Add a control** (bottom): lists the parts taken off with a minus (Brightness, Volume, Media player) and every button that is not on the panel; a tap puts it back.
+- The swipes (close, Notifications page) are off while editing; Back or Done leaves the edit look. The colour button and the long-press on the pencil (read the phone's buttons again) are unchanged.
+- Not done: resizing the sliders, the music player or the wide buttons (only the height of the round buttons), and reordering the parts by dragging (the buttons are still reordered in the Edit screen).
+- Changed file: `QuickPanel.kt`. Version 1.0.43 (code 153). Not built or run on a phone.
