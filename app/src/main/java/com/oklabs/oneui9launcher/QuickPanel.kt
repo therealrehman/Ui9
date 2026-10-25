@@ -380,6 +380,7 @@ class QuickPanel(
     private val swipeSlop = ViewConfiguration.get(context).scaledTouchSlop
     private var sDownX = 0f
     private var sDownY = 0f
+    private var sDownScroll = 0
     private var swiped = false
 
     /**
@@ -391,13 +392,14 @@ class QuickPanel(
             MotionEvent.ACTION_DOWN -> {
                 sDownX = ev.rawX
                 sDownY = ev.rawY
+                sDownScroll = body.scrollY // Step 39: where the panel was scrolled when the finger came down
                 swiped = false
             }
             MotionEvent.ACTION_MOVE -> {
                 if (swiped) return true
                 val slop = swipeSlop
                 val dy = sDownY - ev.rawY
-                if (editor == null && gallery == null && !layoutEdit && slider?.isDragging != true && !(notifs?.scrollsAtRaw(sDownX, sDownY) ?: false) && dy > slop * 2 && dy > abs(ev.rawX - sDownX) * 1.2f && (!body.canScrollVertically(1) || body.scrollY == 0 && dy > slop * 6)) {
+                if (editor == null && gallery == null && !layoutEdit && slider?.isDragging != true && !(notifs?.scrollsAtRaw(sDownX, sDownY) ?: false) && dy > slop * 2 && dy > abs(ev.rawX - sDownX) * 1.2f && (!body.canScrollVertically(1) || sDownScroll == 0 && dy > slop * 6)) {
                     swiped = true
                     close(true)
                     return true
@@ -420,6 +422,26 @@ class QuickPanel(
     /** Closing after a swipe up. */
     private inner class SwipeCard(context: Context) : LinearLayout(context) {
         override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = swipeEvent(ev)
+
+        /**
+         * Step 39: the swipe is read from EVERY touch before any child sees it. A child that takes the touch for itself (the scrolling panel body,
+         * a slider, a button) used to switch this card's own look-out off, so a swipe up that began there did nothing or got stuck.
+         */
+        override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+            if (closing) return true // the panel is on its way out: touches must not hit a button under the finger
+            val was = swiped
+            val taken = swipeEvent(ev)
+            if (taken) {
+                if (!was) {
+                    val cancel = MotionEvent.obtain(ev)
+                    cancel.action = MotionEvent.ACTION_CANCEL
+                    super.dispatchTouchEvent(cancel)
+                    cancel.recycle()
+                }
+                return true
+            }
+            return super.dispatchTouchEvent(ev)
+        }
 
         // a touch that starts on an empty space ends up here (no child took it), so the swipe is read here too
         override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -454,7 +476,7 @@ class QuickPanel(
         scrim.background = PanelTheme.scrim(150, PanelLook.dark)
         scrim.isClickable = true
         scrim.setOnClickListener { close(true) }
-        scrim.setOnTouchListener { _, ev -> swipeEvent(ev) || (swiped && ev.actionMasked != MotionEvent.ACTION_DOWN) } // Step 32: swipe beside the buttons works too
+        scrim.setOnTouchListener { _, ev -> closing || swipeEvent(ev) || (swiped && ev.actionMasked != MotionEvent.ACTION_DOWN) } // Step 32: swipe beside the buttons works too
         addView(scrim, LayoutParams(MATCH, MATCH))
 
         // Step 17b: no card any more - the buttons float over the blurred wallpaper, like the reference.
@@ -1183,7 +1205,8 @@ class QuickPanel(
     // ------------------------------------------------------------------ open / close
 
     fun open() {
-        if (isOpen) return
+        if (isOpen && !closing) return
+        if (closing) finishClose() // Step 39: a close that never finished must not block the next open
         card.animate().setUpdateListener(null).cancel()
         card.setLayerType(View.LAYER_TYPE_NONE, null)
         scrim.animate().cancel()
@@ -1209,6 +1232,9 @@ class QuickPanel(
             Notifs.addListener(notifsListener)
         }
         maybeScan()
+        body.scrollTo(0, 0)
+        handler.removeCallbacks(poll)
+        handler.postDelayed(poll, 1200L)
         visibility = View.VISIBLE
         // Step 25: nothing is blurred behind the panel any more, so the veil alone must hide the Home screen: stronger than before.
         scrim.background = PanelTheme.scrim(205, PanelLook.dark)
@@ -1275,20 +1301,41 @@ class QuickPanel(
                 scrim.alpha = Motion.fadeOut(q)
                 scrim.translationY = card.translationY
             }
-            .withEndAction {
-                card.animate().setUpdateListener(null)
-                card.setLayerType(View.LAYER_TYPE_NONE, null)
-                Motion.setBlur(card, 0f)
-                card.alpha = 1f
-                card.translationY = 0f
-                scrim.alpha = 1f
-                scrim.translationY = 0f
-                closing = false
-                visibility = View.GONE
-                onGone?.invoke()
-            }.start()
+            .withEndAction { finishClose() }.start()
+        // Step 39: if the end of the slide is never reported (the animation was cancelled, the window was busy) the panel would stay on the screen,
+        // invisible, and take every touch. This makes sure it is gone a moment after the slide should have ended.
+        handler.postDelayed({ finishClose() }, Motion.CLOSE_MS + 250L)
         // The blur fades while the panel slides away.
         post { onOpenChanged?.invoke() }
+    }
+
+    /** The end of the closing slide (also run by the safety timer of [close]): the panel is gone and every leftover of the slide is reset. */
+    private fun finishClose() {
+        if (!closing) return
+        card.animate().cancel()
+        card.animate().setUpdateListener(null)
+        card.setLayerType(View.LAYER_TYPE_NONE, null)
+        Motion.setBlur(card, 0f)
+        card.alpha = 1f
+        card.translationY = 0f
+        scrim.alpha = 1f
+        scrim.translationY = 0f
+        closing = false
+        visibility = View.GONE
+        onGone?.invoke()
+    }
+
+    /** Step 39: while the panel is open the buttons are read again every 1.2 s, so one never stays lit (or dark) after the phone changed on its own. */
+    private val poll = object : Runnable {
+        override fun run() {
+            if (!isOpen || closing) return
+            try {
+                refresh()
+            } catch (e: Exception) {
+                // a failed read must not stop the next one
+            }
+            handler.postDelayed(this, 1200L)
+        }
     }
 
     /** `isOpen` stays true while the closing animation runs; the blur must not wait for it, so the activity asks this. */

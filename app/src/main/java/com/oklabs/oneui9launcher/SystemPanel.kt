@@ -1004,13 +1004,25 @@ class PanelAccessibilityService : AccessibilityService() {
         forcing = true
         forcingSince = android.os.SystemClock.uptimeMillis()
         var stateAfter: Boolean? = null
+        var finished = false
         val finish: (Boolean) -> Unit = { ok ->
+          if (!finished) {
+            finished = true
             done(ok, stateAfter)
             ui.postDelayed({
                 coverOff()
                 forcing = false
             }, 330L)
+          }
         }
+        // Step 39: whatever happens inside a press, the cover over the screen and the "busy" flag are gone after 6 seconds at the latest
+        ui.postDelayed({
+            if (forcing && android.os.SystemClock.uptimeMillis() - forcingSince >= 5500L) {
+                coverOff()
+                forcing = false
+                finish(false)
+            }
+        }, 6000L)
         coverOn {
             performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)
             var tries = 0
@@ -1018,6 +1030,20 @@ class PanelAccessibilityService : AccessibilityService() {
             var stableAt = ""
             val step = object : Runnable {
                 override fun run() {
+                    // Step 39: an error inside one step used to end the app's process (and with it this service); now the press just ends
+                    try {
+                        stepOnce()
+                    } catch (e: Exception) {
+                        try {
+                            closeShade()
+                        } catch (x: Exception) {
+                            // nothing more to do
+                        }
+                        finish(false)
+                    }
+                }
+
+                private fun stepOnce() {
                     tries++
                     val roots = try {
                         shadeRoots()
@@ -1087,7 +1113,7 @@ class PanelAccessibilityService : AccessibilityService() {
                             // ignore, keep looking
                         }
                     }
-                    if (tries >= 70) {
+                    if (tries >= 56) {
                         report = dumpShade()
                         copyReport()
                         closeShade()
