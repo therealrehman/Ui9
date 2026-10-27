@@ -18,6 +18,9 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Decode keystore
         run: |
           echo "${{ secrets.RELEASE_KEYSTORE_B64 }}" | base64 -d > app/oneui9-release.jks
@@ -25,16 +28,27 @@ jobs:
       - name: Gradle permission
         run: chmod +x gradlew
 
-      - name: Build signed APK
+      - name: Build APK
         run: ./gradlew assembleRelease
-        env:
-          RELEASE_KEYSTORE_PATH: app/oneui9-release.jks
-          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
-          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+
+      - name: Install build-tools
+        run: sdkmanager "build-tools;34.0.0" > /dev/null
+
+      - name: Sign APK with apksigner
+        run: |
+          BT=$ANDROID_SDK_ROOT/build-tools/34.0.0
+          UNSIGNED=$(ls app/build/outputs/apk/release/*unsigned*.apk 2>/dev/null || ls app/build/outputs/apk/release/*.apk | head -1)
+          $BT/apksigner sign \
+            --ks app/oneui9-release.jks \
+            --ks-pass pass:${{ secrets.RELEASE_STORE_PASSWORD }} \
+            --key-pass pass:${{ secrets.RELEASE_KEY_PASSWORD }} \
+            --ks-key-alias ${{ secrets.RELEASE_KEY_ALIAS }} \
+            --out signed-release.apk \
+            "$UNSIGNED"
+          $BT/apksigner verify signed-release.apk
 
       - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
           name: OneUI9-signed-apk
-          path: app/build/outputs/apk/release/*.apk
+          path: signed-release.apk
