@@ -845,3 +845,12 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - Button detection (`SystemPanel` finding / pressing the phone's own buttons) and all icons (`QuickGlyph*`, `QuickIcons`) were already identical in that zip: nothing to copy. Not taken: navigation bar, Recents, Shizuku, ForceAccess, the Shizuku toggles in `QuickSystem`.
 - Keyboard: the zip has no fix for it; written here. When a keyboard window came up the service saw "another app came to the front" and hid the panel. `SystemPanel.isKeyboardPackage` (enabled input methods, plus any package with "inputmethod" / "keyboard" in the name) is now ignored there, so the panel stays.
 - Version 1.0.46 (code 156). Changed: `QuickPanel.kt`, `QuickNotifs.kt`, `SystemPanel.kt`, `build.gradle.kts`, `STEPS.md`. Not built or run on a phone.
+
+## Step 41c - Notifications page: swipe up from an empty space no longer missed
+- `NotificationPage.Column.dispatchTouchEvent` reads the swipe up (close) and swipe right (Quick panel) from every touch on the page in screen coordinates, before any child; children get a cancel when it is taken. The angle is looser (before: up needed 1.5x more up than sideways; now about equal is enough) and the distance a little shorter (1.5 x touch slop).
+- Version 1.0.47 (code 157). Changed: `NotificationPage.kt`, `build.gradle.kts`, `STEPS.md`. Not built or run on a phone.
+
+## Step 42 - app name "Glassy launcher" and a new icon
+- `app_name` is now **Glassy launcher** (`strings.xml`; the manifest, the launcher label and every message read it from there). The name in `docs/*.html` and `PLAY_STORE.md` changed too.
+- New launcher icon (adaptive, drawn in code): aurora gradient (teal - blue - violet) with a soft light corner, a frosted glass pane with a sheen and four glass tiles (one amber). `ic_launcher_bg.xml`, `ic_launcher_foreground.xml`, `ic_launcher_monochrome.xml` (themed icon: pane outline + four tiles).
+- Store pictures (512 / 216 / 1024 px) are in the separate icon zip. Version 1.0.48 (code 158). Not built or run on a phone.

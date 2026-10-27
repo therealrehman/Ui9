@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Ok Launcher</string>
+    <string name="app_name">Glassy launcher</string>
     <!-- Step 10c: branding. app_name is the only place the name is written; every message in the app reads it from here. -->
     <string name="app_tagline">A clean, modern home screen, written from scratch.</string>
     <string name="app_credits">Original code and icons.</string>

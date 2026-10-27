@@ -6,9 +6,9 @@ Contact email for everything below: a.rehmanmazher11@gmail.com
 ## 0. Fix these BEFORE you upload (they can get the app rejected)
 
 1. **Name / trademark.** "One UI" is Samsung's trademark. Play can reject or later remove an app whose name or listing uses it
-   (impersonation / intellectual-property policy). Safest: publish under your own name, e.g. **"Ok Launcher"**.
+   (impersonation / intellectual-property policy). Safest: publish under your own name, e.g. **"Glassy launcher"**.
    Change it in one place: `app_name` in `app/src/main/res/values/strings.xml`. Then replace "OneUI 9 Launcher" in `docs/*.html`
-   (`sed -i 's/OneUI 9 Launcher/Ok Launcher/g' docs/*.html`). Do not mention Samsung or "One UI" in the store listing.
+   (`sed -i 's/OneUI 9 Launcher/Glassy launcher/g' docs/*.html`). Do not mention Samsung or "One UI" in the store listing.
 2. **Package name is permanent.** `com.oklabs.oneui9launcher` can never be changed after the first upload to Play.
    If you want something cleaner (e.g. `com.oklabs.launcher`), change it NOW, before the first upload (namespace, applicationId and the
    Kotlin package folders). Tell me and I will do it.
@@ -38,7 +38,7 @@ The files are in `docs/` (`index.html`, `privacy-policy.html`, `terms.html`).
 
 ## 2. Store listing text (copy and paste)
 
-- **App name (max 30):** Ok Launcher   (or OneUI 9 Launcher if you accept the trademark risk)
+- **App name (max 30):** Glassy launcher   (or OneUI 9 Launcher if you accept the trademark risk)
 - **Short description (max 80):** A clean, fast home screen with folders, widgets, themed icons and no ads.
 - **Category:** Personalization.  **Tags:** Launcher, Personalization.
 - **Email:** a.rehmanmazher11@gmail.com   **Website:** your GitHub Pages URL   **Phone:** optional
