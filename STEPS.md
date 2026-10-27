@@ -854,3 +854,9 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - `app_name` is now **Glassy launcher** (`strings.xml`; the manifest, the launcher label and every message read it from there). The name in `docs/*.html` and `PLAY_STORE.md` changed too.
 - New launcher icon (adaptive, drawn in code): aurora gradient (teal - blue - violet) with a soft light corner, a frosted glass pane with a sheen and four glass tiles (one amber). `ic_launcher_bg.xml`, `ic_launcher_foreground.xml`, `ic_launcher_monochrome.xml` (themed icon: pane outline + four tiles).
 - Store pictures (512 / 216 / 1024 px) are in the separate icon zip. Version 1.0.48 (code 158). Not built or run on a phone.
+
+## Step 43 - the Huawei AppGallery release pack is back
+- New `app/src/release/AndroidManifest.xml`: removes `WRITE_SECURE_SETTINGS` (`tools:node="remove"`) so only the **release build type** loses it - a store build can never hold that permission anyway, it was only there for the debug build's "adb grant" shortcut.
+- New `app/src/release/res/values/bools_store.xml`: `qs_other_windows` is `false` in the release build type, so the store build never looks at other apps' windows.
+- Debug builds (`build.sh`, Android Studio "Debug") are unchanged - `WRITE_SECURE_SETTINGS` and `qs_other_windows = true` still come from `app/src/main`. Only `assembleRelease` / `bundleRelease` picks up this folder.
+- This is the same pack from the 1.0.41 AppGallery step, brought back onto the Glassy launcher base (changed files only: `app/src/release/AndroidManifest.xml`, `app/src/release/res/values/bools_store.xml`, `build.gradle.kts`, `STEPS.md`). Version 1.0.49 (code 159). Not built or run on a phone.

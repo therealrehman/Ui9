@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Step 36: the store build never looks at other apps' windows. -->
+    <bool name="qs_other_windows">false</bool>
+</resources>
