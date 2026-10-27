@@ -94,8 +94,10 @@ class QuickNotifs(
     fun cardsAtRaw(rawX: Float, rawY: Float): Boolean {
         if (Notifs.current().isEmpty() || !Badges.accessGranted(context)) return false
         val r = Rect()
-        if (!scroller.getGlobalVisibleRect(r)) return false
-        return r.contains(rawX.toInt(), rawY.toInt())
+        for (i in 0 until list.childCount) {
+            if (list.getChildAt(i).getGlobalVisibleRect(r) && r.contains(rawX.toInt(), rawY.toInt())) return true
+        }
+        return false
     }
 
     /** True when a vertical touch at ([x], [y]) (in this view's parent's coordinates) is on a list that can scroll: the panel must not take it as "swipe up to close". */

@@ -267,6 +267,14 @@ class PanelAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** True when [pkg] is one of the phone's keyboards (the enabled input methods), so its window never counts as another app. */
+    private fun isKeyboardPackage(pkg: String): Boolean = try {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+        imm.enabledInputMethodList.any { it.packageName == pkg } || pkg.contains("inputmethod") || pkg.contains("keyboard")
+    } catch (e: Exception) {
+        false
+    }
+
     private fun handleEvent(event: AccessibilityEvent?) {
         val e = event ?: return
         if (forcing) return // Step 26: the phone's Quick settings is open on purpose, do not swap it for our panel
@@ -278,7 +286,8 @@ class PanelAccessibilityService : AccessibilityService() {
         val pkg = e.packageName?.toString() ?: return
         if (frame != null) {
             // another app came to the front (a button of the panel opened Settings, say): the panel goes
-            if (pkg != packageName && !SystemPanelLogic.isSystemUi(pkg)) hidePanel()
+            // Step 40b: the keyboard coming up (any keyboard app) is not "another app": the panel stays
+            if (pkg != packageName && !SystemPanelLogic.isSystemUi(pkg) && !isKeyboardPackage(pkg)) hidePanel()
             return
         }
         if (SystemPanel.strip(this)) {

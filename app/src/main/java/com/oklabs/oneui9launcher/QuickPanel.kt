@@ -245,7 +245,26 @@ class TilePager(context: Context, private val pages: List<View>) : FrameLayout(c
 
     override fun onTouchEvent(ev: MotionEvent): Boolean {
         if (!multi) return false
-        if (!dragging) return ev.actionMasked == MotionEvent.ACTION_DOWN // tap on empty space: keep the gesture
+        if (!dragging) {
+            // Step 40: a touch that starts on an EMPTY space of the box has no child to take it, so it comes straight here and onInterceptTouchEvent
+            // is never asked again: the sideways drag has to be recognised here too (before, swiping the pages from an empty space did nothing).
+            when (ev.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    settle?.cancel()
+                    downX = ev.x
+                    downY = ev.y
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = ev.x - downX
+                    val dy = ev.y - downY
+                    if (abs(dx) > slop && abs(dx) > abs(dy) * 1.2f) {
+                        beginDrag(ev)
+                        return true
+                    }
+                }
+            }
+            return ev.actionMasked == MotionEvent.ACTION_DOWN // tap on empty space: keep the gesture
+        }
         velocity?.addMovement(ev)
         when (ev.actionMasked) {
             MotionEvent.ACTION_MOVE -> place(ev.x - downX)

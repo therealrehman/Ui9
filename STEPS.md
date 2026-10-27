@@ -839,3 +839,9 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
   Everything else is the 1.0.40 project (no AppGallery pack, no release manifest changes).
 - Faster and smoother: open 170 -> 130 ms, close 110 -> 80 ms; closing fades from 100% on a smooth curve (no sudden drop to 20%); opening reaches full opacity sooner (50% / 55% of the move).
 - Version 1.0.45 (code 155). Not built or run on a phone. No new Quick panel icon set was found in 1.0.41-1.0.44.
+
+## Step 41 (redo) - touch fixes taken from the gesture-navigation zip, keyboard no longer closes the panel
+- From the user's newer zip, only the Quick panel touch code: the button pages (`TilePager`) now also swipe sideways from an empty space, and `QuickNotifs.cardsAtRaw` counts only a touch ON a card (the empty part of the list is free for the page swipes).
+- Button detection (`SystemPanel` finding / pressing the phone's own buttons) and all icons (`QuickGlyph*`, `QuickIcons`) were already identical in that zip: nothing to copy. Not taken: navigation bar, Recents, Shizuku, ForceAccess, the Shizuku toggles in `QuickSystem`.
+- Keyboard: the zip has no fix for it; written here. When a keyboard window came up the service saw "another app came to the front" and hid the panel. `SystemPanel.isKeyboardPackage` (enabled input methods, plus any package with "inputmethod" / "keyboard" in the name) is now ignored there, so the panel stays.
+- Version 1.0.46 (code 156). Changed: `QuickPanel.kt`, `QuickNotifs.kt`, `SystemPanel.kt`, `build.gradle.kts`, `STEPS.md`. Not built or run on a phone.
