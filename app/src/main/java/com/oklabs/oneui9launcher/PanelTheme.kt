@@ -26,24 +26,17 @@ object PanelTheme {
         Solid("Graphite", Color.rgb(40, 44, 52))
     )
 
-    /** Step 25: ten more panel gradients (own table, so the dock and the wallpapers do not change). Colours run from the first corner to the last. */
-    private val extra: List<GradientDef> = listOf(
-        GradientDef("twilight", "Twilight", intArrayOf(Color.rgb(0xFF, 0x9A, 0x8B), Color.rgb(0x8E, 0x54, 0xE9), Color.rgb(0x2B, 0x1B, 0x6B)), 120f),
-        GradientDef("cherry", "Cherry", intArrayOf(Color.rgb(0xFF, 0x5E, 0x7E), Color.rgb(0xC2, 0x18, 0x5B), Color.rgb(0x4A, 0x0A, 0x2E)), 120f),
-        GradientDef("arctic", "Arctic", intArrayOf(Color.rgb(0xB8, 0xF1, 0xFF), Color.rgb(0x5C, 0xB8, 0xF2), Color.rgb(0x2A, 0x5B, 0xB8)), 115f),
-        GradientDef("neon", "Neon", intArrayOf(Color.rgb(0x39, 0xFF, 0xA8), Color.rgb(0x1E, 0x9B, 0xFF), Color.rgb(0x8A, 0x2B, 0xFF)), 125f),
-        GradientDef("sand", "Sand", intArrayOf(Color.rgb(0xF6, 0xD3, 0x65), Color.rgb(0xE0, 0x8F, 0x5A), Color.rgb(0x8C, 0x4A, 0x3A)), 110f),
-        GradientDef("lagoon", "Lagoon", intArrayOf(Color.rgb(0x2D, 0xE2, 0xC9), Color.rgb(0x12, 0x8F, 0xB8), Color.rgb(0x13, 0x3E, 0x7C)), 115f),
-        GradientDef("plum", "Plum", intArrayOf(Color.rgb(0xE0, 0x8B, 0xFF), Color.rgb(0x8B, 0x3F, 0xC9), Color.rgb(0x35, 0x14, 0x5E)), 120f),
-        GradientDef("citrus", "Citrus", intArrayOf(Color.rgb(0xD4, 0xFF, 0x6B), Color.rgb(0xFF, 0xC1, 0x3D), Color.rgb(0xFF, 0x6B, 0x2C)), 110f),
-        GradientDef("steel", "Steel", intArrayOf(Color.rgb(0xA8, 0xB8, 0xD0), Color.rgb(0x5E, 0x74, 0x95), Color.rgb(0x25, 0x31, 0x4A)), 105f),
-        GradientDef("dawn", "Dawn", intArrayOf(Color.rgb(0xFF, 0xD8, 0xA8), Color.rgb(0xFF, 0x8E, 0x9E), Color.rgb(0x7A, 0x5C, 0xE6)), 130f)
-    )
-
     /** All panel gradients, in the order of their saved numbers: the first five of [Gradients], then [extra]. */
-    private val grads: List<GradientDef> = Gradients.all.take(5) + extra
+    private val grads: List<GradientDef> = Gradients.all.take(5) + Gradients.panelExtra
 
     private var index = 0
+
+    /** Step 61: the wallpaper that matches panel colour number [i] (white glass -> a soft frost; solids -> light-to-dark shades; gradients -> the same gradient). */
+    fun wallpaperFor(i: Int): GradientDef = when {
+        i <= 0 -> Gradients.frost
+        i <= solids.size -> Gradients.solidWallpaper(solids[i - 1].name, solids[i - 1].rgb)
+        else -> grads[i - solids.size - 1]
+    }
 
     fun load(context: Context) {
         index = context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getInt(KEY, 0).coerceIn(0, COUNT - 1)

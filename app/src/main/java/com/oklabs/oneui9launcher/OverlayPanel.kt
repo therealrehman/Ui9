@@ -21,6 +21,7 @@ import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
 import android.view.KeyEvent
+import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -344,6 +345,7 @@ class PanelOverlayService : Service() {
             removeButton()
             wm.addView(built.host, params)
             built.host.applyFallbackInsets()
+            built.host.coverNavigationBar() // Step 61
             if (startOnNotifs) built.notifs.open() else built.quick.open()
             built.host.requestFocus()
         } catch (e: Exception) {
@@ -661,6 +663,29 @@ class PanelOverlayService : Service() {
             return insets
         }
 
+        /**
+         * Step 61: the panel covers the whole screen, also the navigation bar. A window of this kind is drawn BELOW the navigation bar, so the
+         * only way is to ask the phone to hide the bar while the panel is open (it comes back with a swipe up from the bottom edge, and when the
+         * panel closes). Best effort: a phone that refuses simply keeps its bar. Switch: Settings > Quick panel > "Cover the navigation bar".
+         */
+        @Suppress("DEPRECATION")
+        fun coverNavigationBar() {
+            if (!context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getBoolean(PREF_COVER_NAV, true)) return
+            try {
+                if (Build.VERSION.SDK_INT >= 30) {
+                    windowInsetsController?.let {
+                        it.hide(WindowInsets.Type.navigationBars())
+                        it.systemBarsBehavior = android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    }
+                } else {
+                    systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                        View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                }
+            } catch (e: Exception) {
+                // the phone keeps its bar
+            }
+        }
+
         fun applyFallbackInsets() {
             setBars(statusBarHeight(), 0)
         }
@@ -677,6 +702,7 @@ class PanelOverlayService : Service() {
     }
 
     companion object {
+        const val PREF_COVER_NAV = "qp_cover_nav" // Step 61
         const val ACTION_SHOW = "com.oklabs.oneui9launcher.PANEL_SHOW"
         const val ACTION_SHOW_NOTIFS = "com.oklabs.oneui9launcher.PANEL_SHOW_NOTIFS"
         const val ACTION_HIDE = "com.oklabs.oneui9launcher.PANEL_HIDE"

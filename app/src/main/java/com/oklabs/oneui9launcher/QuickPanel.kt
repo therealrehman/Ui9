@@ -379,6 +379,7 @@ class QuickPanel(
     private val body = CappedScrollView(context)
     private val tiles = ArrayList<Pair<String, TileView>>()
     private var slider: PillSlider? = null
+    private var sOnSlider = false // Step 61: the current touch began on a slider (brightness or volume)
     private var tilePager: TilePager? = null
     private var colourStrip: View? = null // Step 37: the row of panel colours under the header
     private var colourOpen = false
@@ -431,6 +432,7 @@ class QuickPanel(
                 swiped = false
                 dragging = false
                 sListBlocks = notifs?.blocksSwipeUpAtRaw(sDownX, sDownY) ?: false
+                sOnSlider = (slider?.let { insideRaw(it, sDownX, sDownY) } ?: false) || (cards?.sliderAtRaw(sDownX, sDownY) ?: false) // Step 61
                 tracker.clear()
                 tracker.add(ev.eventTime, ev.rawY)
             }
@@ -443,7 +445,7 @@ class QuickPanel(
                 if (swiped) return true
                 val dy = sDownY - ev.rawY
                 val dx = ev.rawX - sDownX
-                val free = editor == null && gallery == null && !layoutEdit && slider?.isDragging != true
+                val free = editor == null && gallery == null && !layoutEdit && slider?.isDragging != true && cards?.anySliderDragging() != true
                 if (free && !sListBlocks && PanelSwipe.startsDrag(dx, dy, density) &&
                     (!body.canScrollVertically(1) || sDownScroll == 0 && dy > closeSwipe * 3 / 2)
                 ) {
@@ -454,7 +456,7 @@ class QuickPanel(
                     dragTo(dy)
                     return true
                 }
-                if (free && dx < -sideSwipe.toFloat() && -dx > abs(ev.rawY - sDownY) * 2f &&
+                if (free && !sOnSlider && dx < -sideSwipe.toFloat() && -dx > abs(ev.rawY - sDownY) * 2f &&
                     !(notifs?.cardsAtRaw(sDownX, sDownY) ?: false) &&
                     !(tilePager?.let { it.multi && it.containsRaw(sDownX, sDownY) } ?: false) &&
                     !(colourStrip?.let { insideRaw(it, sDownX, sDownY) } ?: false)

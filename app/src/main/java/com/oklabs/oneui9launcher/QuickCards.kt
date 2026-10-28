@@ -407,6 +407,19 @@ class QuickCards(context: Context, private val say: (String) -> Unit, private va
         for (v in extraSliders) v.visibility = if (expanded) VISIBLE else GONE
     }
 
+    /** Step 61: true when a finger at screen position ([x], [y]) is on one of the volume sliders (so the panel does not read a sideways drag there as "go to Notifications"). */
+    fun sliderAtRaw(x: Float, y: Float): Boolean {
+        val loc = IntArray(2)
+        for ((_, s, _) in sliders) {
+            if (s.visibility != View.VISIBLE || s.width == 0) continue
+            s.getLocationOnScreen(loc)
+            if (x >= loc[0] && x <= loc[0] + s.width && y >= loc[1] && y <= loc[1] + s.height) return true
+        }
+        return false
+    }
+
+    fun anySliderDragging(): Boolean = sliders.any { it.second.isDragging }
+
     /** Moves the sliders to the phone's volumes (never one that is being dragged). */
     fun refreshVolumes() {
         val am = audio ?: return

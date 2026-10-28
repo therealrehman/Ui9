@@ -183,6 +183,7 @@ class HomeSettingsActivity : Activity() {
             TERMS -> termsPage()
             PERMISSIONS -> permissionsPage()
             ABOUT -> aboutPage()
+            GUIDE -> guidePage()
             OPEN_SOURCE -> openSourcePage()
             else -> mainPage()
         }
@@ -375,6 +376,11 @@ class HomeSettingsActivity : Activity() {
             kit.row(SettingsTile.LOCK, SettingsTile.PURPLE, "Permissions and data use", "What each permission is for") { go(PERMISSIONS) }
         )
 
+        kit.label(box, "Help")
+        kit.card(
+            box,
+            kit.row(SettingsTile.INFO, SettingsTile.GREEN, "How to use", "Home screen, Quick panel, gestures, wallpapers: a short guide") { go(GUIDE) }
+        )
         kit.label(box, "About")
         kit.card(
             box,
@@ -578,7 +584,7 @@ class HomeSettingsActivity : Activity() {
             else -> tileWidth * 16 / 9
         }
         var rowView: LinearLayout? = null
-        for ((index, def) in Gradients.all.withIndex()) {
+        for ((index, def) in Gradients.wallpapers.withIndex()) {
             if (index % columns == 0) {
                 rowView = LinearLayout(this)
                 rowView.orientation = LinearLayout.HORIZONTAL
@@ -592,7 +598,7 @@ class HomeSettingsActivity : Activity() {
         }
 
         val button = TextView(this)
-        button.text = if (wpSel >= 0) "Set \u201C${Gradients.all[wpSel].name}\u201D as wallpaper" else "Pick a wallpaper"
+        button.text = if (wpSel >= 0) "Set \u201C${Gradients.wallpapers[wpSel].name}\u201D as wallpaper" else "Pick a wallpaper"
         button.gravity = Gravity.CENTER
         button.setTextColor(Look.panel(255))
         button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
@@ -645,8 +651,10 @@ class HomeSettingsActivity : Activity() {
     }
 
     /** Draws the picked gradient at the phone's screen size (portrait, landscape or square) and makes it the wallpaper. */
-    private fun applyWallpaper() {
-        val def = Gradients.all.getOrNull(wpSel)
+    private fun applyWallpaper() = applyWallpaperDef(Gradients.wallpapers.getOrNull(wpSel))
+
+    /** Step 61: also used by Quick panel > "Wallpaper in the panel colour". */
+    private fun applyWallpaperDef(def: GradientDef?) {
         if (def == null) {
             toast("Pick a wallpaper first")
             return
@@ -688,6 +696,14 @@ class HomeSettingsActivity : Activity() {
             kit.panelThemeDots("Panel colour", PanelTheme.saved(this)) { i ->
                 prefs().edit().putInt(PanelTheme.KEY, i).apply()
                 PanelTheme.load(this)
+                if (prefs().getBoolean("qp_wp_follow", false)) applyWallpaperDef(PanelTheme.wallpaperFor(i))
+            },
+            kit.chips("Wallpaper set on", listOf("Home", "Lock", "Both"), wpTarget) { wpTarget = it },
+            kit.row(-1, 0, "Wallpaper in this panel colour", "Makes a wallpaper of the same colour as the panel (" + PanelTheme.name(PanelTheme.saved(this)) + ")") {
+                applyWallpaperDef(PanelTheme.wallpaperFor(PanelTheme.saved(this)))
+            },
+            kit.toggle(-1, 0, "Wallpaper follows the panel colour", "Every time you pick a panel colour the wallpaper changes to match", prefs().getBoolean("qp_wp_follow", false)) { on ->
+                prefs().edit().putBoolean("qp_wp_follow", on).apply()
             }
         )
         kit.note(box, "White glass is the default. It colours the Quick panel and the Notifications page.")
@@ -727,6 +743,9 @@ class HomeSettingsActivity : Activity() {
                 -1, 0, "Draw over other apps",
                 if (OverlayPanel.canDraw(this)) "Allowed" else "Not allowed: tap to allow"
             ) { OverlayPanel.openPermissionScreen(this) },
+            kit.toggle(-1, 0, "Cover the navigation bar", "On: the panel hides the phone's bottom buttons while it is open, so it fills the whole screen (swipe up from the bottom edge to see them)", prefs().getBoolean(PanelOverlayService.PREF_COVER_NAV, true)) { on ->
+                prefs().edit().putBoolean(PanelOverlayService.PREF_COVER_NAV, on).apply()
+            },
             kit.row(-1, 0, "Show panel now", "Test the panel over this screen") {
                 if (!OverlayPanel.showNow()) toast("Switch on \"Quick panel over other apps\" and allow \"Draw over other apps\" first")
             }
@@ -1517,6 +1536,48 @@ class HomeSettingsActivity : Activity() {
         "?"
     }
 
+    // ------------------------------------------------------------------ How to use (Step 61)
+
+    private fun guidePage(): View = kit.page("How to use", { goBack() }) { box ->
+        fun part(title: String, vararg lines: String) {
+            kit.label(box, title)
+            kit.note(box, lines.joinToString("\n\n"))
+        }
+        part(
+            "1. First minutes",
+            "Settings > Set as default: make this launcher your Home app. Press Home once to see it.",
+            "Long-press an empty spot on the Home screen: Edit Home screen, Widgets, Wallpaper and Settings. Drag icons to move them, drop one on another to make a folder."
+        )
+        part(
+            "2. Quick panel and Notifications",
+            "On the Home screen, swipe down: the Quick panel (buttons, brightness, volume, music) opens. Swipe left on it for the Notifications page, swipe right to come back. Swipe up (or press Back) to close.",
+            "Sliders: drag the finger along a slider to change brightness or volume. A sideways drag on a slider never switches the page. Tap Edit (the pencil) to move, add or remove buttons; Settings > Quick panel changes colours and icons.",
+            "The Notifications page needs Notification access (the app asks once)."
+        )
+        part(
+            "3. The panel inside every app (no Accessibility)",
+            "Settings > Quick panel > Quick panel over other apps: switch on and allow Draw over other apps. Then open the panel from any app with: the Top handle (swipe down on the thin strip under the status bar), the Floating button, the Quick Settings tile (add it from the phone's own shade, pencil button), the notification, or the app icon's long-press shortcuts.",
+            "More triggers: double-tap and long-press on the handle, left / right half swipes, shake. Smart rules hide the handle in full-screen videos, with the keyboard, on the lock screen.",
+            "The phone's own status bar can not be replaced without Accessibility, so the panel is opened from the strip, not from the status bar. Cover the navigation bar (Settings > Quick panel) hides the phone's bottom buttons while the panel is open; swipe up from the bottom edge to bring them back."
+        )
+        part(
+            "4. Panel colours and matching wallpapers",
+            "Settings > Quick panel > Colour: pick a panel colour (white glass, solid colours, gradients). Right under it: Wallpaper in this panel colour makes a wallpaper of the same colour, and Wallpaper follows the panel colour does it every time you pick a colour.",
+            "Settings > Wallpaper lists all gradients, the panel colours too. Choose Portrait / Landscape and where to set it (Home, Lock, Both)."
+        )
+        part(
+            "5. Widgets, folders, search",
+            "Long-press Home > Widgets: pick a widget, then drag to move and use the corner handles to resize. The built-in clock widget has gradient themes and fonts.",
+            "Swipe up on Home for all apps; the letters on the right jump to a letter. The search bar finds apps and the web."
+        )
+        part(
+            "6. If something does not work",
+            "Panel does not open over apps: check both switches (Quick panel over other apps, Draw over other apps).",
+            "Handle or button disappears after a while: Settings > Quick panel > Keep alive / Setup check shows the battery and protected-apps screens of your phone (Huawei, Vivo, Xiaomi...). Allow Auto-start and No restrictions for this app.",
+            "Settings > Backup saves and restores your Home layout."
+        )
+    }
+
     private fun aboutPage(): View = kit.page("About", { goBack() }) { box ->
         val head = LinearLayout(this)
         head.orientation = LinearLayout.VERTICAL
@@ -1794,11 +1855,12 @@ class HomeSettingsActivity : Activity() {
         private const val TERMS = "terms"
         private const val PERMISSIONS = "permissions"
         private const val ABOUT = "about"
+        private const val GUIDE = "guide"
         private const val OPEN_SOURCE = "opensource"
 
         /** Pages a caller may ask for with [EXTRA_PAGE]. */
         private val PAGES = setOf(
-            HOME, APPS, DOCK, WALLPAPER, QUICK, ICONS, LOOK, GESTURES, BADGES, EDGE, HIDE, ROTATION, BACKUP, CONTACT, PRIVACY, TERMS, PERMISSIONS, ABOUT
+            HOME, APPS, DOCK, WALLPAPER, QUICK, ICONS, LOOK, GESTURES, BADGES, EDGE, HIDE, ROTATION, BACKUP, CONTACT, PRIVACY, TERMS, PERMISSIONS, ABOUT, GUIDE
         )
 
         // The launcher's saved settings (same keys the Home screen reads).
