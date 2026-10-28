@@ -871,3 +871,11 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - Settings > Quick panel > **Top handle**: a thin strip right under the status bar; a swipe down on it opens the Quick panel over any app (needs the step 50 switch and "Draw over other apps", no Accessibility). Options: On / Off, pill shown or invisible, Middle / Left / Right, width, height, distance below the status bar, vibrate.
 - The strip is removed while the panel is open and comes back after; setting changes apply at once (the service listens to the preferences).
 - New `TopHandle.kt`; changed `OverlayPanel.kt`, `HomeSettingsActivity.kt`, `build.gradle.kts`, `PLAN_NO_ACCESSIBILITY.md`, `STEPS.md`. Version 1.0.51 (code 161). Syntax-checked with the compiler (only the known API-34 and R errors remain); not run on a phone.
+
+## Step 52 - Quick Settings tile, App shortcut, notification options (Huawei plan, step 3 of 8)
+- **Quick Settings tile** "Quick panel" (`PanelTileService`): the person adds it in the phone's own shade (pencil / edit button). Tap = the shade closes and the panel opens over the app. The tile is "active" when the step 50 switch is on and "Draw over other apps" is allowed; otherwise a tap opens the launcher settings and says what is missing.
+- **App shortcuts** (long-press the launcher's icon in the phone's own launcher): "Quick panel" and "Notifications" (the panel straight on the Notifications page). `res/xml/shortcuts.xml`, shortcut icon `ic_shortcut_panel.xml`.
+- Both start the new invisible `PanelShortcutActivity`, which starts the panel service (an activity on screen may always start it).
+- **Notification options** (Settings > Quick panel > "The Quick panel notification"): tap opens the Quick panel or the Notifications page; show / hide the "Settings" button; "Hide the notification" opens the phone's own category screen (the service needs the notification, so the launcher can not remove it itself). Changes apply at once.
+- New: `PanelTile.kt` (`PanelNote`, `PanelShortcutActivity`, `PanelTileService`), `res/xml/shortcuts.xml`, `res/values/strings_panel.xml`, `res/drawable/ic_shortcut_panel.xml`. Changed: `AndroidManifest.xml`, `OverlayPanel.kt`, `HomeSettingsActivity.kt`, `build.gradle.kts`, `PLAN_NO_ACCESSIBILITY.md`, `STEPS.md`. Version 1.0.52 (code 162). Not compiled and not run on a phone.
+

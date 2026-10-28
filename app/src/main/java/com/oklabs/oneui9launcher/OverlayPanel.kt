@@ -43,6 +43,7 @@ object OverlayPanel {
     fun setWanted(context: Context, on: Boolean) {
         prefs(context).edit().putBoolean(PREF_ON, on).apply()
         sync(context)
+        PanelTileService.requestUpdate(context) // Step 52: the Quick Settings tile looks again
     }
 
     /** "Draw over other apps" allowed for this app? */
@@ -109,8 +110,11 @@ class PanelOverlayService : Service() {
         TopHandle.PREF_ON, TopHandle.PREF_WIDTH, TopHandle.PREF_HEIGHT, TopHandle.PREF_OFFSET,
         TopHandle.PREF_SIDE, TopHandle.PREF_VISIBLE, TopHandle.PREF_HAPTIC
     )
+    private val noteKeys = setOf(PanelNote.PREF_ACTION, PanelNote.PREF_TAP)
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key != null && key in handleKeys) refreshHandle()
+        if (key != null && key in noteKeys) refreshNotification() // Step 52
+        if (key == OverlayPanel.PREF_ON) PanelTileService.requestUpdate(this) // Step 52: the tile looks again
     }
 
     private val screenOff = object : BroadcastReceiver() {
@@ -166,6 +170,14 @@ class PanelOverlayService : Service() {
 
     // ------------------------------------------------------------------ the foreground notification (also the first way to open the panel)
 
+    private fun refreshNotification() {
+        try {
+            startAsForeground()
+        } catch (e: Exception) {
+            // the notification keeps its old look
+        }
+    }
+
     private fun startAsForeground() {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= 26) {
@@ -174,20 +186,23 @@ class PanelOverlayService : Service() {
             nm.createNotificationChannel(channel)
         }
         val flags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        val open = PendingIntent.getService(this, 1, Intent(this, PanelOverlayService::class.java).setAction(ACTION_SHOW), flags)
+        val tapNotifs = PanelNote.tapPage(this) == 1
+        val open = PendingIntent.getService(
+            this, 1, Intent(this, PanelOverlayService::class.java).setAction(if (tapNotifs) ACTION_SHOW_NOTIFS else ACTION_SHOW), flags
+        )
         val settings = PendingIntent.getActivity(
             this, 2, Intent(this, HomeSettingsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), flags
         )
         val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, CHANNEL) else Notification.Builder(this)
-        val note = builder
+        builder
             .setSmallIcon(R.drawable.ic_stat_panel)
             .setContentTitle(getString(R.string.app_name) + " Quick panel")
-            .setContentText("Tap to open the Quick panel")
+            .setContentText(if (tapNotifs) "Tap to open the Notifications page" else "Tap to open the Quick panel")
             .setOngoing(true)
             .setShowWhen(false)
             .setContentIntent(open)
-            .addAction(Notification.Action.Builder(null, "Settings", settings).build())
-            .build()
+        if (PanelNote.showAction(this)) builder.addAction(Notification.Action.Builder(null, "Settings", settings).build())
+        val note = builder.build()
         if (Build.VERSION.SDK_INT >= 34) startForeground(NOTE_ID, note, FGS_SPECIAL_USE) else startForeground(NOTE_ID, note)
     }
 

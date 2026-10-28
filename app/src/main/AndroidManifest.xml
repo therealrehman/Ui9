@@ -129,7 +129,32 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Step 52 (Huawei plan, step 3): long-press the app icon: Quick panel / Notifications. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
+
+        <!-- Step 52: the invisible screen the Quick Settings tile and the App shortcuts start; it opens the Quick panel. -->
+        <activity
+            android:name=".PanelShortcutActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- Step 52: the "Quick panel" tile for the phone's Quick Settings. -->
+        <service
+            android:name=".PanelTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_stat_panel"
+            android:label="Quick panel"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
 
         <!-- Step 6c1: the launcher's own widgets. They show up in the widget picker like any other app's widgets. -->
         <receiver

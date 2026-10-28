@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="open_quick_panel"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_panel"
+        android:shortcutShortLabel="@string/shortcut_panel_short"
+        android:shortcutLongLabel="@string/shortcut_panel_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.oklabs.oneui9launcher"
+            android:targetClass="com.oklabs.oneui9launcher.PanelShortcutActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="open_notifications_page"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_panel"
+        android:shortcutShortLabel="@string/shortcut_notifs_short"
+        android:shortcutLongLabel="@string/shortcut_notifs_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.oklabs.oneui9launcher"
+            android:targetClass="com.oklabs.oneui9launcher.PanelShortcutActivity">
+            <extra android:name="notifs" android:value="true" />
+        </intent>
+    </shortcut>
+</shortcuts>

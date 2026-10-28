@@ -698,6 +698,33 @@ class HomeSettingsActivity : Activity() {
         )
         kit.note(box, "The handle is part of \"Quick panel over other apps\" above (it needs that switch and \"Draw over other apps\"). It can only sit UNDER the status bar: a pull-down that starts on the status bar itself still goes to the phone. It is hidden while the panel is open.")
 
+        kit.label(box, "Quick Settings tile and App shortcut")
+        kit.card(
+            box,
+            kit.row(
+                -1, 0, "Quick Settings tile",
+                "Pull the phone's shade down fully, tap the pencil / edit button and drag the \"Quick panel\" tile into the list. Tapping it closes the shade and opens the panel."
+            ) { toast("Pull the shade down fully, tap the pencil / edit button and add \"Quick panel\"") },
+            kit.row(
+                -1, 0, "App shortcut",
+                "Long-press this app's icon (in the phone's own launcher): \"Quick panel\" and \"Notifications\" open the panel."
+            ) { toast("Long-press the app icon of this launcher in another launcher's app list") }
+        )
+        kit.label(box, "The Quick panel notification")
+        kit.card(
+            box,
+            kit.chips("Tap on the notification opens", listOf("Quick panel", "Notifications page"), PanelNote.tapPage(this)) { i ->
+                prefs().edit().putInt(PanelNote.PREF_TAP, i).apply()
+            },
+            kit.toggle(-1, 0, "Show the \"Settings\" button", "A button under the notification that opens the launcher settings", PanelNote.showAction(this)) { on ->
+                prefs().edit().putBoolean(PanelNote.PREF_ACTION, on).apply()
+            },
+            kit.row(-1, 0, "Hide the notification", "Opens the phone's own screen for it: switch the \"Quick panel\" notification category off. The panel keeps working.") {
+                openNotificationChannelSettings()
+            }
+        )
+        kit.note(box, "The notification is what keeps the panel service alive, so it can not be removed from the launcher. Switching its category off in the phone's own settings hides it (on Android 13+ you can also swipe it away) and the top handle, tile and shortcut keep working.")
+
         kit.note(
             box,
             "This needs no Accessibility service. Android shows this kind of window above apps but BELOW the phone's status bar, so the status bar itself can not be taken over: " +
@@ -780,6 +807,22 @@ class HomeSettingsActivity : Activity() {
     }
 
     /** Android 13+: the small notification of the panel service needs this to be shown (the panel works without it). */
+    /** Step 52: the phone's own settings of the "Quick panel" notification category (it can be switched off there). */
+    private fun openNotificationChannelSettings() {
+        try {
+            val i = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                .putExtra(Settings.EXTRA_CHANNEL_ID, "quick_panel_overlay")
+            startActivity(i)
+        } catch (e: Exception) {
+            try {
+                startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
+            } catch (e2: Exception) {
+                toast("Open the phone's notification settings for this app")
+            }
+        }
+    }
+
     private fun askNotificationPermission() {
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 50)

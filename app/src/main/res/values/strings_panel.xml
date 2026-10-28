@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Huawei plan, step 3: labels of the App shortcuts (long-press the launcher's icon). -->
+    <string name="shortcut_panel_short">Quick panel</string>
+    <string name="shortcut_panel_long">Open the Quick panel</string>
+    <string name="shortcut_notifs_short">Notifications</string>
+    <string name="shortcut_notifs_long">Open the Notifications page</string>
+</resources>
