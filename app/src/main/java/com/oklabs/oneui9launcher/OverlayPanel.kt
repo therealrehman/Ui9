@@ -11,6 +11,8 @@ import android.content.ContextWrapper
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.PixelFormat
+import android.content.SharedPreferences
+import android.view.Gravity
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
@@ -101,6 +103,15 @@ private class ServiceUiContext(base: Context) : ContextWrapper(base) {
 class PanelOverlayService : Service() {
 
     private var frame: HostFrame? = null
+    private var handle: TopHandleView? = null // Step 2: the thin strip under the status bar
+
+    private val handleKeys = setOf(
+        TopHandle.PREF_ON, TopHandle.PREF_WIDTH, TopHandle.PREF_HEIGHT, TopHandle.PREF_OFFSET,
+        TopHandle.PREF_SIDE, TopHandle.PREF_VISIBLE, TopHandle.PREF_HAPTIC
+    )
+    private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key != null && key in handleKeys) refreshHandle()
+    }
 
     private val screenOff = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -114,6 +125,12 @@ class PanelOverlayService : Service() {
         super.onCreate()
         instance = this
         startAsForeground()
+        try {
+            getSharedPreferences("launcher", MODE_PRIVATE).registerOnSharedPreferenceChangeListener(prefListener)
+        } catch (e: Exception) {
+            // the handle then follows the settings only when the service starts again
+        }
+        refreshHandle()
         try {
             registerReceiver(screenOff, IntentFilter(Intent.ACTION_SCREEN_OFF))
         } catch (e: Exception) {
@@ -131,6 +148,12 @@ class PanelOverlayService : Service() {
     }
 
     override fun onDestroy() {
+        try {
+            getSharedPreferences("launcher", MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(prefListener)
+        } catch (e: Exception) {
+            // not registered
+        }
+        removeHandle()
         hidePanel()
         try {
             unregisterReceiver(screenOff)
@@ -237,6 +260,7 @@ class PanelOverlayService : Service() {
             if (Build.VERSION.SDK_INT >= 28) params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
             params.setTitle("Quick panel")
             frame = built.host
+            removeHandle() // the panel covers the strip while it is open
             wm.addView(built.host, params)
             built.host.applyFallbackInsets()
             if (startOnNotifs) built.notifs.open() else built.quick.open()
@@ -254,7 +278,66 @@ class PanelOverlayService : Service() {
         } catch (e: Exception) {
             // already removed
         }
+        refreshHandle() // the strip comes back when the panel is gone
     }
+
+    // ------------------------------------------------------------------ Step 2: the top handle
+
+    /** Puts the strip on screen, takes it away or moves it, so that it matches the settings (and is not there while the panel is open). */
+    private fun refreshHandle() {
+        try {
+            val want = TopHandle.wanted(this) && OverlayPanel.canDraw(this) && frame == null
+            if (!want) {
+                removeHandle()
+                return
+            }
+            val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            val view = handle ?: TopHandleView(ServiceUiContext(this), true, true) { android.os.Handler(android.os.Looper.getMainLooper()).post { showPanel(false) } }.also { handle = it }
+            view.showPill = TopHandle.visible(this)
+            view.buzz = TopHandle.haptic(this)
+            val screenW = resources.displayMetrics.widthPixels
+            val w = (screenW * TopHandle.widthPct(this) / 100f).toInt().coerceAtLeast(dp(48))
+            val params = WindowManager.LayoutParams(
+                w, dp(TopHandle.heightDp(this)),
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+                PixelFormat.TRANSLUCENT
+            )
+            params.gravity = Gravity.TOP or when (TopHandle.side(this)) {
+                1 -> Gravity.START
+                2 -> Gravity.END
+                else -> Gravity.CENTER_HORIZONTAL
+            }
+            params.y = statusBarPx() + dp(TopHandle.offsetDp(this))
+            params.setTitle("Quick panel handle")
+            if (view.parent != null) {
+                wm.updateViewLayout(view, params)
+                view.invalidate()
+            } else {
+                wm.addView(view, params)
+            }
+        } catch (e: Exception) {
+            handle = null // a window that could not be added is made again next time
+        }
+    }
+
+    private fun removeHandle() {
+        val view = handle ?: return
+        handle = null
+        try {
+            (getSystemService(Context.WINDOW_SERVICE) as WindowManager).removeViewImmediate(view)
+        } catch (e: Exception) {
+            // already removed
+        }
+    }
+
+    private fun statusBarPx(): Int {
+        val id = resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (id > 0) resources.getDimensionPixelSize(id) else dp(28)
+    }
+
+    private fun dp(v: Int): Int = (v * resources.displayMetrics.density + 0.5f).toInt()
 
     /** The overlay's root: Back closes the panel, and it hands the status / navigation bar sizes to the panels. */
     private inner class HostFrame(context: Context, private val quick: QuickPanel, private val notifs: NotificationPage) : FrameLayout(context) {

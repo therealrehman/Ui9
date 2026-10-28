@@ -671,10 +671,37 @@ class HomeSettingsActivity : Activity() {
                 if (!OverlayPanel.showNow()) toast("Switch on \"Quick panel over other apps\" and allow \"Draw over other apps\" first")
             }
         )
+        kit.label(box, "Top handle (a swipe down under the status bar)")
+        kit.card(
+            box,
+            kit.toggle(-1, 0, "Top handle", "A thin strip right under the status bar: swipe down on it to open the Quick panel", TopHandle.wanted(this)) { on ->
+                prefs().edit().putBoolean(TopHandle.PREF_ON, on).apply()
+            },
+            kit.toggle(-1, 0, "Show the handle", "On: a small pill is drawn. Off: the strip is there but you can not see it", TopHandle.visible(this)) { on ->
+                prefs().edit().putBoolean(TopHandle.PREF_VISIBLE, on).apply()
+            },
+            kit.chips("Place", listOf("Middle", "Left", "Right"), TopHandle.side(this)) { i ->
+                prefs().edit().putInt(TopHandle.PREF_SIDE, i).apply()
+            },
+            kit.slider("Width", 80, TopHandle.widthPct(this) - 20, { (it + 20).toString() + "%" }) { v ->
+                prefs().edit().putInt(TopHandle.PREF_WIDTH, TopHandle.clampWidth(v + 20)).apply()
+            },
+            kit.slider("Height (touch area)", 40, TopHandle.heightDp(this) - 8, { (it + 8).toString() + " dp" }) { v ->
+                prefs().edit().putInt(TopHandle.PREF_HEIGHT, TopHandle.clampHeight(v + 8)).apply()
+            },
+            kit.slider("Distance below the status bar", 60, TopHandle.offsetDp(this), { it.toString() + " dp" }) { v ->
+                prefs().edit().putInt(TopHandle.PREF_OFFSET, TopHandle.clampOffset(v)).apply()
+            },
+            kit.toggle(-1, 0, "Vibrate on swipe", null, TopHandle.haptic(this)) { on ->
+                prefs().edit().putBoolean(TopHandle.PREF_HAPTIC, on).apply()
+            }
+        )
+        kit.note(box, "The handle is part of \"Quick panel over other apps\" above (it needs that switch and \"Draw over other apps\"). It can only sit UNDER the status bar: a pull-down that starts on the status bar itself still goes to the phone. It is hidden while the panel is open.")
+
         kit.note(
             box,
             "This needs no Accessibility service. Android shows this kind of window above apps but BELOW the phone's status bar, so the status bar itself can not be taken over: " +
-                "the panel opens from the notification of this switch (more ways come next: a top handle, a Quick Settings tile, a floating button). " +
+                "the panel opens from the notification of this switch (the top handle above is the second way; more come next: a Quick Settings tile, a floating button). " +
                 "Nothing on the screen is read; the panel is only drawn over the app you are in."
         )
 

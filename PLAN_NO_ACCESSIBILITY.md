@@ -1,7 +1,7 @@
 # Quick panel without Accessibility (Huawei-safe) - plan and tracker
 
 This file travels inside every zip of this plan. It says what is DONE, what is LEFT, what is known to be limited, and how to test.
-(Last update: step 1 of 8.)
+(Last update: step 2 of 8.)
 
 ## The one fact everything depends on
 A window made with "Draw over other apps" is shown ABOVE apps but BELOW the status bar and the notification shade (Android's own rule for this window type).
@@ -13,8 +13,8 @@ Not included, as you asked: no navigation bar.
 ## The 8 steps
 | # | Step | Status |
 |---|------|--------|
-| 1 | Foundation: "Quick panel over other apps" (Draw over other apps + a small foreground service), master On / Off, permission help, Show-now test, the service notification opens the panel | **DONE (this zip)** |
-| 2 | Top handle: a thin strip right under the status bar; swipe down on it opens the panel (position, width, height, visible pill or invisible, On / Off) | left |
+| 1 | Foundation: "Quick panel over other apps" (Draw over other apps + a small foreground service), master On / Off, permission help, Show-now test, the service notification opens the panel | DONE |
+| 2 | Top handle: a thin strip right under the status bar; swipe down on it opens the panel (position, width, height, visible pill or invisible, On / Off) | **DONE (this zip)** |
 | 3 | Quick Settings tile ("Quick panel" tile in the phone's own shade) + App shortcut + notification options (hide / show the notification action) | left |
 | 4 | Floating button (draggable, snaps to the edge, size, opacity, On / Off) | left |
 | 5 | Smart rules: hide the handle / button in full-screen apps and videos, when the keyboard is open, on the lock screen, when the screen is off; landscape on / off | left |
@@ -34,6 +34,20 @@ Not included, as you asked: no navigation bar.
 - Phone buttons found by the scan (vivoshare, Speed up...) need Accessibility: without it a tap says so. No scan toast is shown when Accessibility is not used.
 - New files: `OverlayPanel.kt` (`OverlayPanel`, `PanelOverlayService`), `res/drawable/ic_stat_panel.xml`. Changed: `AndroidManifest.xml`, `HomeSettingsActivity.kt`, `LauncherActivity.kt` (keeps the service matching the switch), `QuickSystem.kt`, `QuickPanel.kt`, `build.gradle.kts`.
 - New permissions: SYSTEM_ALERT_WINDOW, FOREGROUND_SERVICE, FOREGROUND_SERVICE_SPECIAL_USE, POST_NOTIFICATIONS.
+
+## Step 2 - what is in it
+- Settings > Quick panel > **Top handle**: On / Off, Show the handle (pill or invisible), Place (Middle / Left / Right), Width (20-100%), Height of the touch area (8-48 dp), Distance below the status bar (0-60 dp), Vibrate on swipe.
+- A swipe down on the strip (about 1.5x the touch slop, mostly down) opens the Quick panel over the app you are in. The strip is a small overlay window made by the same service as step 1, so it needs "Quick panel over other apps" switched on and "Draw over other apps" allowed.
+- While the panel is open the strip is removed; it comes back when the panel is gone. Changes in Settings move / resize the strip at once.
+- New file `TopHandle.kt` (`TopHandle` settings, `TopHandleView`). Changed: `OverlayPanel.kt`, `HomeSettingsActivity.kt`.
+- Not in this step (later steps): hiding the strip in full-screen apps / on the keyboard / on the lock screen (step 5), double-tap / long-press on the strip (step 6).
+
+## Test list for step 2 (on the phone)
+1. Switch on "Quick panel over other apps" (step 1 test list). A pill appears right under the status bar.
+2. In any app swipe down on the pill: the Quick panel opens. Close it: the pill is back.
+3. Change Place / Width / Height / Distance: the strip moves at once. "Show the handle" off: no pill, but the swipe still works on the same spot.
+4. Switch "Top handle" off: the strip is gone; the notification way still works.
+5. Known: the strip sits over the app, so it takes touches on its own area (that is the point); make it thinner or move it if it covers a button of an app.
 
 ## Test list for step 1 (on the phone)
 1. Settings > Quick panel > switch on "Quick panel over other apps". Allow "Draw over other apps", come back. A small notification "Quick panel" appears (if you allowed notifications).
