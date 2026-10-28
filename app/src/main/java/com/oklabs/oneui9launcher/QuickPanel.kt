@@ -836,6 +836,7 @@ class QuickPanel(
      * (Speed up, Record screen, vivoshare...). [again]: long-press on the pencil reads it again.
      */
     private fun maybeScan(again: Boolean = false) {
+        if (StoreBuild.noAccessibility(context)) return // Step 8: the store build never uses the Accessibility service
         val prefs = context.getSharedPreferences("launcher", Context.MODE_PRIVATE)
         if (!again) {
             if (!SystemPanel.wanted(context)) return // Step 50: Accessibility is not used, so there is nothing to read and nothing to complain about

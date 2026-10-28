@@ -3,4 +3,6 @@
     <!-- Step 36: true = the Quick panel service may fall back to windows of other apps when it cannot find the phone's own panel (debug builds).
          The release / store build sets it to false (app/src/release/res/values/bools_store.xml). -->
     <bool name="qs_other_windows">true</bool>
+    <!-- Step 8 (Huawei plan): true in the release / store build: no Accessibility service in the manifest, no Accessibility rows or texts. -->
+    <bool name="store_no_accessibility">false</bool>
 </resources>

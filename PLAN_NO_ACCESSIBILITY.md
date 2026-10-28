@@ -1,7 +1,7 @@
 # Quick panel without Accessibility (Huawei-safe) - plan and tracker
 
 This file travels inside every zip of this plan. It says what is DONE, what is LEFT, what is known to be limited, and how to test.
-(Last update: step 7 of 8.)
+(Last update: step 8 of 8 - the plan is complete.)
 
 ## The one fact everything depends on
 A window made with "Draw over other apps" is shown ABOVE apps but BELOW the status bar and the notification shade (Android's own rule for this window type).
@@ -19,8 +19,8 @@ Not included, as you asked: no navigation bar.
 | 4 | Floating button (draggable, snaps to the edge, size, opacity, On / Off) | DONE |
 | 5 | Smart rules: hide the handle / button in full-screen apps and videos, when the keyboard is open, on the lock screen, when the screen is off; landscape on / off | DONE |
 | 6 | More triggers: double-tap and long-press on the handle, side swipes (left half = Notifications page, right half = Quick panel), optional shake to open | DONE |
-| 7 | Force / keep alive: start after reboot, restart after the phone's cleaner kills it, battery and "protected apps" help (Huawei screens), a Setup check page with green / red lines, one-time adb commands for the strongest settings | **DONE (this zip)** |
-| 8 | Huawei store build: the release build has NO Accessibility service in its manifest, the Accessibility rows are hidden there, the policy / AppGallery notes are updated, final test list | left |
+| 7 | Force / keep alive: start after reboot, restart after the phone's cleaner kills it, battery and "protected apps" help (Huawei screens), a Setup check page with green / red lines, one-time adb commands for the strongest settings | DONE |
+| 8 | Huawei store build: the release build has NO Accessibility service in its manifest, the Accessibility rows are hidden there, the policy / AppGallery notes are updated, final test list | **DONE (this zip)** |
 
 ## Step 1 - what is in it
 - Settings > Quick panel > **"In every app, no Accessibility (recommended)"**:
@@ -34,6 +34,9 @@ Not included, as you asked: no navigation bar.
 - Phone buttons found by the scan (vivoshare, Speed up...) need Accessibility: without it a tap says so. No scan toast is shown when Accessibility is not used.
 - New files: `OverlayPanel.kt` (`OverlayPanel`, `PanelOverlayService`), `res/drawable/ic_stat_panel.xml`. Changed: `AndroidManifest.xml`, `HomeSettingsActivity.kt`, `LauncherActivity.kt` (keeps the service matching the switch), `QuickSystem.kt`, `QuickPanel.kt`, `build.gradle.kts`.
 - New permissions: SYSTEM_ALERT_WINDOW, FOREGROUND_SERVICE, FOREGROUND_SERVICE_SPECIAL_USE, POST_NOTIFICATIONS.
+
+## Step 8 - what is in it
+- The release build has NO Accessibility service in its manifest; the Accessibility rows / texts are hidden there (`store_no_accessibility`, `StoreBuild.kt`). Policy pages and in-app text updated. `HUAWEI_APPGALLERY.md` has the checks, permission texts and the FINAL TEST LIST for the Huawei phone.
 
 ## Step 7 - what is in it
 - Settings > Quick panel > **Setup check** (green / red lines with a tap to fix), **Keep it running** (start after reboot / after being stopped + 15-minute check, adb commands). New `KeepAlive.kt`; changed `OverlayPanel.kt`, `HomeSettingsActivity.kt`, `AndroidManifest.xml`.

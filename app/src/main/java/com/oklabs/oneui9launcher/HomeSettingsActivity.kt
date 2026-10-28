@@ -650,7 +650,7 @@ class HomeSettingsActivity : Activity() {
         )
         kit.note(box, "Split: a swipe down on one half of the Home screen opens the Quick panel and on the other half the notifications. Notification panel: the launcher's own full-screen page (needs Notification access) or the phone's own panel.")
 
-        kit.label(box, "In every app, no Accessibility (recommended)")
+        kit.label(box, if (StoreBuild.noAccessibility(this)) "In every app" else "In every app, no Accessibility (recommended)")
         val opOn = OverlayPanel.wanted(this) && OverlayPanel.canDraw(this)
         kit.card(
             box,
@@ -846,10 +846,11 @@ class HomeSettingsActivity : Activity() {
         kit.note(
             box,
             "This needs no Accessibility service. Android shows this kind of window above apps but BELOW the phone's status bar, so the status bar itself can not be taken over: " +
-                "the panel opens from the notification of this switch (the top handle above is the second way; more come next: a Quick Settings tile, a floating button). " +
+                "the panel opens from the notification of this switch, the top handle, the floating button, the Quick Settings tile, the app shortcut, or a shake (all set up below). " +
                 "Nothing on the screen is read; the panel is only drawn over the app you are in."
         )
 
+        if (!StoreBuild.noAccessibility(this)) { // Step 8: the store build has no Accessibility service, so none of these rows exist there
         kit.label(box, "In every app, with Accessibility (optional)")
         val spOn = SystemPanel.wanted(this) && SystemPanel.serviceEnabled(this)
         kit.card(
@@ -876,6 +877,7 @@ class HomeSettingsActivity : Activity() {
                 "It does not read your screen; the picture is only blurred and shown, never saved or sent. With \"Catch swipes\" off it falls back to noticing the phone's panel and closing it (it can flicker). Tapping the status bar itself does nothing while the bar is on. " +
                 "Last system window seen: " + (SystemPanel.lastSeen(this).ifEmpty { "none yet" })
         )
+        }
 
         kit.label(box, "Layout")
         kit.card(
@@ -1359,7 +1361,7 @@ class HomeSettingsActivity : Activity() {
         for (section in LegalText.privacy) {
             val block = textBlock(section)
             if (section.heading.startsWith("4.")) {
-                for (permission in LegalText.permissions) block.addView(permissionView(permission))
+                for (permission in LegalText.visible(this)) block.addView(permissionView(permission))
             }
             kit.space(box, 10)
             kit.card(box, block)
@@ -1379,9 +1381,9 @@ class HomeSettingsActivity : Activity() {
     private fun permissionsPage(): View = kit.page("Permissions and data use", { goBack() }) { box ->
         kit.note(box, "What {app} can access on this phone and why. It collects no data and has no internet access.".let { LegalText.fill(this, it) })
         kit.label(box, "Always on")
-        kit.card(box, *LegalText.permissions.filter { !it.optional }.map { permissionView(it) }.toTypedArray())
+        kit.card(box, *LegalText.visible(this).filter { !it.optional }.map { permissionView(it) }.toTypedArray())
         kit.label(box, "Only if you turn the feature on")
-        kit.card(box, *LegalText.permissions.filter { it.optional }.map { permissionView(it) }.toTypedArray())
+        kit.card(box, *LegalText.visible(this).filter { it.optional }.map { permissionView(it) }.toTypedArray())
         kit.label(box, "Data collected")
         kit.card(box, kit.paragraph("None. Your layout and settings stay on this phone. You can erase them by clearing the app's storage or uninstalling it."))
         footer(box)

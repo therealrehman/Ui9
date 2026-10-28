@@ -76,7 +76,7 @@ object SystemPanel {
 
     private fun prefs(context: Context) = context.getSharedPreferences("launcher", Context.MODE_PRIVATE)
 
-    fun wanted(context: Context): Boolean = prefs(context).getBoolean(PREF_ON, false)
+    fun wanted(context: Context): Boolean = !StoreBuild.noAccessibility(context) && prefs(context).getBoolean(PREF_ON, false)
 
     fun loose(context: Context): Boolean = prefs(context).getBoolean(PREF_LOOSE, false)
 
@@ -86,6 +86,7 @@ object SystemPanel {
 
     /** True when the person switched the Accessibility service on in Android settings. */
     fun serviceEnabled(context: Context): Boolean {
+        if (StoreBuild.noAccessibility(context)) return false // Step 8: the store build has no such service
         val flat = Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: return false
         return flat.split(':').any { ComponentName.unflattenFromString(it)?.className == PanelAccessibilityService::class.java.name }
     }

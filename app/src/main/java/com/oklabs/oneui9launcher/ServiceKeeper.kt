@@ -22,6 +22,7 @@ object ServiceKeeper {
     private var told = false
 
     fun check(context: Context): Result {
+        if (StoreBuild.noAccessibility(context)) return Result.NOT_ON // Step 8: the store build has no Accessibility service
         val mine = ComponentName(context, PanelAccessibilityService::class.java)
         val listed = try {
             Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: ""

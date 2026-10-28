@@ -9,7 +9,7 @@ import android.content.Context
  */
 object LegalText {
 
-    const val EFFECTIVE = "October 20, 2026"
+    const val EFFECTIVE = "October 29, 2026"
 
     class Section(val heading: String, val paragraphs: List<String>)
 
@@ -203,6 +203,10 @@ object LegalText {
     /** What each permission / access is for. Shown on Settings > Permissions and data use. */
     class Permission(val name: String, val why: String, val optional: Boolean)
 
+    /** The permission list for this build: the store build has no Accessibility service, so that entry is left out. */
+    fun visible(context: Context): List<Permission> =
+        permissions.filter { !(it.name.startsWith("Accessibility service") && StoreBuild.noAccessibility(context)) }
+
     val permissions: List<Permission> = listOf(
         Permission(
             "Seeing installed apps",
@@ -223,6 +227,19 @@ object LegalText {
             "Only if you turn on “Open in every app” in Settings > Quick panel. The service listens only for “a window changed” events, to notice that the phone's own status-bar panel opened, " +
                 "closes that panel and shows this app's Quick panel instead. It cannot read the text or content of other apps, and nothing is saved, shared or sent anywhere. " +
                 "Switch it off in Android Settings > Accessibility.",
+            true
+        ),
+        Permission(
+            "Display over other apps, notifications and keeping the Quick panel ready",
+            "Only if you turn on “Quick panel over other apps” in Settings > Quick panel. “Draw over other apps” lets the app draw its Quick panel, the thin top handle and the floating button over the app you are using. " +
+                "A small foreground service keeps them ready and shows one quiet notification (tap it to open the panel). The app can restart this service after the phone restarts or after the phone stopped it " +
+                "(permission to receive the boot-completed message, and alarms that start it again). Nothing on the screen is read and nothing is saved, shared or sent. Switch it off in the same Settings screen.",
+            true
+        ),
+        Permission(
+            "Motion sensor (Shake to open)",
+            "Only if you turn on “Shake to open” in Settings > Quick panel. While the screen is on, the app listens to the phone's motion sensor to notice two firm shakes and then opens the Quick panel. " +
+                "The readings are not stored or sent; they are discarded at once. No permission is needed for this sensor.",
             true
         ),
         Permission(

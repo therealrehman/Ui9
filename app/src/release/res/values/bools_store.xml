@@ -2,4 +2,6 @@
 <resources>
     <!-- Step 36: the store build never looks at other apps' windows. -->
     <bool name="qs_other_windows">false</bool>
+    <!-- Step 8: the store build has no Accessibility service (see app/src/release/AndroidManifest.xml). -->
+    <bool name="store_no_accessibility">true</bool>
 </resources>

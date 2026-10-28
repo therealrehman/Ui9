@@ -5,4 +5,10 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:node="remove" />
+
+    <!-- Step 8 (Huawei plan): the store build has NO Accessibility service. The same name as in the main manifest, so the merger removes exactly that one.
+         The Quick panel then works through "Draw over other apps" (the top handle, the floating button, the tile, the shortcut, the notification, shake). -->
+    <application>
+        <service android:name=".PanelAccessibilityService" tools:node="remove" />
+    </application>
 </manifest>
