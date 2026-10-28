@@ -368,6 +368,7 @@ class LauncherActivity : Activity() {
     }
 
     override fun onPause() {
+        PanelOverlayService.setHomePanelOpen(false)
         dragLayer.dismiss()
         folderLayer.close(animated = false)
         widgetPicker.close(animated = false)
@@ -1236,13 +1237,19 @@ class LauncherActivity : Activity() {
                 toast("Can't open Settings")
             }
         }
-        quickPanel.onOpenChanged = { animateOverlayBlur() }
+        quickPanel.onOpenChanged = { animateOverlayBlur(); syncHomePanelFlag() }
         root.quick = quickPanel
         root.addView(
             quickPanel,
             FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         )
         quickPanel.setInsets(insetTop, insetBottom)
+    }
+
+    /** Step 62: tells the overlay service whether a Home panel is open (it then hides the strip and the floating button). */
+    private fun syncHomePanelFlag() {
+        val open = (::quickPanel.isInitialized && quickPanel.isOpen) || (::notifPage.isInitialized && notifPage.isOpen)
+        PanelOverlayService.setHomePanelOpen(open)
     }
 
     private fun openQuickPanel() {
@@ -1258,7 +1265,7 @@ class LauncherActivity : Activity() {
     /** The Notifications page: same layer level as the Quick panel (only one of them is open at a time). */
     private fun buildNotifPage() {
         notifPage = NotificationPage(this) { openNotificationSettings() }
-        notifPage.onOpenChanged = { animateOverlayBlur() }
+        notifPage.onOpenChanged = { animateOverlayBlur(); syncHomePanelFlag() }
         notifPage.onSwitchPage = { switchPanels(toNotifs = false) }
         quickPanel.onSwitchPage = { switchPanels(toNotifs = true) }
         root.notifPage = notifPage

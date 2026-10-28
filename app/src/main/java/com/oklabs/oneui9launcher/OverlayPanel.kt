@@ -117,7 +117,7 @@ class PanelOverlayService : Service() {
     private var probeFullscreen = false
     private var probeKeyboard = false
     private var lastHidden = false
-    private val uiHandler = Handler(Looper.getMainLooper())
+    val uiHandler = Handler(Looper.getMainLooper())
     private val probeTick = object : Runnable {
         override fun run() {
             val p = probe ?: return
@@ -369,9 +369,9 @@ class PanelOverlayService : Service() {
     // ------------------------------------------------------------------ Step 2: the top handle
 
     /** Puts the strip on screen, takes it away or moves it, so that it matches the settings (and is not there while the panel is open). */
-    private fun refreshHandle() {
+    fun refreshHandle() {
         try {
-            val want = TopHandle.wanted(this) && OverlayPanel.canDraw(this) && frame == null && !smartHidden()
+            val want = TopHandle.wanted(this) && OverlayPanel.canDraw(this) && frame == null && !homePanelOpen && !smartHidden()
             if (!want) {
                 removeHandle()
                 return
@@ -463,9 +463,9 @@ class PanelOverlayService : Service() {
     private fun freeH(): Int = (resources.displayMetrics.heightPixels - dp(FloatButton.sizeDp(this))).coerceAtLeast(1)
 
     /** Puts the button on screen, takes it away, or changes its size / look / place, so that it matches the settings. */
-    private fun refreshButton() {
+    fun refreshButton() {
         try {
-            val want = FloatButton.wanted(this) && OverlayPanel.canDraw(this) && frame == null && !smartHidden()
+            val want = FloatButton.wanted(this) && OverlayPanel.canDraw(this) && frame == null && !homePanelOpen && !smartHidden()
             if (!want) {
                 removeButton()
                 return
@@ -715,5 +715,15 @@ class PanelOverlayService : Service() {
         /** The running service (null when it is off). */
         @Volatile
         var instance: PanelOverlayService? = null
+
+        /** Step 62: the Quick panel / Notifications page of the Home screen itself is open: the strip and the floating button are taken away meanwhile. */
+        @Volatile
+        var homePanelOpen = false
+
+        fun setHomePanelOpen(open: Boolean) {
+            if (homePanelOpen == open) return
+            homePanelOpen = open
+            instance?.let { svc -> svc.uiHandler.post { svc.refreshHandle(); svc.refreshButton() } }
+        }
     }
 }

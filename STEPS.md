@@ -952,3 +952,7 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - **How to use** page (Settings > Help): Home, Quick panel, panel in every app, colours + wallpapers, widgets, troubleshooting.
 - Changed: `QuickCards.kt`, `QuickPanel.kt`, `OverlayPanel.kt`, `Gradients.kt`, `PanelTheme.kt`, `HomeSettingsActivity.kt`, `build.gradle.kts`, `STEPS.md`. Version 1.0.60 (code 170). Not compiled and not run on a phone.
 - **Left for step 62:** (1) test result of the nav bar hiding on the Vivo phone; if it refuses, a darker bottom strip in the panel colour so the bar does not look like a different colour; (2) Notifications page bottom buttons when the bar stays; (3) guide with pictures / first-run tips; (4) any compile errors you send me.
+
+## Step 62 - no strip on the Home screen's own Quick panel (final)
+- When the Quick panel or the Notifications page is opened on the Home screen itself (swipe down on Home), the top handle strip and the floating button are taken away while it is open, and come back when it closes (also when the launcher goes to the background). Before, the strip stayed drawn over the Home panel (the thin bar at the top of the panel). `PanelOverlayService.homePanelOpen` / `setHomePanelOpen`, `LauncherActivity.syncHomePanelFlag`.
+- Changed: `OverlayPanel.kt`, `LauncherActivity.kt`, `build.gradle.kts`, `STEPS.md`. Version 1.0.61 (code 171). Not compiled and not run on a phone. Open from step 61: nav bar test on the Vivo phone.
