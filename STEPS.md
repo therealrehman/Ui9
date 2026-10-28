@@ -892,3 +892,11 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - Honest limit: some phones do not give the keyboard inset to windows of other apps; then the keyboard rule never fires (nothing breaks). Needs a test on the Huawei phone.
 - New `SmartRules.kt` (`SmartRules` settings + pure `hidden(...)`, `SmartProbeView`). Changed: `OverlayPanel.kt`, `HomeSettingsActivity.kt`, `build.gradle.kts`, `PLAN_NO_ACCESSIBILITY.md`, `STEPS.md`. No new permission. Version 1.0.54 (code 164). Not compiled and not run on a phone.
 
+## Step 55 - more triggers (Huawei plan, step 6 of 8)
+- Settings > Quick panel > **More ways to open the panel**:
+  - **Double-tap on the top handle** and **Long-press on the top handle**: each can do Nothing / open the Quick panel / open the Notifications page (both Nothing by default).
+  - **Side swipes on the handle**: swipe down on the left half = Notifications page, right half = Quick panel (off = a swipe anywhere on the handle opens the Quick panel, as in step 51).
+  - **Shake to open**: two firm jolts within 0.9 s open the Quick panel. Strength Gentle / Normal / Firm. Off by default. The motion sensor is listened to only while the screen is on, drawing is allowed and the switch is on; it does nothing on the lock screen or while the panel is open.
+- `TopHandleView` now reports "Quick panel or Notifications page" and tells taps, long-presses and swipes apart (a long-press or a move cancels the double-tap). Changes apply at once. Shake logic is in the pure class `ShakeDetector` (time passed in, testable).
+- New `MoreTriggers.kt` (`MoreTriggers` settings, `ShakeDetector`). Changed: `TopHandle.kt`, `OverlayPanel.kt`, `HomeSettingsActivity.kt`, `build.gradle.kts`, `PLAN_NO_ACCESSIBILITY.md`, `STEPS.md`. No new permission. Version 1.0.55 (code 165). Not compiled and not run on a phone.
+

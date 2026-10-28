@@ -40,12 +40,26 @@ object TopHandle {
 }
 
 /** The strip itself. [onSwipe] runs once per touch, when a swipe down is recognised. */
-class TopHandleView(context: Context, var showPill: Boolean, var buzz: Boolean, private val onSwipe: () -> Unit) : View(context) {
+class TopHandleView(context: Context, var showPill: Boolean, var buzz: Boolean, private val onOpen: (Boolean) -> Unit) : View(context) {
+    /** Step 6: [onOpen] gets false = open the Quick panel, true = open the Notifications page. These say what the extra gestures do. */
+    var splitSides = false
+    var doubleAction = MoreTriggers.ACT_NONE
+    var longAction = MoreTriggers.ACT_NONE
+    private var lastTapAt = 0L
+    private var moved = false
+    private val longRun = Runnable {
+        if (!fired && !moved && longAction != MoreTriggers.ACT_NONE) {
+            fired = true
+            if (buzz) performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            onOpen(longAction == MoreTriggers.ACT_NOTIFS)
+        }
+    }
     private val slop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rect = RectF()
     private var downX = 0f
     private var downY = 0f
+    private var downLocalX = 0f
     private var fired = false
 
     override fun onDraw(canvas: Canvas) {
@@ -62,16 +76,38 @@ class TopHandleView(context: Context, var showPill: Boolean, var buzz: Boolean, 
             MotionEvent.ACTION_DOWN -> {
                 downX = ev.rawX
                 downY = ev.rawY
+                downLocalX = ev.x
                 fired = false
+                moved = false
+                removeCallbacks(longRun)
+                if (longAction != MoreTriggers.ACT_NONE) postDelayed(longRun, ViewConfiguration.getLongPressTimeout().toLong())
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
+                if (abs(ev.rawX - downX) > slop || abs(ev.rawY - downY) > slop) {
+                    moved = true
+                    removeCallbacks(longRun)
+                }
                 if (!fired && TopHandle.isSwipeDown(ev.rawX - downX, ev.rawY - downY, slop)) {
                     fired = true
                     if (buzz) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                    onSwipe()
+                    onOpen(MoreTriggers.swipeToNotifs(downLocalX, width, splitSides))
                 }
             }
+            MotionEvent.ACTION_UP -> {
+                removeCallbacks(longRun)
+                if (!fired && !moved && doubleAction != MoreTriggers.ACT_NONE) {
+                    val now = ev.eventTime
+                    if (lastTapAt != 0L && now - lastTapAt <= ViewConfiguration.getDoubleTapTimeout()) {
+                        lastTapAt = 0L
+                        if (buzz) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                        onOpen(doubleAction == MoreTriggers.ACT_NOTIFS)
+                    } else {
+                        lastTapAt = now
+                    }
+                }
+            }
+            MotionEvent.ACTION_CANCEL -> removeCallbacks(longRun)
         }
         return true
     }

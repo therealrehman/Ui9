@@ -698,6 +698,27 @@ class HomeSettingsActivity : Activity() {
         )
         kit.note(box, "The handle is part of \"Quick panel over other apps\" above (it needs that switch and \"Draw over other apps\"). It can only sit UNDER the status bar: a pull-down that starts on the status bar itself still goes to the phone. It is hidden while the panel is open.")
 
+        kit.label(box, "More ways to open the panel")
+        kit.card(
+            box,
+            kit.chips("Double-tap on the handle", listOf("Nothing", "Quick panel", "Notifications"), MoreTriggers.doubleTap(this)) { i ->
+                prefs().edit().putInt(MoreTriggers.PREF_DOUBLE, i).apply()
+            },
+            kit.chips("Long-press on the handle", listOf("Nothing", "Quick panel", "Notifications"), MoreTriggers.longPress(this)) { i ->
+                prefs().edit().putInt(MoreTriggers.PREF_LONG, i).apply()
+            },
+            kit.toggle(-1, 0, "Side swipes on the handle", "Swipe down on the left half of the handle: Notifications page. On the right half: Quick panel", MoreTriggers.split(this)) { on ->
+                prefs().edit().putBoolean(MoreTriggers.PREF_SPLIT, on).apply()
+            },
+            kit.toggle(-1, 0, "Shake to open", "Shake the phone twice: the Quick panel opens (only while the screen is on and unlocked)", MoreTriggers.shake(this)) { on ->
+                prefs().edit().putBoolean(MoreTriggers.PREF_SHAKE, on).apply()
+            },
+            kit.chips("Shake strength needed", listOf("Gentle", "Normal", "Firm"), MoreTriggers.shakeLevel(this)) { i ->
+                prefs().edit().putInt(MoreTriggers.PREF_SHAKE_LEVEL, i).apply()
+            }
+        )
+        kit.note(box, "The handle gestures need the Top handle switched on. Double-tap and long-press are off by default. Shake uses the phone's motion sensor only while the screen is on, so it uses very little battery, but it can open the panel by mistake when you walk fast or ride a bike: use \"Firm\" then, or leave it off. Everything here still needs \"Quick panel over other apps\" and \"Draw over other apps\".")
+
         kit.label(box, "Floating button")
         kit.card(
             box,

@@ -1,7 +1,7 @@
 # Quick panel without Accessibility (Huawei-safe) - plan and tracker
 
 This file travels inside every zip of this plan. It says what is DONE, what is LEFT, what is known to be limited, and how to test.
-(Last update: step 5 of 8.)
+(Last update: step 6 of 8.)
 
 ## The one fact everything depends on
 A window made with "Draw over other apps" is shown ABOVE apps but BELOW the status bar and the notification shade (Android's own rule for this window type).
@@ -17,8 +17,8 @@ Not included, as you asked: no navigation bar.
 | 2 | Top handle: a thin strip right under the status bar; swipe down on it opens the panel (position, width, height, visible pill or invisible, On / Off) | DONE |
 | 3 | Quick Settings tile ("Quick panel" tile in the phone's own shade) + App shortcut + notification options (hide / show the notification action) | DONE |
 | 4 | Floating button (draggable, snaps to the edge, size, opacity, On / Off) | DONE |
-| 5 | Smart rules: hide the handle / button in full-screen apps and videos, when the keyboard is open, on the lock screen, when the screen is off; landscape on / off | **DONE (this zip)** |
-| 6 | More triggers: double-tap and long-press on the handle, side swipes (left half = Notifications page, right half = Quick panel), optional shake to open | left |
+| 5 | Smart rules: hide the handle / button in full-screen apps and videos, when the keyboard is open, on the lock screen, when the screen is off; landscape on / off | DONE |
+| 6 | More triggers: double-tap and long-press on the handle, side swipes (left half = Notifications page, right half = Quick panel), optional shake to open | **DONE (this zip)** |
 | 7 | Force / keep alive: start after reboot, restart after the phone's cleaner kills it, battery and "protected apps" help (Huawei screens), a Setup check page with green / red lines, one-time adb commands for the strongest settings | left |
 | 8 | Huawei store build: the release build has NO Accessibility service in its manifest, the Accessibility rows are hidden there, the policy / AppGallery notes are updated, final test list | left |
 
@@ -34,6 +34,9 @@ Not included, as you asked: no navigation bar.
 - Phone buttons found by the scan (vivoshare, Speed up...) need Accessibility: without it a tap says so. No scan toast is shown when Accessibility is not used.
 - New files: `OverlayPanel.kt` (`OverlayPanel`, `PanelOverlayService`), `res/drawable/ic_stat_panel.xml`. Changed: `AndroidManifest.xml`, `HomeSettingsActivity.kt`, `LauncherActivity.kt` (keeps the service matching the switch), `QuickSystem.kt`, `QuickPanel.kt`, `build.gradle.kts`.
 - New permissions: SYSTEM_ALERT_WINDOW, FOREGROUND_SERVICE, FOREGROUND_SERVICE_SPECIAL_USE, POST_NOTIFICATIONS.
+
+## Step 6 - what is in it
+- Settings > Quick panel > **More ways to open the panel**: double-tap and long-press on the top handle (Nothing / Quick panel / Notifications), side swipes (left half = Notifications, right half = Quick panel), Shake to open (Gentle / Normal / Firm; motion sensor only while the screen is on). New `MoreTriggers.kt`; changed `TopHandle.kt`, `OverlayPanel.kt`, `HomeSettingsActivity.kt`.
 
 ## Step 5 - what is in it
 - Settings > Quick panel > **Smart rules**: hide the handle and the floating button in full-screen apps / videos, while the keyboard is open, on the lock screen, while the screen is off, and (optional) in landscape. Each rule has its own switch. They never hide the panel, the notification, the tile or the shortcut.
@@ -54,6 +57,12 @@ Not included, as you asked: no navigation bar.
 - While the panel is open the strip is removed; it comes back when the panel is gone. Changes in Settings move / resize the strip at once.
 - New file `TopHandle.kt` (`TopHandle` settings, `TopHandleView`). Changed: `OverlayPanel.kt`, `HomeSettingsActivity.kt`.
 - Not in this step (later steps): hiding the strip in full-screen apps / on the keyboard / on the lock screen (step 5), double-tap / long-press on the strip (step 6).
+
+## Test list for step 6 (on the phone)
+1. Set "Double-tap on the handle" to Quick panel: two quick taps on the handle open it; one tap does nothing.
+2. Set "Long-press" to Notifications: hold the handle ~half a second: the Notifications page opens. Moving the finger first cancels it.
+3. "Side swipes" on: swipe down on the left half of the handle: Notifications page; right half: Quick panel. Off: both halves open the Quick panel.
+4. "Shake to open" on: shake the phone twice, firmly: the panel opens. Not on the lock screen. Try Gentle / Firm; tell me if it fires while walking.
 
 ## Test list for step 5 (on the phone)
 1. Switch on the handle and / or the floating button. Open a video in full screen (YouTube, gallery): both go away; leave full screen: they are back.

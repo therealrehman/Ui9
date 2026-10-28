@@ -130,12 +130,16 @@ class PanelOverlayService : Service() {
         TopHandle.PREF_SIDE, TopHandle.PREF_VISIBLE, TopHandle.PREF_HAPTIC
     )
     private val buttonKeys = setOf(FloatButton.PREF_ON, FloatButton.PREF_SIZE, FloatButton.PREF_ALPHA, FloatButton.PREF_SNAP, FloatButton.PREF_FX, FloatButton.PREF_FY, FloatButton.PREF_HAPTIC)
+    private val triggerKeys = setOf(MoreTriggers.PREF_DOUBLE, MoreTriggers.PREF_LONG, MoreTriggers.PREF_SPLIT)
+    private val shakeKeys = setOf(MoreTriggers.PREF_SHAKE, MoreTriggers.PREF_SHAKE_LEVEL)
     private val noteKeys = setOf(PanelNote.PREF_ACTION, PanelNote.PREF_TAP)
     private val smartKeys = setOf(
         SmartRules.PREF_FULLSCREEN, SmartRules.PREF_KEYBOARD, SmartRules.PREF_LOCK, SmartRules.PREF_SCREEN_OFF, SmartRules.PREF_LANDSCAPE
     )
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key != null && key in handleKeys) refreshHandle()
+        if (key != null && key in triggerKeys) refreshHandle() // Step 6
+        if (key != null && key in shakeKeys) updateShake()
         if (key != null && key in buttonKeys) refreshButton() // Step 53
         if (key != null && key in noteKeys) refreshNotification() // Step 52
         if (key != null && (key in smartKeys || key == TopHandle.PREF_ON || key == FloatButton.PREF_ON)) refreshSmart() // Step 54
@@ -146,6 +150,7 @@ class PanelOverlayService : Service() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_SCREEN_OFF) hidePanel()
             refreshSmart() // Step 54: screen on / off and unlock change what the smart rules say
+            updateShake() // Step 6: the sensor listens only while the screen is on
         }
     }
 
@@ -172,6 +177,7 @@ class PanelOverlayService : Service() {
         refreshHandle()
         refreshButton()
         updateProbe()
+        updateShake()
         try {
             registerReceiver(
                 screenOff,
@@ -201,6 +207,7 @@ class PanelOverlayService : Service() {
         } catch (e: Exception) {
             // not registered
         }
+        stopShake()
         removeProbe()
         removeHandle()
         removeButton()
@@ -356,9 +363,12 @@ class PanelOverlayService : Service() {
                 return
             }
             val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-            val view = handle ?: TopHandleView(ServiceUiContext(this), true, true) { android.os.Handler(android.os.Looper.getMainLooper()).post { showPanel(false) } }.also { handle = it }
+            val view = handle ?: TopHandleView(ServiceUiContext(this), true, true) { notifs -> android.os.Handler(android.os.Looper.getMainLooper()).post { showPanel(notifs) } }.also { handle = it }
             view.showPill = TopHandle.visible(this)
             view.buzz = TopHandle.haptic(this)
+            view.splitSides = MoreTriggers.split(this) // Step 6
+            view.doubleAction = MoreTriggers.doubleTap(this)
+            view.longAction = MoreTriggers.longPress(this)
             val screenW = resources.displayMetrics.widthPixels
             val w = (screenW * TopHandle.widthPct(this) / 100f).toInt().coerceAtLeast(dp(48))
             val params = WindowManager.LayoutParams(
@@ -384,6 +394,49 @@ class PanelOverlayService : Service() {
         } catch (e: Exception) {
             handle = null // a window that could not be added is made again next time
         }
+    }
+
+    // ------------------------------------------------------------------ Step 6: shake to open
+
+    private var shakeSensors: android.hardware.SensorManager? = null
+    private var shakeDetector: ShakeDetector? = null
+    private val shakeListener = object : android.hardware.SensorEventListener {
+        override fun onSensorChanged(event: android.hardware.SensorEvent) {
+            val d = shakeDetector ?: return
+            if (frame != null) return
+            if (d.onReading(event.values[0], event.values[1], event.values[2], android.os.SystemClock.elapsedRealtime())) {
+                if (!SmartRules.isLocked(this@PanelOverlayService)) showPanel(false)
+            }
+        }
+
+        override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
+    }
+
+    /** Listens to the motion sensor only when "Shake to open" is on, the screen is on and drawing is allowed (so the battery is not touched otherwise). */
+    private fun updateShake() {
+        try {
+            val want = MoreTriggers.shake(this) && OverlayPanel.canDraw(this) && SmartRules.isInteractive(this)
+            stopShake()
+            if (!want) return
+            val sm = getSystemService(Context.SENSOR_SERVICE) as android.hardware.SensorManager
+            val sensor = sm.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER) ?: return
+            shakeDetector = ShakeDetector(MoreTriggers.threshold(MoreTriggers.shakeLevel(this)))
+            shakeSensors = sm
+            sm.registerListener(shakeListener, sensor, android.hardware.SensorManager.SENSOR_DELAY_UI)
+        } catch (e: Exception) {
+            shakeSensors = null
+            shakeDetector = null
+        }
+    }
+
+    private fun stopShake() {
+        try {
+            shakeSensors?.unregisterListener(shakeListener)
+        } catch (e: Exception) {
+            // was not listening
+        }
+        shakeSensors = null
+        shakeDetector = null
     }
 
     // ------------------------------------------------------------------ Step 4: the floating button
