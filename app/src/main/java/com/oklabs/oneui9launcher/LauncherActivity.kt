@@ -783,8 +783,9 @@ class LauncherActivity : Activity() {
     private fun animateOverlayBlur() {
         // Step 25: the Quick panel no longer blurs what is behind it (blur + closing slide made the apps behind flash twice);
         // it uses a plain, stronger veil instead (see QuickPanel.open).
-        val open = folderLayer.isOpen || (::widgetPicker.isInitialized && widgetPicker.isOpen) ||
-            (::notifPage.isInitialized && notifPage.wantsBlur)
+        // Step 59: the Notifications page does not blur the Home screen any more (the apps behind it went blurry for a moment when the page was
+        // swiped away); like the Quick panel it only uses its veil.
+        val open = folderLayer.isOpen || (::widgetPicker.isInitialized && widgetPicker.isOpen)
         blurAnimator?.cancel()
         val anim = ValueAnimator.ofFloat(overlayBlur, if (open) 1f else 0f)
         anim.duration = 150

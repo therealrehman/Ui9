@@ -397,36 +397,64 @@ class QuickPanel(
     private val handler = Handler(Looper.getMainLooper())
 
     private val swipeSlop = ViewConfiguration.get(context).scaledTouchSlop
-    private val closeSwipe = context.dp(84) // Step 58: a swipe up must be a real swipe (about 84 dp), not a light touch; before it was ~16 dp
-    private val sideSwipe = context.dp(72) // Step 58: same for the swipe to the Notifications page
+    private val closeSwipe = context.dp(84) // only for a panel that scrolls: a swipe up that began at its top needs this much (x1.5) before it closes
+    private val sideSwipe = context.dp(72) // Step 58: a real swipe to the Notifications page, not a light touch
+    private val density = context.resources.displayMetrics.density
     private var sDownX = 0f
     private var sDownY = 0f
     private var sDownScroll = 0
     private var swiped = false
+    private var dragging = false // Step 59: the panel follows the finger up
+    private var dragBase = 0f
+    private var sListBlocks = false // the finger came down on a notification list that can still scroll down
+    private val tracker = FlingTracker()
+
+    /** How far the closing slide goes (the same as before: a third of the panel and a bit). */
+    private fun closeTravel(): Float = card.height * 0.35f + context.dp(24)
 
     /**
      * Step 32: the swipe up (close) and swipe left (Notifications) are read from raw positions and from ANY touch on the panel, also on
-     * empty spaces and beside the buttons (before, only touches that started on a button or a card were read). True = the swipe was taken.
+     * empty spaces and beside the buttons. True = the touch was taken.
+     * Step 59: the swipe up no longer closes at once. After about 18 dp the panel FOLLOWS the finger (fading), and when the finger lifts the
+     * distance (80 dp) or the speed of a flick decides: close with a normal glide, or glide back.
      */
     private fun swipeEvent(ev: MotionEvent): Boolean {
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                if (!closing && card.translationY != 0f) {
+                    card.animate().cancel() // a new touch while the panel was still gliding back
+                    resetDragLook()
+                }
                 sDownX = ev.rawX
                 sDownY = ev.rawY
                 sDownScroll = body.scrollY // Step 39: where the panel was scrolled when the finger came down
                 swiped = false
+                dragging = false
+                sListBlocks = notifs?.blocksSwipeUpAtRaw(sDownX, sDownY) ?: false
+                tracker.clear()
+                tracker.add(ev.eventTime, ev.rawY)
             }
             MotionEvent.ACTION_MOVE -> {
-                if (swiped) return true
-                val slop = swipeSlop
-                val dy = sDownY - ev.rawY
-                if (editor == null && gallery == null && !layoutEdit && slider?.isDragging != true && !(notifs?.scrollsAtRaw(sDownX, sDownY) ?: false) && dy > closeSwipe && dy > abs(ev.rawX - sDownX) * 1.5f && (!body.canScrollVertically(1) || sDownScroll == 0 && dy > closeSwipe * 3 / 2)) {
-                    swiped = true
-                    close(true)
+                tracker.add(ev.eventTime, ev.rawY)
+                if (dragging) {
+                    dragTo(sDownY - ev.rawY)
                     return true
                 }
+                if (swiped) return true
+                val dy = sDownY - ev.rawY
                 val dx = ev.rawX - sDownX
-                if (editor == null && gallery == null && !layoutEdit && slider?.isDragging != true && dx < -sideSwipe.toFloat() && -dx > abs(ev.rawY - sDownY) * 2f &&
+                val free = editor == null && gallery == null && !layoutEdit && slider?.isDragging != true
+                if (free && !sListBlocks && PanelSwipe.startsDrag(dx, dy, density) &&
+                    (!body.canScrollVertically(1) || sDownScroll == 0 && dy > closeSwipe * 3 / 2)
+                ) {
+                    swiped = true
+                    dragging = true
+                    dragBase = dy
+                    card.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                    dragTo(dy)
+                    return true
+                }
+                if (free && dx < -sideSwipe.toFloat() && -dx > abs(ev.rawY - sDownY) * 2f &&
                     !(notifs?.cardsAtRaw(sDownX, sDownY) ?: false) &&
                     !(tilePager?.let { it.multi && it.containsRaw(sDownX, sDownY) } ?: false) &&
                     !(colourStrip?.let { insideRaw(it, sDownX, sDownY) } ?: false)
@@ -436,13 +464,56 @@ class QuickPanel(
                     return true
                 }
             }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> if (dragging) {
+                dragging = false
+                tracker.add(ev.eventTime, ev.rawY)
+                val dy = sDownY - ev.rawY
+                if (ev.actionMasked == MotionEvent.ACTION_UP && PanelSwipe.shouldClose(dy, tracker.velocity(), density)) close(true, fromDrag = true) else springBack()
+                return true
+            }
         }
         return false
     }
 
+    /** Step 59: the panel (and its veil) follow the finger [dy] pixels up from where the finger came down; [dragBase] is the part before it started. */
+    private fun dragTo(dy: Float) {
+        val d = (dy - dragBase).coerceAtLeast(0f)
+        val q = (d / closeTravel()).coerceIn(0f, 1f)
+        card.translationY = -d
+        card.alpha = Motion.fadeOut(q)
+        scrim.alpha = Motion.fadeOut(q)
+        scrim.translationY = card.translationY
+    }
+
+    /** The finger let go too early: the panel glides back to its place. */
+    private fun springBack() {
+        card.animate().cancel()
+        card.animate().translationY(0f).setDuration(PanelSwipe.BACK_MS).setInterpolator(PanelSwipe.GLIDE)
+            .setUpdateListener {
+                val q = (-card.translationY / closeTravel()).coerceIn(0f, 1f)
+                card.alpha = Motion.fadeOut(q)
+                scrim.alpha = Motion.fadeOut(q)
+                scrim.translationY = card.translationY
+            }
+            .withEndAction { resetDragLook() }
+            .start()
+    }
+
+    /** Everything a drag or a glide may have left on the panel is put back. */
+    private fun resetDragLook() {
+        card.animate().setUpdateListener(null)
+        card.setLayerType(View.LAYER_TYPE_NONE, null)
+        Motion.setBlur(card, 0f)
+        card.alpha = 1f
+        card.translationY = 0f
+        scrim.alpha = 1f
+        scrim.translationY = 0f
+    }
+
     /** Closing after a swipe up. */
     private inner class SwipeCard(context: Context) : LinearLayout(context) {
-        override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = swipeEvent(ev)
+        // The swipe is read in dispatchTouchEvent, before any child (see below), so nothing is read twice here.
+        override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = false
 
         /**
          * Step 39: the swipe is read from EVERY touch before any child sees it. A child that takes the touch for itself (the scrolling panel body,
@@ -464,11 +535,8 @@ class QuickPanel(
             return super.dispatchTouchEvent(ev)
         }
 
-        // a touch that starts on an empty space ends up here (no child took it), so the swipe is read here too
-        override fun onTouchEvent(event: MotionEvent): Boolean {
-            swipeEvent(event)
-            return true
-        }
+        // a touch that starts on an empty space ends up here (no child took it): taken, so the rest of the touch comes here too
+        override fun onTouchEvent(event: MotionEvent): Boolean = true
     }
 
     private val receiver = object : BroadcastReceiver() {
@@ -1236,6 +1304,8 @@ class QuickPanel(
         card.alpha = 1f
         Motion.setBlur(card, 0f)
         closing = false
+        dragging = false
+        swiped = false
         editor = null
         gallery = null
         colourOpen = false
@@ -1288,8 +1358,9 @@ class QuickPanel(
         onOpenChanged?.invoke()
     }
 
-    fun close(animated: Boolean) {
+    fun close(animated: Boolean, fromDrag: Boolean = false) {
         if (!isOpen || closing) return
+        dragging = false
         card.animate().cancel()
         scrim.animate().cancel()
         unwatchPhone()
@@ -1310,14 +1381,19 @@ class QuickPanel(
             return
         }
         closing = true
-        // Step 35: the moment the swipe up is accepted the opacity falls straight from 100% to 20%, then runs down to 0 while the panel
-        // slides up fast. No blur while closing (changing a blur on every frame was a source of glitches); the card is one picture while it moves.
-        card.alpha = Motion.CLOSE_START_ALPHA
-        scrim.alpha = Motion.CLOSE_START_ALPHA
+        // Step 35: a tap / Back closes fast: the opacity falls straight from 100% and the panel slides up in 80 ms. No blur while closing.
+        // Step 59: after a swipe up ([fromDrag]) the panel is already part-way, so it simply carries on from where the finger left it
+        // (opacity and place as they are) and glides the rest in about 0.2 s.
+        if (!fromDrag) {
+            card.alpha = Motion.CLOSE_START_ALPHA
+            scrim.alpha = Motion.CLOSE_START_ALPHA
+        }
         card.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-        val travel = -(card.height * 0.35f + context.dp(24))
-        card.animate().translationY(travel).setDuration(Motion.CLOSE_MS)
-            .setInterpolator(Motion.CLOSE)
+        val travel = -closeTravel()
+        val target = if (fromDrag) min(card.translationY, travel) else travel
+        val ms = if (fromDrag) PanelSwipe.closeMs((card.translationY / travel).coerceIn(0f, 1f)) else Motion.CLOSE_MS
+        card.animate().translationY(target).setDuration(ms)
+            .setInterpolator(if (fromDrag) PanelSwipe.GLIDE else Motion.CLOSE)
             .setUpdateListener {
                 val q = (card.translationY / travel).coerceIn(0f, 1f)
                 card.alpha = Motion.fadeOut(q)
@@ -1327,7 +1403,7 @@ class QuickPanel(
             .withEndAction { finishClose() }.start()
         // Step 39: if the end of the slide is never reported (the animation was cancelled, the window was busy) the panel would stay on the screen,
         // invisible, and take every touch. This makes sure it is gone a moment after the slide should have ended.
-        handler.postDelayed({ finishClose() }, Motion.CLOSE_MS + 250L)
+        handler.postDelayed({ finishClose() }, ms + 250L)
         // The blur fades while the panel slides away.
         post { onOpenChanged?.invoke() }
     }
@@ -1421,7 +1497,7 @@ class QuickPanel(
 
         private val circle = FrameLayout(context)
         private val glyph = QuickGlyph(context, def.glyph).also {
-            if (def.id.startsWith(QuickTiles.CUSTOM_PREFIX) && def.glyph == QuickGlyph.GRID) it.letter = def.label.trim().take(1).uppercase()
+            if (QuickTiles.isLetterButton(def.id) && def.glyph == QuickGlyph.GRID) it.letter = def.label.trim().take(1).uppercase()
         }
         private val label = TextView(context)
         private val sub = TextView(context)
@@ -1467,7 +1543,7 @@ class QuickPanel(
             val c = context
             val on = state.on
             val picked = QuickIcons.of(def.id)
-            glyph.letter = if (picked == null && def.id.startsWith(QuickTiles.CUSTOM_PREFIX) && state.glyph == QuickGlyph.GRID) def.label.trim().take(1).uppercase() else if (picked == QuickGlyph.GRID) def.label.trim().take(1).uppercase() else null
+            glyph.letter = if (picked == null && QuickTiles.isLetterButton(def.id) && state.glyph == QuickGlyph.GRID) def.label.trim().take(1).uppercase() else if (picked == QuickGlyph.GRID) def.label.trim().take(1).uppercase() else null
             glyph.show(picked ?: state.glyph)
             sub.text = state.sub
             if (lastOn != on) {

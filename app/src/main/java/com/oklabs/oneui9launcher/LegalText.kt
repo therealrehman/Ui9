@@ -237,6 +237,13 @@ object LegalText {
             true
         ),
         Permission(
+            "Seeing Quick Settings tiles of installed apps",
+            "Only to let you add them as buttons on the Quick panel (Settings > Quick panel > Phone buttons); the list is used on the phone only. " +
+                "The phone's own tile list (a system setting) is read only when you tap “Match my phone's panel” or “Show the phone's tile list”; " +
+                "it is never stored beyond the buttons you choose and never sent anywhere. These buttons only open a phone screen or an app.",
+            true
+        ),
+        Permission(
             "Motion sensor (Shake to open)",
             "Only if you turn on “Shake to open” in Settings > Quick panel. While the screen is on, the app listens to the phone's motion sensor to notice two firm shakes and then opens the Quick panel. " +
                 "The readings are not stored or sent; they are discarded at once. No permission is needed for this sensor.",

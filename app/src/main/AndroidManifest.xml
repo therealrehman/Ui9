@@ -58,6 +58,10 @@
         <intent>
             <action android:name="android.settings.SETTINGS" />
         </intent>
+        <!-- Step 60: lets the launcher see which apps offer Quick Settings tiles, only to list them as optional "Phone buttons" (no QUERY_ALL_PACKAGES). -->
+        <intent>
+            <action android:name="android.service.quicksettings.action.QS_TILE" />
+        </intent>
         <!-- Step 6: lets the launcher see the apps that offer widgets (even ones with no launcher icon). -->
         <intent>
             <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

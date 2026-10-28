@@ -122,3 +122,8 @@ Not included, as you asked: no navigation bar.
 - Per-app exclusion of the handle / button (needs "Usage access", a sensitive permission on stores: maybe not).
 - A widget on the Home screen that opens the panel; a Home-screen gesture "pinch" to open the panel.
 - Shizuku support (this lineage of the code does not have it).
+
+## After the plan (steps 59 and 60)
+- Step 59: swipe up on the Notifications page works from empty spaces, the Quick panel and the page follow the finger when swiped up (normal speed), no Home blur behind the Notifications page.
+- Step 60: "Phone buttons (no Accessibility)": app tiles and phone screens as Quick panel buttons that OPEN the screen / app (no On / Off, no toggling), the phone's tile list diagnostic and "Match my phone's panel". Works in the store build.
+

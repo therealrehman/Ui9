@@ -23,6 +23,7 @@ Draw over other apps + a small foreground service (notification). Ways to open: 
 - `POST_NOTIFICATIONS`: shows that notification (tap = open the panel).
 - `RECEIVE_BOOT_COMPLETED`: starts that service again after the phone restarts (switchable: Settings > Quick panel > Keep it running).
 - Alarms (inexact, no permission): restart the service a few seconds after it was stopped and a ~15-minute check.
+- Package visibility (`<queries>` for `android.service.quicksettings.action.QS_TILE`, step 60): lets the app see the names of apps that offer Quick Settings tiles, only to list them as optional "Phone buttons" that open the app or its tile settings. The list is used on the phone only. The phone's own tile list (secure setting `sysui_qs_tiles`) is read only when the person taps "Match my phone's panel" / "Show the phone's tile list"; it is never stored beyond the chosen buttons and never sent. No QUERY_ALL_PACKAGES.
 - Motion sensor (no permission): only for the optional "Shake to open", only while the screen is on; readings are not stored or sent.
 - The rest is unchanged from `PLAY_STORE.md` (notification listener for badges, lock-only device admin, REQUEST_DELETE_PACKAGES, EXPAND_STATUS_BAR, wallpaper, Wi-Fi/Bluetooth state, WRITE_SETTINGS, ACCESS_NOTIFICATION_POLICY). The app has no INTERNET permission.
 

@@ -59,56 +59,145 @@ class NotificationPage(
         updateClear()
     }
 
-    /** One column with everything. A swipe up (or a tap on an empty spot) closes the page. */
+    /**
+     * One column with everything. A swipe up (or a tap on an empty spot) closes the page.
+     *
+     * Step 59: why the swipe up from an empty space did not work: the list (a ScrollView) fills all the empty space, takes the touch, and
+     * after a few dp tells its parent "do not intercept any more". The old code looked at the swipe in onInterceptTouchEvent only, and needed
+     * 84 dp, so it never saw it. Now every touch is read in dispatchTouchEvent BEFORE any child (like the Quick panel does), and the page
+     * follows the finger: after ~18 dp it moves with it, and the distance (80 dp) or the speed of a flick decides when the finger lifts.
+     */
     private inner class Column(context: Context) : LinearLayout(context) {
         private val slop = ViewConfiguration.get(context).scaledTouchSlop
+        private val density = context.resources.displayMetrics.density
         private var downX = 0f
         private var downY = 0f
+        private var downRawY = 0f
+        private var taken = false // this touch belongs to the page now (a swipe up or a swipe right)
+        private var dragging = false
+        private var listBlocks = false // the finger came down on a list that can still scroll down: that swipe scrolls it
+        private val tracker = FlingTracker()
 
         private fun swipedRight(x: Float, y: Float): Boolean {
             val dx = x - downX
             return dx > context.dp(72) && dx > abs(y - downY) * 2f // Step 58: a real swipe, not a light touch
         }
 
-        private fun swipedUp(x: Float, y: Float): Boolean {
-            val dy = downY - y
-            return dy > context.dp(84) && dy > abs(x - downX) * 1.5f // Step 58: before ~16 dp: a tap that drifted up closed the page and the card / button under the finger got no tap
-        }
-
-        override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+        /** Reads one touch event. True = the page took the touch (children must not see it). */
+        private fun read(ev: MotionEvent): Boolean {
             when (ev.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
+                    if (!closing && column.translationY != 0f) {
+                        column.animate().cancel() // a new touch while the page was still gliding back
+                        resetDragLook()
+                    }
                     downX = ev.x
                     downY = ev.y
+                    downRawY = ev.rawY
+                    taken = false
+                    dragging = false
+                    listBlocks = notifs?.blocksSwipeUpAt(downX, downY) ?: false
+                    tracker.clear()
+                    tracker.add(ev.eventTime, ev.rawY)
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    // A long list scrolls itself first; only a swipe up outside a scrolling list closes the page.
-                    if (swipedUp(ev.x, ev.y) && !(notifs?.scrollsAt(downX, downY) ?: false)) {
-                        close(true)
+                    tracker.add(ev.eventTime, ev.rawY)
+                    if (dragging) {
+                        dragTo(downRawY - ev.rawY)
+                        return true
+                    }
+                    if (taken) return true
+                    val dyUp = downRawY - ev.rawY
+                    if (!listBlocks && PanelSwipe.startsDrag(ev.x - downX, dyUp, density)) {
+                        taken = true
+                        dragging = true
+                        dragBase = dyUp
+                        column.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                        dragTo(dyUp)
                         return true
                     }
                     if (swipedRight(ev.x, ev.y) && !(notifs?.cardsAt(downX, downY) ?: false)) {
+                        taken = true
                         onSwitchPage?.invoke()
                         return true
                     }
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> if (dragging) {
+                    dragging = false
+                    tracker.add(ev.eventTime, ev.rawY)
+                    val dyUp = downRawY - ev.rawY
+                    if (ev.actionMasked == MotionEvent.ACTION_UP && PanelSwipe.shouldClose(dyUp, tracker.velocity(), density)) close(true, fromDrag = true) else springBack()
+                    return true
                 }
             }
             return false
         }
 
+        override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+            if (closing) return true // on its way out: a touch must not hit a card under the finger
+            val was = taken
+            if (read(ev)) {
+                if (!was) {
+                    val cancel = MotionEvent.obtain(ev)
+                    cancel.action = MotionEvent.ACTION_CANCEL
+                    super.dispatchTouchEvent(cancel) // the card / list that had the touch lets go of it
+                    cancel.recycle()
+                }
+                return true
+            }
+            return super.dispatchTouchEvent(ev)
+        }
+
+        override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = false
+
+        // A touch that starts on an empty spot ends up here (no child took it): a tap closes the page.
         override fun onTouchEvent(ev: MotionEvent): Boolean {
             when (ev.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     downX = ev.x
                     downY = ev.y
                 }
-                MotionEvent.ACTION_MOVE -> {
-                    if (swipedUp(ev.x, ev.y)) close(true) else if (swipedRight(ev.x, ev.y)) onSwitchPage?.invoke()
-                }
                 MotionEvent.ACTION_UP -> if (abs(ev.x - downX) <= slop && abs(ev.y - downY) <= slop) close(true)
             }
             return true
         }
+    }
+
+    private var dragBase = 0f
+
+    private fun dragTravel(): Float = column.height * 0.35f
+
+    /** Step 59: the page and its veil follow the finger [dy] pixels up ([dragBase] of it was used up before the drag started). */
+    private fun dragTo(dy: Float) {
+        val d = (dy - dragBase).coerceAtLeast(0f)
+        val q = (d / dragTravel()).coerceIn(0f, 1f)
+        column.translationY = -d
+        column.alpha = Motion.fadeOut(q)
+        veil.alpha = Motion.fadeOut(q)
+        veil.translationY = column.translationY
+    }
+
+    private fun springBack() {
+        column.animate().cancel()
+        column.animate().translationY(0f).setDuration(PanelSwipe.BACK_MS).setInterpolator(PanelSwipe.GLIDE)
+            .setUpdateListener {
+                val q = (-column.translationY / dragTravel()).coerceIn(0f, 1f)
+                column.alpha = Motion.fadeOut(q)
+                veil.alpha = Motion.fadeOut(q)
+                veil.translationY = column.translationY
+            }
+            .withEndAction { resetDragLook() }
+            .start()
+    }
+
+    private fun resetDragLook() {
+        column.animate().setUpdateListener(null)
+        column.setLayerType(View.LAYER_TYPE_NONE, null)
+        Motion.setBlur(column, 0f)
+        column.alpha = 1f
+        column.translationY = 0f
+        veil.alpha = 1f
+        veil.translationY = 0f
     }
 
     init {
@@ -259,7 +348,7 @@ class NotificationPage(
         onOpenChanged?.invoke()
     }
 
-    fun close(animated: Boolean) {
+    fun close(animated: Boolean, fromDrag: Boolean = false) {
         if (!isOpen || closing) return
         column.animate().setUpdateListener(null).cancel()
         veil.animate().cancel()
@@ -268,14 +357,32 @@ class NotificationPage(
             Notifs.removeListener(listener)
         }
         if (!animated) {
-            Motion.setBlur(column, 0f)
+            resetDragLook() // also puts back what a swipe in progress had moved
             visibility = View.GONE
             onOpenChanged?.invoke()
             onGone?.invoke()
             return
         }
         closing = true
-        // Step 35: straight from 100% to 20% the moment the swipe up is accepted, then down to 0 fast; no blur while closing.
+        if (fromDrag) {
+            // Step 59: after a swipe up the page is already part-way and fading: it carries on from there and glides the rest in about 0.2 s.
+            val travel = -dragTravel()
+            val target = minOf(column.translationY, travel)
+            val ms = PanelSwipe.closeMs((column.translationY / travel).coerceIn(0f, 1f))
+            veil.animate().cancel()
+            column.animate().translationY(target).setDuration(ms).setInterpolator(PanelSwipe.GLIDE)
+                .setUpdateListener {
+                    val q = (column.translationY / travel).coerceIn(0f, 1f)
+                    column.alpha = Motion.fadeOut(q)
+                    veil.alpha = Motion.fadeOut(q)
+                    veil.translationY = column.translationY
+                }
+                .withEndAction { finishClose() }.start()
+            postDelayed({ finishClose() }, ms + 250L) // safety: never stay on screen, invisible, taking touches
+            post { onOpenChanged?.invoke() }
+            return
+        }
+        // Step 35: a tap / Back: straight from 100% to 20% the moment the close starts, then down to 0 fast; no blur while closing.
         veil.alpha = Motion.CLOSE_START_ALPHA
         column.alpha = Motion.CLOSE_START_ALPHA
         veil.animate().alpha(0f).translationY(-context.resources.displayMetrics.heightPixels * 0.12f).setDuration(Motion.CLOSE_MS)
@@ -286,18 +393,26 @@ class NotificationPage(
                 val q = (column.translationY / travel).coerceIn(0f, 1f)
                 column.alpha = Motion.fadeOut(q)
             }
-            .withEndAction {
-                column.animate().setUpdateListener(null)
-                Motion.setBlur(column, 0f)
-                column.alpha = 1f
-                closing = false
-                veil.translationY = 0f
-                veil.alpha = 1f
-                visibility = View.GONE
-                onGone?.invoke()
-            }.start()
+            .withEndAction { finishClose() }.start()
+        postDelayed({ finishClose() }, Motion.CLOSE_MS + 250L)
         // The blur fades while the page slides away.
         post { onOpenChanged?.invoke() }
+    }
+
+    /** The end of the closing slide (also run by a safety timer): everything the slide changed is put back and the page is gone. */
+    private fun finishClose() {
+        if (!closing) return
+        column.animate().cancel()
+        column.animate().setUpdateListener(null)
+        column.setLayerType(View.LAYER_TYPE_NONE, null)
+        Motion.setBlur(column, 0f)
+        column.alpha = 1f
+        column.translationY = 0f
+        veil.alpha = 1f
+        veil.translationY = 0f
+        closing = false
+        visibility = View.GONE
+        onGone?.invoke()
     }
 
     companion object {

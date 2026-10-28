@@ -90,6 +90,24 @@ class QuickNotifs(
         return r.contains(rawX.toInt(), rawY.toInt()) && (scroller.canScrollVertically(1) || scroller.canScrollVertically(-1))
     }
 
+    /**
+     * Step 59: True when a swipe up that starts at this screen point would scroll the list (the list is there AND can still scroll down).
+     * At the end of a list (or when everything fits) a swipe up closes the panel, as on the new phones. The answer is read when the finger comes down.
+     */
+    fun blocksSwipeUpAtRaw(rawX: Float, rawY: Float): Boolean {
+        val r = Rect()
+        if (!scroller.getGlobalVisibleRect(r)) return false
+        return r.contains(rawX.toInt(), rawY.toInt()) && scroller.canScrollVertically(1)
+    }
+
+    /** Step 59: same as [blocksSwipeUpAtRaw] for a point in the coordinates of this view's parent (the Notifications page). */
+    fun blocksSwipeUpAt(x: Float, y: Float): Boolean {
+        val r = Rect()
+        scroller.getHitRect(r)
+        r.offset(left, top)
+        return r.contains(x.toInt(), y.toInt()) && scroller.canScrollVertically(1)
+    }
+
     /** Step 20: same as [cardsAt], in screen coordinates. */
     fun cardsAtRaw(rawX: Float, rawY: Float): Boolean {
         if (Notifs.current().isEmpty() || !Badges.accessGranted(context)) return false

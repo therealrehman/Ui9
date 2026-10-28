@@ -124,7 +124,7 @@ class IconGallery(context: Context, private val buttons: List<QuickTileDef>, pri
             row.setOnClickListener { showGrid(def) }
             val g = QuickGlyph(c, QuickIcons.of(def.id) ?: def.glyph)
             g.tint = PanelLook.text
-            if (QuickIcons.of(def.id) == null && def.id.startsWith(QuickTiles.CUSTOM_PREFIX) && def.glyph == QuickGlyph.GRID) g.letter = def.label.trim().take(1).uppercase()
+            if (QuickIcons.of(def.id) == null && QuickTiles.isLetterButton(def.id) && def.glyph == QuickGlyph.GRID) g.letter = def.label.trim().take(1).uppercase()
             row.addView(g, LayoutParams(c.dp(30), c.dp(30)))
             val name = TextView(c)
             name.text = def.label

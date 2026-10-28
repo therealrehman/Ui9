@@ -251,6 +251,66 @@ class HomeSettingsActivity : Activity() {
         return page
     }
 
+    // ---------------------------------------------------------------- Step 60: phone buttons
+
+    /** "Add phone buttons": one list of app tiles and phone screens; ticked ones become buttons of the Quick panel. */
+    private fun addPhoneButtons() {
+        val found = ArrayList<Pair<PhoneButtons.Entry, String>>() // entry, text in the list
+        for (t in PhoneButtons.appTiles(this)) found.add(Pair(t, "App tile: " + t.label))
+        for (sc in PhoneButtons.screens(this)) found.add(Pair(sc, sc.label))
+        val saved = QuickTiles.phoneEntries(this)
+        // a saved button this phone no longer finds (app removed) stays in the list, so it can be unticked
+        for (e in saved) if (found.none { it.first.id == e.id }) found.add(Pair(e, e.label + " (not found now)"))
+        if (found.isEmpty()) {
+            toast("No app tiles or phone screens were found on this phone")
+            return
+        }
+        val savedIds = saved.map { it.id }.toSet()
+        val checked = BooleanArray(found.size) { found[it].first.id in savedIds }
+        AlertDialog.Builder(this)
+            .setTitle("Add phone buttons")
+            .setMultiChoiceItems(found.map { it.second }.toTypedArray(), checked) { _, i, isChecked -> checked[i] = isChecked }
+            .setPositiveButton("OK") { _, _ ->
+                val picked = found.filterIndexed { i, _ -> checked[i] }.map { it.first }
+                QuickTiles.savePhone(this, picked)
+                toast(if (picked.isEmpty()) "No phone buttons" else "${picked.size} phone buttons saved: they are at the end of the panel")
+                show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    /** "Match my phone's panel": the buttons follow the order of the phone's own tile list, if the phone shares it. */
+    private fun matchPhonePanel() {
+        val specs = PhoneButtons.parseTileSpecs(PhoneButtons.readTileList(this))
+        if (specs.isEmpty()) {
+            toast("This phone does not share its tile list")
+            return
+        }
+        val current = QuickTiles.order(this).map { it.id }
+        val m = PhoneButtons.match(specs, current, QuickTiles.BUILTIN.map { it.id }.toSet()) { pkg, cls -> PhoneButtons.tileLabel(this, pkg, cls) }
+        val have = QuickTiles.phoneEntries(this)
+        QuickTiles.savePhone(this, have + m.newApps.filter { n -> have.none { it.id == n.id } })
+        val ids = m.ids.filter { QuickTiles.def(it) != null }
+        QuickTiles.save(this, ids)
+        toast("The panel now follows your phone's order (${ids.size} buttons)")
+        show()
+    }
+
+    /** "Show the phone's tile list": the raw value and the parsed list, with a Copy button (send it back so the next step can be tuned for this phone). */
+    private fun showPhoneTileList() {
+        val text = PhoneButtons.diagnostic(this)
+        AlertDialog.Builder(this)
+            .setTitle("The phone's tile list")
+            .setMessage(text)
+            .setPositiveButton("Close", null)
+            .setNeutralButton("Copy") { _, _ ->
+                getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("Phone tile list", text))
+                toast("Copied")
+            }
+            .show()
+    }
+
     private fun prefs() = getSharedPreferences("launcher", MODE_PRIVATE)
 
     /** Something changed that the Home screen has to build again (it does so when it comes back to the front). */
@@ -818,6 +878,27 @@ class HomeSettingsActivity : Activity() {
             }
         )
         kit.note(box, "The button is part of \"Quick panel over other apps\" (it needs that switch and \"Draw over other apps\"). It is hidden while the panel is open. It sits over the app, so it takes the touches on its own spot: drag it away from buttons you need. The phone may hide it over full-screen videos / games; the smart rules below hide it on purpose.")
+
+        kit.label(box, "Phone buttons (no Accessibility)")
+        val phoneCount = QuickTiles.phoneEntries(this).size
+        kit.card(
+            box,
+            kit.row(-1, 0, "Add phone buttons", if (phoneCount == 0) "Tiles of your apps and screens of your phone, as buttons of the Quick panel" else "$phoneCount added: tap to change") {
+                addPhoneButtons()
+            },
+            kit.row(-1, 0, "Match my phone's panel", "Use the order of the phone's own Quick settings, when the phone shares it") {
+                matchPhonePanel()
+            },
+            kit.row(-1, 0, "Show the phone's tile list", "What this phone says its Quick settings hold (with a Copy button)") {
+                showPhoneTileList()
+            },
+            kit.row(-1, 0, "Remove all phone buttons", "Takes these buttons off the panel again") {
+                QuickTiles.savePhone(this, emptyList())
+                toast("Phone buttons removed")
+                show()
+            }
+        )
+        kit.note(box, "These buttons open the phone's screen or the app. They can not show On / Off or switch it: Android only allows that with the Accessibility service (not in the store build). Which buttons can be found depends on the phone.")
 
         kit.label(box, "Smart rules (hide the handle and the button)")
         kit.card(

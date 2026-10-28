@@ -53,10 +53,43 @@ object QuickTiles {
     @Volatile
     private var custom: List<QuickTileDef> = emptyList()
 
+    /** Step 60: buttons that open a phone screen or an app (`app:` tiles of installed apps, `scr:` phone screens). Work without Accessibility. */
+    @Volatile
+    private var phone: List<QuickTileDef> = emptyList()
+
     const val CUSTOM_PREFIX = "sys:"
     private const val KEY_CUSTOM = "qp_custom"
 
-    val ALL: List<QuickTileDef> get() = BUILTIN + custom
+    val ALL: List<QuickTileDef> get() = BUILTIN + custom + phone
+
+    /** True for the buttons whose icon falls back to the first letter of the name (old `sys:` and the new phone buttons). */
+    fun isLetterButton(id: String): Boolean = id.startsWith(CUSTOM_PREFIX) || PhoneButtons.isPhoneButtonId(id)
+
+    /** Step 60: reads the phone buttons the person ticked (pref `qp_phone`, lines `id|label`). */
+    fun loadPhone(context: Context) {
+        val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(PhoneButtons.KEY_PHONE, "") ?: ""
+        phone = PhoneButtons.decode(raw).map { QuickTileDef(it.id, it.label, PhoneButtons.glyphFor(it.id, it.label)) }
+    }
+
+    /** The phone buttons now saved (ids and names). */
+    fun phoneEntries(context: Context): List<PhoneButtons.Entry> {
+        loadPhone(context)
+        return phone.map { PhoneButtons.Entry(it.id, it.label) }
+    }
+
+    /**
+     * Step 60: replaces the whole list of phone buttons. Buttons that are no longer in the list leave the panel; newly ticked ones are put
+     * at the end of the panel (same as [saveCustom]); the order of the others stays.
+     */
+    fun savePhone(context: Context, entries: List<PhoneButtons.Entry>) {
+        val clean = entries.filter { PhoneButtons.isPhoneButtonId(it.id) && it.label.isNotBlank() }.distinctBy { it.id }
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(PhoneButtons.KEY_PHONE, PhoneButtons.encode(clean)).apply()
+        loadPhone(context)
+        val keep = clean.map { it.id }.toSet()
+        val ids = order(context).map { it.id }.filter { !PhoneButtons.isPhoneButtonId(it) || it in keep }.toMutableList()
+        for (e in clean) if (e.id !in ids) ids.add(e.id)
+        save(context, ids)
+    }
 
     fun loadCustom(context: Context) {
         val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_CUSTOM, "") ?: ""
@@ -133,6 +166,7 @@ object QuickTiles {
     fun order(context: Context): List<QuickTileDef> {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         loadCustom(context)
+        loadPhone(context) // Step 60
         var ids = parse(prefs.getString(KEY, null))
         // Step 26b: once, every button the panel knows is put on it (the extra pages hold the ones that did not fit), then the editor decides
         if (!prefs.getBoolean(KEY_ALL, false)) {
@@ -296,7 +330,10 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
             }
             "cast" -> TileState(false, "Tap", QuickGlyph.CAST)
             "camera" -> TileState(false, "Open", QuickGlyph.CAMERA)
-            else -> if (id.startsWith(QuickTiles.CUSTOM_PREFIX)) {
+            else -> if (PhoneButtons.isPhoneButtonId(id)) {
+                // Step 60: a phone button only opens a screen / an app: never On / Off
+                TileState(false, "Open", QuickTiles.def(id)?.glyph ?: QuickGlyph.GRID)
+            } else if (id.startsWith(QuickTiles.CUSTOM_PREFIX)) {
                 val on = QuickTiles.cachedState(app, id)
                 TileState(on == true, when (on) { true -> "On"; false -> "Off"; null -> "" }, QuickTiles.def(id)?.glyph ?: QuickGlyph.GRID)
             } else TileState(false, "", QuickGlyph.GEAR)
@@ -364,6 +401,12 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
      * Quick settings for a moment, presses that button for you and closes it again. Without the service the phone's own screen opens instead.
      */
     fun tap(id: String) {
+        if (PhoneButtons.isPhoneButtonId(id)) {
+            // Step 60: opens the phone's screen / the app. Never goes near the Accessibility service (there is none in the store build).
+            PhoneButtons.open(ctx, id, say)
+            onLeave?.invoke()
+            return
+        }
         when (id) {
             "sound" -> cycleSound()
             "torch" -> toggleTorch()
@@ -526,6 +569,11 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
 
     /** Long-press: the phone's full settings page for the button. */
     fun longPress(id: String) {
+        if (PhoneButtons.isPhoneButtonId(id)) {
+            PhoneButtons.open(ctx, id, say) // Step 60: same as a tap
+            onLeave?.invoke()
+            return
+        }
         when (id) {
             "wifi" -> open(Settings.ACTION_WIFI_SETTINGS)
             "bluetooth" -> open(Settings.ACTION_BLUETOOTH_SETTINGS)
