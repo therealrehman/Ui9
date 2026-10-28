@@ -879,3 +879,8 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - **Notification options** (Settings > Quick panel > "The Quick panel notification"): tap opens the Quick panel or the Notifications page; show / hide the "Settings" button; "Hide the notification" opens the phone's own category screen (the service needs the notification, so the launcher can not remove it itself). Changes apply at once.
 - New: `PanelTile.kt` (`PanelNote`, `PanelShortcutActivity`, `PanelTileService`), `res/xml/shortcuts.xml`, `res/values/strings_panel.xml`, `res/drawable/ic_shortcut_panel.xml`. Changed: `AndroidManifest.xml`, `OverlayPanel.kt`, `HomeSettingsActivity.kt`, `build.gradle.kts`, `PLAN_NO_ACCESSIBILITY.md`, `STEPS.md`. Version 1.0.52 (code 162). Not compiled and not run on a phone.
 
+## Step 53 - floating button (Huawei plan, step 4 of 8)
+- Settings > Quick panel > **Floating button**: a small round button (the panel's four-tile symbol) over every app. Tap = open the Quick panel; drag = move it; after a drag it glides to the nearest side edge (can be switched off). Options: On / Off, size (28-72 dp), opacity (20-100%), stick to the edge, vibrate, reset position.
+- The place is saved as a share of the free screen (so it survives size changes). The button is removed while the panel is open and comes back after. Needs the step 50 switch and "Draw over other apps". Off by default.
+- New `FloatingButton.kt` (`FloatButton` settings, `FloatingButtonView`). Changed: `OverlayPanel.kt`, `HomeSettingsActivity.kt`, `build.gradle.kts`, `PLAN_NO_ACCESSIBILITY.md`, `STEPS.md`. Version 1.0.53 (code 163). Not compiled and not run on a phone.
+

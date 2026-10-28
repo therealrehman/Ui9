@@ -1,7 +1,7 @@
 # Quick panel without Accessibility (Huawei-safe) - plan and tracker
 
 This file travels inside every zip of this plan. It says what is DONE, what is LEFT, what is known to be limited, and how to test.
-(Last update: step 3 of 8.)
+(Last update: step 4 of 8.)
 
 ## The one fact everything depends on
 A window made with "Draw over other apps" is shown ABOVE apps but BELOW the status bar and the notification shade (Android's own rule for this window type).
@@ -15,8 +15,8 @@ Not included, as you asked: no navigation bar.
 |---|------|--------|
 | 1 | Foundation: "Quick panel over other apps" (Draw over other apps + a small foreground service), master On / Off, permission help, Show-now test, the service notification opens the panel | DONE |
 | 2 | Top handle: a thin strip right under the status bar; swipe down on it opens the panel (position, width, height, visible pill or invisible, On / Off) | DONE |
-| 3 | Quick Settings tile ("Quick panel" tile in the phone's own shade) + App shortcut + notification options (hide / show the notification action) | **DONE (this zip)** |
-| 4 | Floating button (draggable, snaps to the edge, size, opacity, On / Off) | left |
+| 3 | Quick Settings tile ("Quick panel" tile in the phone's own shade) + App shortcut + notification options (hide / show the notification action) | DONE |
+| 4 | Floating button (draggable, snaps to the edge, size, opacity, On / Off) | **DONE (this zip)** |
 | 5 | Smart rules: hide the handle / button in full-screen apps and videos, when the keyboard is open, on the lock screen, when the screen is off; landscape on / off | left |
 | 6 | More triggers: double-tap and long-press on the handle, side swipes (left half = Notifications page, right half = Quick panel), optional shake to open | left |
 | 7 | Force / keep alive: start after reboot, restart after the phone's cleaner kills it, battery and "protected apps" help (Huawei screens), a Setup check page with green / red lines, one-time adb commands for the strongest settings | left |
@@ -35,6 +35,9 @@ Not included, as you asked: no navigation bar.
 - New files: `OverlayPanel.kt` (`OverlayPanel`, `PanelOverlayService`), `res/drawable/ic_stat_panel.xml`. Changed: `AndroidManifest.xml`, `HomeSettingsActivity.kt`, `LauncherActivity.kt` (keeps the service matching the switch), `QuickSystem.kt`, `QuickPanel.kt`, `build.gradle.kts`.
 - New permissions: SYSTEM_ALERT_WINDOW, FOREGROUND_SERVICE, FOREGROUND_SERVICE_SPECIAL_USE, POST_NOTIFICATIONS.
 
+## Step 4 - what is in it
+- Settings > Quick panel > **Floating button** (off by default): tap opens the panel, drag moves it, it glides to the nearest edge after a drag. Size, opacity, stick-to-edge, vibrate, reset position. New `FloatingButton.kt`; changed `OverlayPanel.kt`, `HomeSettingsActivity.kt`.
+
 ## Step 3 - what is in it
 - Settings > Quick panel > **Quick Settings tile and App shortcut**: add the "Quick panel" tile in the phone's shade (pencil button); long-press the app icon for "Quick panel" / "Notifications" shortcuts. Both open the panel through the invisible `PanelShortcutActivity`; they need the step 1 switch and "Draw over other apps" (otherwise the launcher settings open with a message).
 - Settings > Quick panel > **The Quick panel notification**: tap opens the Quick panel or the Notifications page; the "Settings" button can be hidden; "Hide the notification" opens the phone's category screen (the service needs the notification, so the launcher can not remove it by itself).
@@ -46,6 +49,12 @@ Not included, as you asked: no navigation bar.
 - While the panel is open the strip is removed; it comes back when the panel is gone. Changes in Settings move / resize the strip at once.
 - New file `TopHandle.kt` (`TopHandle` settings, `TopHandleView`). Changed: `OverlayPanel.kt`, `HomeSettingsActivity.kt`.
 - Not in this step (later steps): hiding the strip in full-screen apps / on the keyboard / on the lock screen (step 5), double-tap / long-press on the strip (step 6).
+
+## Test list for step 4 (on the phone)
+1. Switch on "Floating button" (step 1 switch on, "Draw over other apps" allowed): a round button appears at the right edge.
+2. Tap it in any app: the panel opens; close it: the button is back in the same place.
+3. Drag it: it follows the finger and glides to the nearest edge on release. Leave Settings and come back: same place. "Reset position" puts it back.
+4. Change size / opacity: it changes at once. "Stick to the edge" off: it stays where you drop it.
 
 ## Test list for step 3 (on the phone)
 1. Pull the shade down fully, tap the pencil / edit button, drag the "Quick panel" tile into the list. (Huawei: tiles are added from the shade's edit screen; a few EMUI versions do not allow third-party tiles - tell me.)

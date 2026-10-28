@@ -105,14 +105,18 @@ class PanelOverlayService : Service() {
 
     private var frame: HostFrame? = null
     private var handle: TopHandleView? = null // Step 2: the thin strip under the status bar
+    private var button: FloatingButtonView? = null // Step 4: the floating button
+    private var buttonParams: WindowManager.LayoutParams? = null
 
     private val handleKeys = setOf(
         TopHandle.PREF_ON, TopHandle.PREF_WIDTH, TopHandle.PREF_HEIGHT, TopHandle.PREF_OFFSET,
         TopHandle.PREF_SIDE, TopHandle.PREF_VISIBLE, TopHandle.PREF_HAPTIC
     )
+    private val buttonKeys = setOf(FloatButton.PREF_ON, FloatButton.PREF_SIZE, FloatButton.PREF_ALPHA, FloatButton.PREF_SNAP, FloatButton.PREF_FX, FloatButton.PREF_FY, FloatButton.PREF_HAPTIC)
     private val noteKeys = setOf(PanelNote.PREF_ACTION, PanelNote.PREF_TAP)
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key != null && key in handleKeys) refreshHandle()
+        if (key != null && key in buttonKeys) refreshButton() // Step 53
         if (key != null && key in noteKeys) refreshNotification() // Step 52
         if (key == OverlayPanel.PREF_ON) PanelTileService.requestUpdate(this) // Step 52: the tile looks again
     }
@@ -135,6 +139,7 @@ class PanelOverlayService : Service() {
             // the handle then follows the settings only when the service starts again
         }
         refreshHandle()
+        refreshButton()
         try {
             registerReceiver(screenOff, IntentFilter(Intent.ACTION_SCREEN_OFF))
         } catch (e: Exception) {
@@ -158,6 +163,7 @@ class PanelOverlayService : Service() {
             // not registered
         }
         removeHandle()
+        removeButton()
         hidePanel()
         try {
             unregisterReceiver(screenOff)
@@ -276,6 +282,7 @@ class PanelOverlayService : Service() {
             params.setTitle("Quick panel")
             frame = built.host
             removeHandle() // the panel covers the strip while it is open
+            removeButton()
             wm.addView(built.host, params)
             built.host.applyFallbackInsets()
             if (startOnNotifs) built.notifs.open() else built.quick.open()
@@ -294,6 +301,7 @@ class PanelOverlayService : Service() {
             // already removed
         }
         refreshHandle() // the strip comes back when the panel is gone
+        refreshButton()
     }
 
     // ------------------------------------------------------------------ Step 2: the top handle
@@ -334,6 +342,98 @@ class PanelOverlayService : Service() {
             }
         } catch (e: Exception) {
             handle = null // a window that could not be added is made again next time
+        }
+    }
+
+    // ------------------------------------------------------------------ Step 4: the floating button
+
+    private fun freeW(): Int = (resources.displayMetrics.widthPixels - dp(FloatButton.sizeDp(this))).coerceAtLeast(1)
+    private fun freeH(): Int = (resources.displayMetrics.heightPixels - dp(FloatButton.sizeDp(this))).coerceAtLeast(1)
+
+    /** Puts the button on screen, takes it away, or changes its size / look / place, so that it matches the settings. */
+    private fun refreshButton() {
+        try {
+            val want = FloatButton.wanted(this) && OverlayPanel.canDraw(this) && frame == null
+            if (!want) {
+                removeButton()
+                return
+            }
+            val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            val view = button ?: FloatingButtonView(
+                ServiceUiContext(this), true,
+                { android.os.Handler(android.os.Looper.getMainLooper()).post { showPanel(false) } },
+                { x, y -> moveButton(x, y) },
+                { x, y -> releaseButton(x, y) }
+            ).also { button = it }
+            view.buzz = FloatButton.haptic(this)
+            view.alpha = FloatButton.alphaPct(this) / 100f
+            val size = dp(FloatButton.sizeDp(this))
+            val params = buttonParams ?: WindowManager.LayoutParams(
+                size, size, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+                PixelFormat.TRANSLUCENT
+            ).also {
+                it.gravity = Gravity.TOP or Gravity.START
+                it.setTitle("Quick panel button")
+                buttonParams = it
+            }
+            params.width = size
+            params.height = size
+            params.x = FloatButton.fx(this) * freeW() / 1000
+            params.y = FloatButton.fy(this) * freeH() / 1000
+            view.winX = params.x
+            view.winY = params.y
+            if (view.parent != null) {
+                wm.updateViewLayout(view, params)
+                view.invalidate()
+            } else {
+                wm.addView(view, params)
+            }
+        } catch (e: Exception) {
+            button = null // a window that could not be added is made again next time
+            buttonParams = null
+        }
+    }
+
+    private fun moveButton(x: Int, y: Int) {
+        val view = button ?: return
+        val params = buttonParams ?: return
+        try {
+            params.x = x.coerceIn(0, freeW())
+            params.y = y.coerceIn(0, freeH())
+            view.winX = params.x
+            view.winY = params.y
+            (getSystemService(Context.WINDOW_SERVICE) as WindowManager).updateViewLayout(view, params)
+        } catch (e: Exception) {
+            // the window is gone
+        }
+    }
+
+    /** The finger left the button: glue it to the nearest side edge (when that is on) and save the place. */
+    private fun releaseButton(x: Int, y: Int) {
+        val view = button ?: return
+        val fw = freeW()
+        val fh = freeH()
+        val toX = if (FloatButton.snap(this)) (if (x + dp(FloatButton.sizeDp(this)) / 2 < resources.displayMetrics.widthPixels / 2) 0 else fw) else x.coerceIn(0, fw)
+        val toY = y.coerceIn(0, fh)
+        val save = { FloatButton.savePosition(this, toX, toY, fw, fh) }
+        if (toX == view.winX) {
+            moveButton(toX, toY)
+            save()
+        } else {
+            view.animateTo(toX, toY, { px, py -> moveButton(px, py) }) { moveButton(toX, toY); save() }
+        }
+    }
+
+    private fun removeButton() {
+        val view = button ?: return
+        button = null
+        buttonParams = null
+        try {
+            (getSystemService(Context.WINDOW_SERVICE) as WindowManager).removeViewImmediate(view)
+        } catch (e: Exception) {
+            // already removed
         }
     }
 
