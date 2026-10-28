@@ -1,7 +1,7 @@
 # Quick panel without Accessibility (Huawei-safe) - plan and tracker
 
 This file travels inside every zip of this plan. It says what is DONE, what is LEFT, what is known to be limited, and how to test.
-(Last update: step 6 of 8.)
+(Last update: step 7 of 8.)
 
 ## The one fact everything depends on
 A window made with "Draw over other apps" is shown ABOVE apps but BELOW the status bar and the notification shade (Android's own rule for this window type).
@@ -18,8 +18,8 @@ Not included, as you asked: no navigation bar.
 | 3 | Quick Settings tile ("Quick panel" tile in the phone's own shade) + App shortcut + notification options (hide / show the notification action) | DONE |
 | 4 | Floating button (draggable, snaps to the edge, size, opacity, On / Off) | DONE |
 | 5 | Smart rules: hide the handle / button in full-screen apps and videos, when the keyboard is open, on the lock screen, when the screen is off; landscape on / off | DONE |
-| 6 | More triggers: double-tap and long-press on the handle, side swipes (left half = Notifications page, right half = Quick panel), optional shake to open | **DONE (this zip)** |
-| 7 | Force / keep alive: start after reboot, restart after the phone's cleaner kills it, battery and "protected apps" help (Huawei screens), a Setup check page with green / red lines, one-time adb commands for the strongest settings | left |
+| 6 | More triggers: double-tap and long-press on the handle, side swipes (left half = Notifications page, right half = Quick panel), optional shake to open | DONE |
+| 7 | Force / keep alive: start after reboot, restart after the phone's cleaner kills it, battery and "protected apps" help (Huawei screens), a Setup check page with green / red lines, one-time adb commands for the strongest settings | **DONE (this zip)** |
 | 8 | Huawei store build: the release build has NO Accessibility service in its manifest, the Accessibility rows are hidden there, the policy / AppGallery notes are updated, final test list | left |
 
 ## Step 1 - what is in it
@@ -34,6 +34,9 @@ Not included, as you asked: no navigation bar.
 - Phone buttons found by the scan (vivoshare, Speed up...) need Accessibility: without it a tap says so. No scan toast is shown when Accessibility is not used.
 - New files: `OverlayPanel.kt` (`OverlayPanel`, `PanelOverlayService`), `res/drawable/ic_stat_panel.xml`. Changed: `AndroidManifest.xml`, `HomeSettingsActivity.kt`, `LauncherActivity.kt` (keeps the service matching the switch), `QuickSystem.kt`, `QuickPanel.kt`, `build.gradle.kts`.
 - New permissions: SYSTEM_ALERT_WINDOW, FOREGROUND_SERVICE, FOREGROUND_SERVICE_SPECIAL_USE, POST_NOTIFICATIONS.
+
+## Step 7 - what is in it
+- Settings > Quick panel > **Setup check** (green / red lines with a tap to fix), **Keep it running** (start after reboot / after being stopped + 15-minute check, adb commands). New `KeepAlive.kt`; changed `OverlayPanel.kt`, `HomeSettingsActivity.kt`, `AndroidManifest.xml`.
 
 ## Step 6 - what is in it
 - Settings > Quick panel > **More ways to open the panel**: double-tap and long-press on the top handle (Nothing / Quick panel / Notifications), side swipes (left half = Notifications, right half = Quick panel), Shake to open (Gentle / Normal / Firm; motion sensor only while the screen is on). New `MoreTriggers.kt`; changed `TopHandle.kt`, `OverlayPanel.kt`, `HomeSettingsActivity.kt`.
@@ -57,6 +60,13 @@ Not included, as you asked: no navigation bar.
 - While the panel is open the strip is removed; it comes back when the panel is gone. Changes in Settings move / resize the strip at once.
 - New file `TopHandle.kt` (`TopHandle` settings, `TopHandleView`). Changed: `OverlayPanel.kt`, `HomeSettingsActivity.kt`.
 - Not in this step (later steps): hiding the strip in full-screen apps / on the keyboard / on the lock screen (step 5), double-tap / long-press on the strip (step 6).
+
+## Test list for step 7 (on the phone)
+1. Open Settings > Quick panel: the Setup check shows ticks / crosses; fix every cross by tapping it and coming back (the lines turn green).
+2. "Auto-launch / Protected apps": the Huawei screen opens (or this app's info screen): allow auto-launch, secondary launch and run in background.
+3. Restart the phone, unlock it: the panel notification comes back by itself (if not, tell me the Android / EMUI version).
+4. Swipe the launcher away from Recents (or use the phone's cleaner): within a few seconds the notification returns. If not: wait 15 minutes for the check, and tell me.
+5. "Copy the adb commands" and run them from a computer once if the service keeps dying.
 
 ## Test list for step 6 (on the phone)
 1. Set "Double-tap on the handle" to Quick panel: two quick taps on the handle open it; one tap does nothing.

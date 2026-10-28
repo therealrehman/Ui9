@@ -671,6 +671,58 @@ class HomeSettingsActivity : Activity() {
                 if (!OverlayPanel.showNow()) toast("Switch on \"Quick panel over other apps\" and allow \"Draw over other apps\" first")
             }
         )
+        kit.label(box, "Setup check")
+        val chkMaster = OverlayPanel.wanted(this)
+        val chkDraw = OverlayPanel.canDraw(this)
+        val chkNotif = KeepAlive.notificationsOk(this)
+        val chkBattery = KeepAlive.batteryOk(this)
+        val chkRun = OverlayPanel.running()
+        fun mark(ok: Boolean) = if (ok) "\u2714  " else "\u2718  "
+        kit.card(
+            box,
+            kit.row(-1, 0, mark(chkMaster) + "Quick panel over other apps", if (chkMaster) "On" else "Off: tap to switch on") {
+                OverlayPanel.setWanted(this, true)
+                if (!OverlayPanel.canDraw(this)) askOverlay() else show()
+            },
+            kit.row(-1, 0, mark(chkDraw) + "Draw over other apps", if (chkDraw) "Allowed" else "Not allowed: tap to allow") { OverlayPanel.openPermissionScreen(this) },
+            kit.row(-1, 0, mark(chkNotif) + "Notifications", if (chkNotif) "Allowed" else "Not allowed: tap to allow (the panel's notification keeps it alive)") {
+                askNotificationPermission()
+            },
+            kit.row(-1, 0, mark(chkBattery) + "Battery optimisation", if (chkBattery) "Not limited" else "Limited: tap, then set this app to \"Don't optimise\" / \"Allow\"") {
+                KeepAlive.openBatterySettings(this)
+            },
+            kit.row(-1, 0, mark(chkRun) + "Panel service", if (chkRun) "Running" else "Not running: tap to start it") {
+                OverlayPanel.sync(this)
+                show()
+            },
+            kit.row(
+                -1, 0, "\u2022  Auto-launch / Protected apps",
+                "The phone does not tell apps this one. Tap, then allow \"Auto-launch\", \"Secondary launch\" and \"Run in background\" for this app" +
+                    if (KeepAlive.isHuaweiFamily()) " (Huawei: Settings > Battery > App launch)." else "."
+            ) {
+                if (!KeepAlive.openAutoLaunch(this)) toast("Opened this app's info screen: look for Battery / Launch / Auto-start")
+            }
+        )
+        kit.label(box, "Keep it running")
+        kit.card(
+            box,
+            kit.toggle(-1, 0, "Start after the phone restarts", "The panel service comes back by itself after a reboot or an update", KeepAlive.boot(this)) { on ->
+                prefs().edit().putBoolean(KeepAlive.PREF_BOOT, on).apply()
+            },
+            kit.toggle(-1, 0, "Start again when it is stopped", "After a cleaner / swipe-away stops it: restart in a few seconds, and a check every ~15 minutes", KeepAlive.restart(this)) { on ->
+                prefs().edit().putBoolean(KeepAlive.PREF_RESTART, on).apply()
+            },
+            kit.row(-1, 0, "Copy the adb commands", "For the strongest settings (run once on a computer with USB debugging)") {
+                getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("adb commands", KeepAlive.adbCommands()))
+                toast("adb commands copied")
+            }
+        )
+        kit.note(
+            box,
+            "Honest limits: a phone's cleaner can still stop the service (Android 12+ may refuse a restart from the background); then open the launcher, tap the tile or the shortcut and it starts again. " +
+                "The adb commands (copied on tap):\n" + KeepAlive.adbCommands()
+        )
+
         kit.label(box, "Top handle (a swipe down under the status bar)")
         kit.card(
             box,

@@ -140,6 +140,7 @@ class PanelOverlayService : Service() {
         if (key != null && key in handleKeys) refreshHandle()
         if (key != null && key in triggerKeys) refreshHandle() // Step 6
         if (key != null && key in shakeKeys) updateShake()
+        if (key == KeepAlive.PREF_RESTART) { if (KeepAlive.restart(this)) KeepAlive.scheduleWatchdog(this) else KeepAlive.cancelAlarms(this) } // Step 7
         if (key != null && key in buttonKeys) refreshButton() // Step 53
         if (key != null && key in noteKeys) refreshNotification() // Step 52
         if (key != null && (key in smartKeys || key == TopHandle.PREF_ON || key == FloatButton.PREF_ON)) refreshSmart() // Step 54
@@ -178,6 +179,7 @@ class PanelOverlayService : Service() {
         refreshButton()
         updateProbe()
         updateShake()
+        if (KeepAlive.restart(this)) KeepAlive.scheduleWatchdog(this) else KeepAlive.cancelAlarms(this) // Step 7
         try {
             registerReceiver(
                 screenOff,
@@ -190,6 +192,12 @@ class PanelOverlayService : Service() {
         } catch (e: Exception) {
             // not important: the panel then stays until it is closed
         }
+    }
+
+    /** Step 7: the person swiped the app away from Recents: ask the phone to start the service again in a moment. */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        if (OverlayPanel.wanted(this) && KeepAlive.restart(this)) KeepAlive.scheduleRestart(this, 3000L)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -218,6 +226,9 @@ class PanelOverlayService : Service() {
             // was not registered
         }
         if (instance === this) instance = null
+        // Step 7: stopped by the phone (the switch is still on): come back in a few seconds. Switched off by the person: no more alarms.
+        if (OverlayPanel.wanted(this) && OverlayPanel.canDraw(this) && KeepAlive.restart(this)) KeepAlive.scheduleRestart(this, 5000L)
+        else KeepAlive.cancelAlarms(this)
         super.onDestroy()
     }
 
