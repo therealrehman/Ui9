@@ -1040,11 +1040,6 @@ class LauncherActivity : Activity() {
                     IconTheme.cycle(this)
                     loadApps() // every icon is drawn again in the new colours
                 },
-                MenuEntry(if (blurOn()) "Blur: On" else "Blur: Off", null) {
-                    setPref(KEY_BLUR, !blurOn())
-                    appliedBlur = -1
-                    applyBlur()
-                },
                 MenuEntry(if (wallpaperScrollOn()) "Wallpaper scroll: On" else "Wallpaper scroll: Off", null) {
                     setPref(KEY_WALLPAPER_SCROLL, !wallpaperScrollOn())
                     updateWallpaperOffset(pager.scrollFraction())

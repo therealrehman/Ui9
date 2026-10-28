@@ -67,12 +67,12 @@ class NotificationPage(
 
         private fun swipedRight(x: Float, y: Float): Boolean {
             val dx = x - downX
-            return dx > slop * 3f && dx > abs(y - downY) * 2f
+            return dx > context.dp(72) && dx > abs(y - downY) * 2f // Step 58: a real swipe, not a light touch
         }
 
         private fun swipedUp(x: Float, y: Float): Boolean {
             val dy = downY - y
-            return dy > slop * 2 && dy > abs(x - downX) * 1.5f
+            return dy > context.dp(84) && dy > abs(x - downX) * 1.5f // Step 58: before ~16 dp: a tap that drifted up closed the page and the card / button under the finger got no tap
         }
 
         override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {

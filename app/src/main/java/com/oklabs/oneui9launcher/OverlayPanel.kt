@@ -127,7 +127,8 @@ class PanelOverlayService : Service() {
 
     private val handleKeys = setOf(
         TopHandle.PREF_ON, TopHandle.PREF_WIDTH, TopHandle.PREF_HEIGHT, TopHandle.PREF_OFFSET,
-        TopHandle.PREF_SIDE, TopHandle.PREF_VISIBLE, TopHandle.PREF_HAPTIC
+        TopHandle.PREF_SIDE, TopHandle.PREF_VISIBLE, TopHandle.PREF_HAPTIC,
+        TopHandle.PREF_SHAPE, TopHandle.PREF_THICK, TopHandle.PREF_COLOR, TopHandle.PREF_GRAD, PanelTheme.KEY // Step 58: the strip follows the panel colour too
     )
     private val buttonKeys = setOf(FloatButton.PREF_ON, FloatButton.PREF_SIZE, FloatButton.PREF_ALPHA, FloatButton.PREF_SNAP, FloatButton.PREF_FX, FloatButton.PREF_FY, FloatButton.PREF_HAPTIC)
     private val triggerKeys = setOf(MoreTriggers.PREF_DOUBLE, MoreTriggers.PREF_LONG, MoreTriggers.PREF_SPLIT)
@@ -377,6 +378,10 @@ class PanelOverlayService : Service() {
             val view = handle ?: TopHandleView(ServiceUiContext(this), true, true) { notifs -> android.os.Handler(android.os.Looper.getMainLooper()).post { showPanel(notifs) } }.also { handle = it }
             view.showPill = TopHandle.visible(this)
             view.buzz = TopHandle.haptic(this)
+            Look.load(this) // Step 58: light / dark of the panel for the strip colour
+            view.shape = TopHandle.shape(this)
+            view.thickPx = dp(TopHandle.thickDp(this)).toFloat()
+            view.colors = TopHandle.colors(this)
             view.splitSides = MoreTriggers.split(this) // Step 6
             view.doubleAction = MoreTriggers.doubleTap(this)
             view.longAction = MoreTriggers.longPress(this)

@@ -12,6 +12,12 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         CrashLog.install(this)
+        // Step 58: the Blur switch is gone from Settings and the menu; blur is always on (a "Blur: Off" saved by an older version is cleared)
+        try {
+            getSharedPreferences("launcher", MODE_PRIVATE).edit().remove("blur").apply()
+        } catch (e: Exception) {
+            // not important
+        }
     }
 }
 

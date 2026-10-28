@@ -3,6 +3,8 @@ package com.oklabs.oneui9launcher
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Shader
 import android.graphics.Paint
 import android.graphics.RectF
 import android.view.HapticFeedbackConstants
@@ -20,6 +22,10 @@ object TopHandle {
     const val PREF_SIDE = "th_side" // 0 centre, 1 left, 2 right
     const val PREF_VISIBLE = "th_visible" // true = a pill is drawn, false = invisible
     const val PREF_HAPTIC = "th_haptic"
+    const val PREF_SHAPE = "th_shape" // Step 58: 0 = small pill, 1 = bar across the whole strip
+    const val PREF_THICK = "th_thick" // Step 58: dp, how thick the drawn pill / bar is (the touch height is separate)
+    const val PREF_COLOR = "th_color" // Step 58: 0 = same as the Quick panel, 1 = white, 2 = a gradient
+    const val PREF_GRAD = "th_grad" // Step 58: which gradient (index in Gradients.all) when PREF_COLOR = 2
 
     private fun prefs(c: Context) = c.getSharedPreferences("launcher", Context.MODE_PRIVATE)
 
@@ -31,6 +37,19 @@ object TopHandle {
     fun visible(c: Context): Boolean = prefs(c).getBoolean(PREF_VISIBLE, true)
     fun haptic(c: Context): Boolean = prefs(c).getBoolean(PREF_HAPTIC, true)
 
+    fun shape(c: Context): Int = prefs(c).getInt(PREF_SHAPE, 0).coerceIn(0, 1)
+    fun thickDp(c: Context): Int = clampThick(prefs(c).getInt(PREF_THICK, 4))
+    fun colorMode(c: Context): Int = prefs(c).getInt(PREF_COLOR, 0).coerceIn(0, 2)
+    fun gradIndex(c: Context): Int = prefs(c).getInt(PREF_GRAD, 0).coerceIn(0, Gradients.all.size - 1)
+
+    /** The colours the strip is drawn with: the Quick panel's own colour, white, or the chosen gradient (one colour = plain). */
+    fun colors(c: Context): IntArray = when (colorMode(c)) {
+        1 -> intArrayOf(Color.WHITE)
+        2 -> Gradients.all[gradIndex(c)].colors.copyOf()
+        else -> PanelTheme.stripColors(c, PanelLook.dark)
+    }
+
+    fun clampThick(v: Int) = v.coerceIn(2, 24)
     fun clampWidth(v: Int) = v.coerceIn(20, 100)
     fun clampHeight(v: Int) = v.coerceIn(8, 48)
     fun clampOffset(v: Int) = v.coerceIn(0, 60)
@@ -62,13 +81,35 @@ class TopHandleView(context: Context, var showPill: Boolean, var buzz: Boolean, 
     private var downLocalX = 0f
     private var fired = false
 
+    /** Step 58: how the strip is drawn. [shape] 0 = small pill, 1 = a bar over the whole width of the strip; [thickPx] = drawn thickness; [colors] = 1 colour or a gradient. */
+    var shape = 0
+    var thickPx = 0f
+    var colors: IntArray = intArrayOf(Color.argb(150, 255, 255, 255))
+
     override fun onDraw(canvas: Canvas) {
         if (!showPill) return
-        val h = context.dpf(4f)
-        val w = minOf(width * 0.5f, context.dpf(120f))
-        rect.set((width - w) / 2f, (height - h) / 2f, (width + w) / 2f, (height + h) / 2f)
-        paint.color = Color.argb(150, 255, 255, 255)
-        canvas.drawRoundRect(rect, h / 2f, h / 2f, paint)
+        val h = if (thickPx > 0f) minOf(thickPx, height.toFloat()) else context.dpf(4f)
+        val w = if (shape == 1) width.toFloat() else minOf(width * 0.5f, context.dpf(120f))
+        val left = (width - w) / 2f
+        val top = (height - h) / 2f
+        rect.set(left, top, left + w, top + h)
+        val shown = Gradients.withAlpha(colors, 235)
+        paint.style = Paint.Style.FILL
+        if (shown.size == 1) {
+            paint.shader = null
+            paint.color = shown[0]
+        } else {
+            paint.shader = LinearGradient(left, 0f, left + w, 0f, shown, null, Shader.TileMode.CLAMP)
+        }
+        val r = h / 2f
+        canvas.drawRoundRect(rect, r, r, paint)
+        paint.shader = null
+        // a thin light edge so a dark colour is still seen over a dark app
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = context.dpf(0.8f)
+        paint.color = Color.argb(70, 255, 255, 255)
+        canvas.drawRoundRect(rect, r, r, paint)
+        paint.style = Paint.Style.FILL
     }
 
     override fun onTouchEvent(ev: MotionEvent): Boolean {

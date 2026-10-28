@@ -106,6 +106,19 @@ object PanelTheme {
         return ColorDrawable(Color.argb(a, Color.red(c), Color.green(c), Color.blue(c)))
     }
 
+    /**
+     * Step 58: the colour(s) of the Quick panel as the top handle shows them ("Same as the Quick panel"): one colour for white glass or a plain colour,
+     * three colours (first corner to last) for a gradient panel. Read from the saved setting, so it follows a change at once.
+     */
+    fun stripColors(context: Context, dark: Boolean): IntArray {
+        val i = saved(context)
+        return when {
+            i == 0 -> intArrayOf(if (dark) Color.rgb(236, 238, 246) else Color.rgb(60, 64, 76))
+            i <= solids.size -> intArrayOf(solids[i - 1].rgb)
+            else -> grads[i - solids.size - 1].colors.copyOf()
+        }
+    }
+
     /** The round swatch shown in Settings for number [i]. */
     fun swatch(i: Int): GradientDrawable {
         val shape = when {

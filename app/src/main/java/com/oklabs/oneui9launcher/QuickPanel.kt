@@ -397,6 +397,8 @@ class QuickPanel(
     private val handler = Handler(Looper.getMainLooper())
 
     private val swipeSlop = ViewConfiguration.get(context).scaledTouchSlop
+    private val closeSwipe = context.dp(84) // Step 58: a swipe up must be a real swipe (about 84 dp), not a light touch; before it was ~16 dp
+    private val sideSwipe = context.dp(72) // Step 58: same for the swipe to the Notifications page
     private var sDownX = 0f
     private var sDownY = 0f
     private var sDownScroll = 0
@@ -418,13 +420,13 @@ class QuickPanel(
                 if (swiped) return true
                 val slop = swipeSlop
                 val dy = sDownY - ev.rawY
-                if (editor == null && gallery == null && !layoutEdit && slider?.isDragging != true && !(notifs?.scrollsAtRaw(sDownX, sDownY) ?: false) && dy > slop * 2 && dy > abs(ev.rawX - sDownX) * 1.2f && (!body.canScrollVertically(1) || sDownScroll == 0 && dy > slop * 6)) {
+                if (editor == null && gallery == null && !layoutEdit && slider?.isDragging != true && !(notifs?.scrollsAtRaw(sDownX, sDownY) ?: false) && dy > closeSwipe && dy > abs(ev.rawX - sDownX) * 1.5f && (!body.canScrollVertically(1) || sDownScroll == 0 && dy > closeSwipe * 3 / 2)) {
                     swiped = true
                     close(true)
                     return true
                 }
                 val dx = ev.rawX - sDownX
-                if (editor == null && gallery == null && !layoutEdit && slider?.isDragging != true && dx < -slop * 3f && -dx > abs(ev.rawY - sDownY) * 2f &&
+                if (editor == null && gallery == null && !layoutEdit && slider?.isDragging != true && dx < -sideSwipe.toFloat() && -dx > abs(ev.rawY - sDownY) * 2f &&
                     !(notifs?.cardsAtRaw(sDownX, sDownY) ?: false) &&
                     !(tilePager?.let { it.multi && it.containsRaw(sDownX, sDownY) } ?: false) &&
                     !(colourStrip?.let { insideRaw(it, sDownX, sDownY) } ?: false)

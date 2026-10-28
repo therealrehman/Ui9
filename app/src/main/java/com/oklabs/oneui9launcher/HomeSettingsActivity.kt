@@ -286,7 +286,7 @@ class HomeSettingsActivity : Activity() {
             box,
             kit.row(SettingsTile.WALLPAPER, SettingsTile.ORANGE, "Wallpaper", "Gradient wallpapers · portrait and landscape") { go(WALLPAPER) },
             kit.row(SettingsTile.ICONS, SettingsTile.PINK, "Icons", IconPack.modeName() + " · Themed: " + IconTheme.choiceNames[IconTheme.savedMode(this)]) { go(ICONS) },
-            kit.row(SettingsTile.LOOK, SettingsTile.SLATE, "Look and feel", "Panels: " + panelModeName() + " · Blur " + onOff(prefs().getBoolean(K_BLUR, true))) { go(LOOK) }
+            kit.row(SettingsTile.LOOK, SettingsTile.SLATE, "Look and feel", "Panels: " + panelModeName()) { go(LOOK) }
         )
 
         kit.label(box, "Features")
@@ -732,6 +732,30 @@ class HomeSettingsActivity : Activity() {
             kit.toggle(-1, 0, "Show the handle", "On: a small pill is drawn. Off: the strip is there but you can not see it", TopHandle.visible(this)) { on ->
                 prefs().edit().putBoolean(TopHandle.PREF_VISIBLE, on).apply()
             },
+            kit.chips("Look", listOf("Pill", "Bar (full strip)"), TopHandle.shape(this)) { i ->
+                prefs().edit().putInt(TopHandle.PREF_SHAPE, i).apply()
+            },
+            kit.slider("Thickness (what you see)", 22, TopHandle.thickDp(this) - 2, { (it + 2).toString() + " dp" }) { v ->
+                prefs().edit().putInt(TopHandle.PREF_THICK, TopHandle.clampThick(v + 2)).apply()
+            },
+            kit.chips("Colour", listOf("Quick panel colour", "White", "Gradient"), TopHandle.colorMode(this)) { i ->
+                prefs().edit().putInt(TopHandle.PREF_COLOR, i).apply()
+            },
+            kit.value("Gradient", Gradients.all[TopHandle.gradIndex(this)].name) {
+                val names = Gradients.all.map { it.name }.toTypedArray()
+                android.app.AlertDialog.Builder(this)
+                    .setTitle("Strip gradient")
+                    .setItems(names) { _, which ->
+                        prefs().edit().putInt(TopHandle.PREF_GRAD, which).putInt(TopHandle.PREF_COLOR, 2).apply()
+                        show()
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            },
+            kit.row(-1, 0, "Full phone width", "Makes the strip as wide as the phone (Width 100%)") {
+                prefs().edit().putInt(TopHandle.PREF_WIDTH, 100).apply()
+                show()
+            },
             kit.chips("Place", listOf("Middle", "Left", "Right"), TopHandle.side(this)) { i ->
                 prefs().edit().putInt(TopHandle.PREF_SIDE, i).apply()
             },
@@ -1027,10 +1051,6 @@ class HomeSettingsActivity : Activity() {
         kit.label(box, "Effects")
         kit.card(
             box,
-            kit.toggle(-1, 0, "Blur", "Blurs the wallpaper behind the Apps screen, folders and the widget picker (Android 12+)", prefs().getBoolean(K_BLUR, true)) { on ->
-                prefs().edit().putBoolean(K_BLUR, on).apply()
-                changed()
-            },
             kit.toggle(-1, 0, "Wallpaper scroll", "The wallpaper slides a little when you swipe between pages", prefs().getBoolean(K_WALLPAPER_SCROLL, true)) { on ->
                 prefs().edit().putBoolean(K_WALLPAPER_SCROLL, on).apply()
                 changed()
@@ -1705,7 +1725,6 @@ class HomeSettingsActivity : Activity() {
         private const val K_NOTIF_SWIPE = "notif_swipe"
         private const val K_SWIPE_MODE = "swipe_down_mode"
         private const val K_LOCK_TAP = "lock_tap"
-        private const val K_BLUR = "blur"
         private const val K_WALLPAPER_SCROLL = "wallpaper_scroll"
         private const val K_DOCK_COLOR = "dock_color"
         private const val K_DOCK_OPACITY = "dock_opacity"
