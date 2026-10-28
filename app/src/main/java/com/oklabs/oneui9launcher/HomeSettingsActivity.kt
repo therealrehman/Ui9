@@ -114,6 +114,7 @@ class HomeSettingsActivity : Activity() {
     override fun onResume() {
         super.onResume()
         // Back from the phone's own settings screens (default Home app, notification access): show the new state.
+        OverlayPanel.sync(this) // Step 50: back from "Draw over other apps": start the panel service
         if (::holder.isInitialized && (stack.last() == MAIN || stack.last() == BADGES || stack.last() == QUICK)) show()
     }
 
@@ -649,7 +650,35 @@ class HomeSettingsActivity : Activity() {
         )
         kit.note(box, "Split: a swipe down on one half of the Home screen opens the Quick panel and on the other half the notifications. Notification panel: the launcher's own full-screen page (needs Notification access) or the phone's own panel.")
 
-        kit.label(box, "In every app (optional)")
+        kit.label(box, "In every app, no Accessibility (recommended)")
+        val opOn = OverlayPanel.wanted(this) && OverlayPanel.canDraw(this)
+        kit.card(
+            box,
+            kit.toggle(
+                -1, 0, "Quick panel over other apps",
+                if (opOn) "On: a small notification keeps it ready; tap it to open the panel over any app" else "Off",
+                opOn
+            ) { on ->
+                OverlayPanel.setWanted(this, on)
+                if (on) askNotificationPermission()
+                if (on && !OverlayPanel.canDraw(this)) askOverlay() else show()
+            },
+            kit.row(
+                -1, 0, "Draw over other apps",
+                if (OverlayPanel.canDraw(this)) "Allowed" else "Not allowed: tap to allow"
+            ) { OverlayPanel.openPermissionScreen(this) },
+            kit.row(-1, 0, "Show panel now", "Test the panel over this screen") {
+                if (!OverlayPanel.showNow()) toast("Switch on \"Quick panel over other apps\" and allow \"Draw over other apps\" first")
+            }
+        )
+        kit.note(
+            box,
+            "This needs no Accessibility service. Android shows this kind of window above apps but BELOW the phone's status bar, so the status bar itself can not be taken over: " +
+                "the panel opens from the notification of this switch (more ways come next: a top handle, a Quick Settings tile, a floating button). " +
+                "Nothing on the screen is read; the panel is only drawn over the app you are in."
+        )
+
+        kit.label(box, "In every app, with Accessibility (optional)")
         val spOn = SystemPanel.wanted(this) && SystemPanel.serviceEnabled(this)
         kit.card(
             box,
@@ -705,6 +734,29 @@ class HomeSettingsActivity : Activity() {
             box,
             kit.row(-1, 0, "Reset Quick panel", "Buttons, side and slider position go back to the start") { askResetQuick() }
         )
+    }
+
+    /** Explains "Draw over other apps" before Android's own screen opens. */
+    private fun askOverlay() {
+        AlertDialog.Builder(this)
+            .setTitle("Allow \"Draw over other apps\"")
+            .setMessage(
+                getString(R.string.app_name) + " draws the Quick panel above the app you are in. It does not read or change anything inside other apps, and nothing leaves the phone. " +
+                    "In the screen that opens, switch \"Allow display over other apps\" on for " + getString(R.string.app_name) + ", then come back."
+            )
+            .setPositiveButton("Continue") { _, _ -> OverlayPanel.openPermissionScreen(this) }
+            .setNegativeButton("Not now") { _, _ ->
+                OverlayPanel.setWanted(this, false)
+                show()
+            }
+            .show()
+    }
+
+    /** Android 13+: the small notification of the panel service needs this to be shown (the panel works without it). */
+    private fun askNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 50)
+        }
     }
 
     /** Explains the Accessibility service before Android's own screen opens. */

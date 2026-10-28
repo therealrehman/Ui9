@@ -328,6 +328,7 @@ class LauncherActivity : Activity() {
         super.onResume()
         noTransition()
         isForeground = true
+        OverlayPanel.sync(this) // Step 50: the Quick panel over other apps stays ready while it is switched on
         if (Backup.reloadHome || HomeStore.configChanged(this)) { // Home settings changed something / a backup was restored: build the screen again
             recreate()
             return

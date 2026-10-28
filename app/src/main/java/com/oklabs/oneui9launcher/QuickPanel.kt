@@ -838,6 +838,7 @@ class QuickPanel(
     private fun maybeScan(again: Boolean = false) {
         val prefs = context.getSharedPreferences("launcher", Context.MODE_PRIVATE)
         if (!again) {
+            if (!SystemPanel.wanted(context)) return // Step 50: Accessibility is not used, so there is nothing to read and nothing to complain about
             if (prefs.getBoolean("qp_scanned", false)) return
             if (prefs.getInt("qp_scan_tries", 0) >= 4) return // after four empty tries only the long-press on the pencil reads again
         }

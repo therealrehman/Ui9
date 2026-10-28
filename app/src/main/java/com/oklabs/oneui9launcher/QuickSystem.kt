@@ -471,6 +471,11 @@ class QuickSystem(context: Context, private val say: (String) -> Unit) {
 
     private fun force(id: String) {
         val svc = PanelAccessibilityService.instance
+        if (svc == null && !SystemPanel.wanted(app)) {
+            // Step 50: the Accessibility service is not used (the panel over other apps needs none): the phone's own screen for this button
+            if (id.startsWith(QuickTiles.CUSTOM_PREFIX)) say("This button of the phone needs the Accessibility service") else fallback(id)
+            return
+        }
         if (svc == null) {
             say("Turn on \"Quick panel\" in Accessibility: then every button switches in one tap")
             open(Settings.ACTION_ACCESSIBILITY_SETTINGS)

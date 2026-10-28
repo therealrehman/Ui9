@@ -24,6 +24,13 @@
     <!-- Step 26: shows whether NFC is on (the button itself is switched by the Quick panel service). -->
     <uses-permission android:name="android.permission.NFC" />
 
+    <!-- Step 50 (Huawei plan, step 1): the Quick panel over other apps WITHOUT the Accessibility service. "Draw over other apps" lets the panel
+         window show above the app you are in; a small foreground service keeps it ready and its notification opens it. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Android 11+ hides other apps unless declared. These let the launcher see every
          launchable app plus the default Phone / Messages / Browser / Camera / Settings. -->
     <queries>
@@ -202,6 +209,16 @@
                 <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
             </intent-filter>
         </receiver>
+
+        <!-- Step 50: the Quick panel over other apps without Accessibility (Settings > Quick panel > Quick panel over other apps). -->
+        <service
+            android:name=".PanelOverlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps the Quick panel window ready to open over other apps" />
+        </service>
 
         <!-- Step 22: the optional system-wide Quick panel (Settings > Quick panel > Open in every app). -->
         <service
