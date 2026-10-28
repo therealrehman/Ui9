@@ -12,6 +12,9 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.PixelFormat
 import android.content.SharedPreferences
+import android.content.res.Configuration
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.net.Uri
 import android.os.Build
@@ -108,23 +111,50 @@ class PanelOverlayService : Service() {
     private var button: FloatingButtonView? = null // Step 4: the floating button
     private var buttonParams: WindowManager.LayoutParams? = null
 
+    // Step 5: smart rules (hide the handle / button in full-screen apps, with the keyboard, on the lock screen, screen off, landscape)
+    private var probe: SmartProbeView? = null
+    private var probeFullscreen = false
+    private var probeKeyboard = false
+    private var lastHidden = false
+    private val uiHandler = Handler(Looper.getMainLooper())
+    private val probeTick = object : Runnable {
+        override fun run() {
+            val p = probe ?: return
+            p.recheck() // safety net: the insets callback alone is not reliable on every phone
+            uiHandler.postDelayed(this, 1000L)
+        }
+    }
+
     private val handleKeys = setOf(
         TopHandle.PREF_ON, TopHandle.PREF_WIDTH, TopHandle.PREF_HEIGHT, TopHandle.PREF_OFFSET,
         TopHandle.PREF_SIDE, TopHandle.PREF_VISIBLE, TopHandle.PREF_HAPTIC
     )
     private val buttonKeys = setOf(FloatButton.PREF_ON, FloatButton.PREF_SIZE, FloatButton.PREF_ALPHA, FloatButton.PREF_SNAP, FloatButton.PREF_FX, FloatButton.PREF_FY, FloatButton.PREF_HAPTIC)
     private val noteKeys = setOf(PanelNote.PREF_ACTION, PanelNote.PREF_TAP)
+    private val smartKeys = setOf(
+        SmartRules.PREF_FULLSCREEN, SmartRules.PREF_KEYBOARD, SmartRules.PREF_LOCK, SmartRules.PREF_SCREEN_OFF, SmartRules.PREF_LANDSCAPE
+    )
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key != null && key in handleKeys) refreshHandle()
         if (key != null && key in buttonKeys) refreshButton() // Step 53
         if (key != null && key in noteKeys) refreshNotification() // Step 52
+        if (key != null && (key in smartKeys || key == TopHandle.PREF_ON || key == FloatButton.PREF_ON)) refreshSmart() // Step 54
         if (key == OverlayPanel.PREF_ON) PanelTileService.requestUpdate(this) // Step 52: the tile looks again
     }
 
     private val screenOff = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            hidePanel()
+            if (intent?.action == Intent.ACTION_SCREEN_OFF) hidePanel()
+            refreshSmart() // Step 54: screen on / off and unlock change what the smart rules say
         }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Step 54: the phone turned (landscape rule) and the screen size changed (handle width, button place)
+        refreshSmart()
+        refreshHandle()
+        refreshButton()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -138,10 +168,19 @@ class PanelOverlayService : Service() {
         } catch (e: Exception) {
             // the handle then follows the settings only when the service starts again
         }
+        lastHidden = smartHidden()
         refreshHandle()
         refreshButton()
+        updateProbe()
         try {
-            registerReceiver(screenOff, IntentFilter(Intent.ACTION_SCREEN_OFF))
+            registerReceiver(
+                screenOff,
+                IntentFilter().apply {
+                    addAction(Intent.ACTION_SCREEN_OFF)
+                    addAction(Intent.ACTION_SCREEN_ON)
+                    addAction(Intent.ACTION_USER_PRESENT)
+                }
+            )
         } catch (e: Exception) {
             // not important: the panel then stays until it is closed
         }
@@ -162,6 +201,7 @@ class PanelOverlayService : Service() {
         } catch (e: Exception) {
             // not registered
         }
+        removeProbe()
         removeHandle()
         removeButton()
         hidePanel()
@@ -302,6 +342,7 @@ class PanelOverlayService : Service() {
         }
         refreshHandle() // the strip comes back when the panel is gone
         refreshButton()
+        probe?.recheck() // Step 54: the other app may have changed while the panel was open
     }
 
     // ------------------------------------------------------------------ Step 2: the top handle
@@ -309,7 +350,7 @@ class PanelOverlayService : Service() {
     /** Puts the strip on screen, takes it away or moves it, so that it matches the settings (and is not there while the panel is open). */
     private fun refreshHandle() {
         try {
-            val want = TopHandle.wanted(this) && OverlayPanel.canDraw(this) && frame == null
+            val want = TopHandle.wanted(this) && OverlayPanel.canDraw(this) && frame == null && !smartHidden()
             if (!want) {
                 removeHandle()
                 return
@@ -353,7 +394,7 @@ class PanelOverlayService : Service() {
     /** Puts the button on screen, takes it away, or changes its size / look / place, so that it matches the settings. */
     private fun refreshButton() {
         try {
-            val want = FloatButton.wanted(this) && OverlayPanel.canDraw(this) && frame == null
+            val want = FloatButton.wanted(this) && OverlayPanel.canDraw(this) && frame == null && !smartHidden()
             if (!want) {
                 removeButton()
                 return
@@ -430,6 +471,78 @@ class PanelOverlayService : Service() {
         val view = button ?: return
         button = null
         buttonParams = null
+        try {
+            (getSystemService(Context.WINDOW_SERVICE) as WindowManager).removeViewImmediate(view)
+        } catch (e: Exception) {
+            // already removed
+        }
+    }
+
+    // ------------------------------------------------------------------ Step 5: smart rules
+
+    /** True when the smart rules say: no handle and no button on screen right now. */
+    private fun smartHidden(): Boolean = SmartRules.hidden(
+        SmartRules.rules(this),
+        SmartRules.State(probeFullscreen, probeKeyboard, SmartRules.isLocked(this), SmartRules.isInteractive(this), SmartRules.isLandscape(this))
+    )
+
+    /** Looks at the rules again: adds / removes the probe window and shows / hides the handle and the button when the answer changed. */
+    private fun refreshSmart() {
+        try {
+            updateProbe()
+            val h = smartHidden()
+            if (h != lastHidden) {
+                lastHidden = h
+                refreshHandle()
+                refreshButton()
+            }
+        } catch (e: Exception) {
+            // the rules then stay as they were
+        }
+    }
+
+    /** What the probe window reports. Ignored while the panel is open (the panel itself changes the bars). */
+    private fun onProbe(fullscreen: Boolean, keyboard: Boolean) {
+        if (frame != null) return
+        probeFullscreen = fullscreen
+        probeKeyboard = keyboard
+        refreshSmart()
+    }
+
+    private fun updateProbe() {
+        val want = SmartRules.needsProbe(this) && OverlayPanel.canDraw(this) && SmartRules.isInteractive(this)
+        if (!want) {
+            removeProbe()
+            return
+        }
+        if (probe != null) return
+        try {
+            val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            val view = SmartProbeView(ServiceUiContext(this)) { fs, kb -> uiHandler.post { onProbe(fs, kb) } }
+            val params = WindowManager.LayoutParams(
+                1, WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT
+            )
+            params.gravity = Gravity.TOP or Gravity.START
+            params.setTitle("Quick panel probe")
+            wm.addView(view, params)
+            probe = view
+            uiHandler.removeCallbacks(probeTick)
+            uiHandler.postDelayed(probeTick, 1000L)
+        } catch (e: Exception) {
+            probe = null
+        }
+    }
+
+    private fun removeProbe() {
+        uiHandler.removeCallbacks(probeTick)
+        probeFullscreen = false // with no probe the other app is unknown: nothing is hidden because of it
+        probeKeyboard = false
+        val view = probe ?: return
+        probe = null
         try {
             (getSystemService(Context.WINDOW_SERVICE) as WindowManager).removeViewImmediate(view)
         } catch (e: Exception) {

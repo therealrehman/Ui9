@@ -720,7 +720,28 @@ class HomeSettingsActivity : Activity() {
                 FloatButton.resetPosition(this)
             }
         )
-        kit.note(box, "The button is part of \"Quick panel over other apps\" (it needs that switch and \"Draw over other apps\"). It is hidden while the panel is open. It sits over the app, so it takes the touches on its own spot: drag it away from buttons you need. The phone may hide it over full-screen videos / games (step 5 adds smart rules).")
+        kit.note(box, "The button is part of \"Quick panel over other apps\" (it needs that switch and \"Draw over other apps\"). It is hidden while the panel is open. It sits over the app, so it takes the touches on its own spot: drag it away from buttons you need. The phone may hide it over full-screen videos / games; the smart rules below hide it on purpose.")
+
+        kit.label(box, "Smart rules (hide the handle and the button)")
+        kit.card(
+            box,
+            kit.toggle(-1, 0, "Hide in full-screen apps and videos", "When an app hides the status bar (video, game, camera) the handle and the button go away", SmartRules.fullscreen(this)) { on ->
+                prefs().edit().putBoolean(SmartRules.PREF_FULLSCREEN, on).apply()
+            },
+            kit.toggle(-1, 0, "Hide while the keyboard is open", "Best effort: some phones do not tell other apps about the keyboard", SmartRules.keyboard(this)) { on ->
+                prefs().edit().putBoolean(SmartRules.PREF_KEYBOARD, on).apply()
+            },
+            kit.toggle(-1, 0, "Hide on the lock screen", null, SmartRules.lock(this)) { on ->
+                prefs().edit().putBoolean(SmartRules.PREF_LOCK, on).apply()
+            },
+            kit.toggle(-1, 0, "Remove while the screen is off", "Nothing is drawn or kept busy when the screen is dark", SmartRules.screenOff(this)) { on ->
+                prefs().edit().putBoolean(SmartRules.PREF_SCREEN_OFF, on).apply()
+            },
+            kit.toggle(-1, 0, "Show in landscape", "Off: the handle and the button are hidden when the phone is turned sideways", SmartRules.landscape(this)) { on ->
+                prefs().edit().putBoolean(SmartRules.PREF_LANDSCAPE, on).apply()
+            }
+        )
+        kit.note(box, "These rules only hide the handle and the floating button. The notification, the Quick Settings tile and the app shortcut still open the panel everywhere. Full-screen and keyboard are guessed from the bars Android reports to an invisible 1-pixel window (it takes no touches and reads nothing from the app); a phone that does not report them simply never hides because of that rule.")
 
         kit.label(box, "Quick Settings tile and App shortcut")
         kit.card(

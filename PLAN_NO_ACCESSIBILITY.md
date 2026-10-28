@@ -1,7 +1,7 @@
 # Quick panel without Accessibility (Huawei-safe) - plan and tracker
 
 This file travels inside every zip of this plan. It says what is DONE, what is LEFT, what is known to be limited, and how to test.
-(Last update: step 4 of 8.)
+(Last update: step 5 of 8.)
 
 ## The one fact everything depends on
 A window made with "Draw over other apps" is shown ABOVE apps but BELOW the status bar and the notification shade (Android's own rule for this window type).
@@ -16,8 +16,8 @@ Not included, as you asked: no navigation bar.
 | 1 | Foundation: "Quick panel over other apps" (Draw over other apps + a small foreground service), master On / Off, permission help, Show-now test, the service notification opens the panel | DONE |
 | 2 | Top handle: a thin strip right under the status bar; swipe down on it opens the panel (position, width, height, visible pill or invisible, On / Off) | DONE |
 | 3 | Quick Settings tile ("Quick panel" tile in the phone's own shade) + App shortcut + notification options (hide / show the notification action) | DONE |
-| 4 | Floating button (draggable, snaps to the edge, size, opacity, On / Off) | **DONE (this zip)** |
-| 5 | Smart rules: hide the handle / button in full-screen apps and videos, when the keyboard is open, on the lock screen, when the screen is off; landscape on / off | left |
+| 4 | Floating button (draggable, snaps to the edge, size, opacity, On / Off) | DONE |
+| 5 | Smart rules: hide the handle / button in full-screen apps and videos, when the keyboard is open, on the lock screen, when the screen is off; landscape on / off | **DONE (this zip)** |
 | 6 | More triggers: double-tap and long-press on the handle, side swipes (left half = Notifications page, right half = Quick panel), optional shake to open | left |
 | 7 | Force / keep alive: start after reboot, restart after the phone's cleaner kills it, battery and "protected apps" help (Huawei screens), a Setup check page with green / red lines, one-time adb commands for the strongest settings | left |
 | 8 | Huawei store build: the release build has NO Accessibility service in its manifest, the Accessibility rows are hidden there, the policy / AppGallery notes are updated, final test list | left |
@@ -35,6 +35,11 @@ Not included, as you asked: no navigation bar.
 - New files: `OverlayPanel.kt` (`OverlayPanel`, `PanelOverlayService`), `res/drawable/ic_stat_panel.xml`. Changed: `AndroidManifest.xml`, `HomeSettingsActivity.kt`, `LauncherActivity.kt` (keeps the service matching the switch), `QuickSystem.kt`, `QuickPanel.kt`, `build.gradle.kts`.
 - New permissions: SYSTEM_ALERT_WINDOW, FOREGROUND_SERVICE, FOREGROUND_SERVICE_SPECIAL_USE, POST_NOTIFICATIONS.
 
+## Step 5 - what is in it
+- Settings > Quick panel > **Smart rules**: hide the handle and the floating button in full-screen apps / videos, while the keyboard is open, on the lock screen, while the screen is off, and (optional) in landscape. Each rule has its own switch. They never hide the panel, the notification, the tile or the shortcut.
+- Done with an invisible 1-pixel overlay window that takes no touches and reads nothing; it only gets the bar sizes Android gives every window. No new permission.
+- New `SmartRules.kt`; changed `OverlayPanel.kt`, `HomeSettingsActivity.kt`.
+
 ## Step 4 - what is in it
 - Settings > Quick panel > **Floating button** (off by default): tap opens the panel, drag moves it, it glides to the nearest edge after a drag. Size, opacity, stick-to-edge, vibrate, reset position. New `FloatingButton.kt`; changed `OverlayPanel.kt`, `HomeSettingsActivity.kt`.
 
@@ -49,6 +54,13 @@ Not included, as you asked: no navigation bar.
 - While the panel is open the strip is removed; it comes back when the panel is gone. Changes in Settings move / resize the strip at once.
 - New file `TopHandle.kt` (`TopHandle` settings, `TopHandleView`). Changed: `OverlayPanel.kt`, `HomeSettingsActivity.kt`.
 - Not in this step (later steps): hiding the strip in full-screen apps / on the keyboard / on the lock screen (step 5), double-tap / long-press on the strip (step 6).
+
+## Test list for step 5 (on the phone)
+1. Switch on the handle and / or the floating button. Open a video in full screen (YouTube, gallery): both go away; leave full screen: they are back.
+2. Tap a text field so the keyboard opens: both go away; close the keyboard: back. (If nothing happens, tell me: the phone does not report the keyboard to other apps.)
+3. Press the power button: screen off. Wake it: on the lock screen nothing is drawn; after unlocking they are back.
+4. Turn the phone sideways: with "Show in landscape" off both are hidden, with it on they stay (and are placed correctly).
+5. Switch a rule off in Settings: that rule stops hiding at once. The notification still opens the panel in every case.
 
 ## Test list for step 4 (on the phone)
 1. Switch on "Floating button" (step 1 switch on, "Draw over other apps" allowed): a round button appears at the right edge.
@@ -78,6 +90,7 @@ Not included, as you asked: no navigation bar.
 
 ## Known limits (honest)
 - The phone's own status bar can not be covered without Accessibility (see above). Step 2 puts the handle under it.
+- Smart rules: the keyboard rule is best effort (some phones do not report the keyboard to other apps' windows); the full-screen rule needs the phone to hide the status bar in that app.
 - The panel does not show over the lock screen, and on some phones not over full-screen videos / games (the phone hides overlays there).
 - Huawei / EMUI may stop the service to save battery: step 7 adds the help for that. Until then, if the notification disappears, open the launcher once.
 - The picture of the app behind the panel is not blurred (that needed Accessibility); only the panel's own veil.
