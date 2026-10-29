@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Glassy launcher icon: aurora gradient with a soft light corner (Step 42). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="315"
+                android:centerColor="#4F8BE8"
+                android:endColor="#7B61FF"
+                android:startColor="#1DD3B8"
+                android:type="linear" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:centerX="0.18"
+                android:centerY="0.15"
+                android:endColor="#00FFFFFF"
+                android:gradientRadius="70%p"
+                android:startColor="#6EFFFFFF"
+                android:type="radial" />
+        </shape>
+    </item>
+</layer-list>

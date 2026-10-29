@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Glassy launcher icon: a frosted glass pane with four glass tiles (Step 42). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#6E140A46"
+        android:pathData="M40,28 H68 A16,16 0 0 1 84,44 V73 A16,16 0 0 1 68,89 H40 A16,16 0 0 1 24,73 V44 A16,16 0 0 1 40,28 Z" />
+    <path
+        android:fillColor="#3EFFFFFF"
+        android:strokeWidth="1.4"
+        android:strokeColor="#AAFFFFFF"
+        android:pathData="M40,24 H68 A16,16 0 0 1 84,40 V68 A16,16 0 0 1 68,84 H40 A16,16 0 0 1 24,68 V40 A16,16 0 0 1 40,24 Z" />
+    <path
+        android:fillColor="#46FFFFFF"
+        android:pathData="M40,24 H68 A16,16 0 0 1 84,40 L24,66 V40 A16,16 0 0 1 40,24 Z" />
+    <path
+        android:fillColor="#F5FFFFFF"
+        android:pathData="M39,33 H45 A6,6 0 0 1 51,39 V45 A6,6 0 0 1 45,51 H39 A6,6 0 0 1 33,45 V39 A6,6 0 0 1 39,33 Z" />
+    <path
+        android:fillColor="#CDFFFFFF"
+        android:pathData="M63,33 H69 A6,6 0 0 1 75,39 V45 A6,6 0 0 1 69,51 H63 A6,6 0 0 1 57,45 V39 A6,6 0 0 1 63,33 Z" />
+    <path
+        android:fillColor="#CDFFFFFF"
+        android:pathData="M39,57 H45 A6,6 0 0 1 51,63 V69 A6,6 0 0 1 45,75 H39 A6,6 0 0 1 33,69 V63 A6,6 0 0 1 39,57 Z" />
+    <path
+        android:fillColor="#FFFFC93C"
+        android:pathData="M63,57 H69 A6,6 0 0 1 75,63 V69 A6,6 0 0 1 69,75 H63 A6,6 0 0 1 57,69 V63 A6,6 0 0 1 63,57 Z" />
+</vector>

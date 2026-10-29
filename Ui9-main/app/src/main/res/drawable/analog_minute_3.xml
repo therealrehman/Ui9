@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Analog clock minute hand (#FF9BE8C2), pointing at 12 o'clock; the clock turns it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="320dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <path
+        android:pathData="M50,56 L50,14"
+        android:strokeColor="#FF9BE8C2"
+        android:strokeLineCap="round"
+        android:strokeWidth="3.4" />
+</vector>

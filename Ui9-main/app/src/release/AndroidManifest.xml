@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Step 36: only for the release (store) build. WRITE_SECURE_SETTINGS is a permission a normal app can never be given from a store; it was only
+     there for the optional "adb grant" shortcuts of the debug build. Taking it out keeps the store review clean. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:node="remove" />
+
+    <!-- Step 8 (Huawei plan): the store build has NO Accessibility service. The same name as in the main manifest, so the merger removes exactly that one.
+         The Quick panel then works through "Draw over other apps" (the top handle, the floating button, the tile, the shortcut, the notification, shake). -->
+    <application>
+        <service android:name=".PanelAccessibilityService" tools:node="remove" />
+    </application>
+</manifest>
