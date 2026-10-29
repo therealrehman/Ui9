@@ -994,3 +994,7 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - Bug: steps 64-67 call `scrimA(...)` = 0 for the veil above the Quick panel / Notifications bottom sheet, but `PanelTheme.scrim(strength, dark)` ignored `strength` and always returned the solid veil, so the marked space above the sheet stayed coloured. Fix: `strength <= 0` now returns a fully transparent drawable (one place, so the Quick panel and the Notifications page are both fixed). The sheet itself keeps its colour (strength 240); the Home screen's full-height panel keeps its veil (strength > 0). Tapping the transparent space still closes the panel.
 - Changed: `PanelTheme.kt`, `build.gradle.kts`, `STEPS.md`. Version 1.0.68 (code 178). Not compiled and not run on a phone.
 
+## Step 69 - panels open from the top when the strip is at the top
+- The Quick panel and the Notifications page came up from the bottom as a sheet whatever the strip's place was. Now `PanelOverlayService.buildHost` sets `sheetAllowed = TopHandle.atBottom(this)`: strip at the BOTTOM = bottom sheet (as in steps 64-67); strip at the TOP = the full panel opens from the top, like a swipe down on the Home screen. This applies to every way of opening it (strip, floating button, tile, shake, notification), because it follows the strip's place setting.
+- Changed: `OverlayPanel.kt`, `build.gradle.kts`, `STEPS.md`. Version 1.0.69 (code 179). Not compiled and not run on a phone.
+

@@ -289,7 +289,9 @@ class PanelOverlayService : Service() {
                     // no Settings app
                 }
             }
-            quick.sheetAllowed = true // Step 65: from the strip the panels come up from the bottom; on the Home screen they stay top-down
+            // Step 69: the panels come up from the bottom (sheet) only when the strip is at the bottom; with the strip at the top they open from the top, like a swipe down on the Home screen
+            val fromBottom = TopHandle.atBottom(this)
+            quick.sheetAllowed = fromBottom
             val notifs = NotificationPage(ctx) {
                 try {
                     ctx.startActivity(Intent("android.settings.NOTIFICATION_SETTINGS"))
@@ -297,7 +299,7 @@ class PanelOverlayService : Service() {
                     // no such screen
                 }
             }
-            notifs.sheetAllowed = true
+            notifs.sheetAllowed = fromBottom
             val host = HostFrame(ctx, quick, notifs)
             host.addView(notifs, FrameLayout.LayoutParams(-1, -1))
             host.addView(quick, FrameLayout.LayoutParams(-1, -1))
