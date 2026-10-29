@@ -120,9 +120,11 @@ object PanelTheme {
      */
     const val BACK_OPACITY = 255
 
-    /** The veil behind the panel (solid, see [BACK_OPACITY]). */
-    @Suppress("UNUSED_PARAMETER")
+    /** The veil behind the panel: solid (see [BACK_OPACITY]) for any [strength] above 0, nothing for 0 (the space above a bottom sheet). */
     fun scrim(strength: Int, dark: Boolean): Drawable {
+        // Step 68: strength 0 = no veil at all. Steps 64-67 asked for a transparent space above the bottom sheet (scrimA(0)), but this function ignored
+        // [strength] and always returned the solid veil, so the space stayed coloured. Any positive strength still gives the solid veil as before.
+        if (strength <= 0) return ColorDrawable(Color.TRANSPARENT)
         val base = baseRgb() ?: return ColorDrawable(PanelLook.veil(BACK_OPACITY))
         val a = BACK_OPACITY
         if (index > solids.size) {
