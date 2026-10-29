@@ -12,6 +12,12 @@ import android.graphics.drawable.GradientDrawable
  * Step 25: 11-20 = ten more gradients, made for the panel ([extra]). Saved numbers 0-10 keep their old meaning.
  */
 object PanelTheme {
+    /** Fix: while the wallpaper is being set some phones pause the Home screen, which closed the panel in the middle of choosing a colour. */
+    @Volatile var wallpaperBusyUntil = 0L
+    @Volatile var reopen = 0 // 1 = the Quick panel, 2 = the Notifications page was open when Home paused
+
+    fun wallpaperBusy(): Boolean = android.os.SystemClock.uptimeMillis() < wallpaperBusyUntil
+
     const val KEY_WP_FOLLOW = "qp_wp_follow" // Step 62b: default ON
     const val KEY_WP_TARGET = "qp_wp_target" // 0 Home, 1 Lock, 2 Both
 
@@ -32,6 +38,7 @@ object PanelTheme {
             else -> android.app.WallpaperManager.FLAG_SYSTEM or android.app.WallpaperManager.FLAG_LOCK
         }
         val def = wallpaperFor(index)
+        wallpaperBusyUntil = android.os.SystemClock.uptimeMillis() + 8000L
         Thread {
             val msg = try {
                 val bmp = Gradients.render(def, w, h)
@@ -41,6 +48,7 @@ object PanelTheme {
             } catch (e: Throwable) {
                 "Could not set the wallpaper"
             }
+            wallpaperBusyUntil = android.os.SystemClock.uptimeMillis() + 3000L
             android.os.Handler(android.os.Looper.getMainLooper()).post { done(msg) }
         }.start()
     }

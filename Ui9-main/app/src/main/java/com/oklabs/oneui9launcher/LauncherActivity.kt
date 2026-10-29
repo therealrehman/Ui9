@@ -357,6 +357,11 @@ class LauncherActivity : Activity() {
         // Step 35: if the phone stopped the Quick panel service on its own, start it again (or say so); checked a moment after the launcher is up
         handler.removeCallbacks(keepService)
         handler.postDelayed(keepService, 2500L)
+        val again = PanelTheme.reopen
+        PanelTheme.reopen = 0
+        if (again != 0 && PanelTheme.wallpaperBusy()) {
+            handler.postDelayed({ if (again == 1) openQuickPanel() else openNotificationPanel() }, 120L)
+        }
     }
 
     private val keepService = Runnable {
@@ -369,6 +374,10 @@ class LauncherActivity : Activity() {
     }
 
     override fun onPause() {
+        // Fix: a pause caused by setting the wallpaper (panel colour change) must not close the panel for good: it is opened again in onResume
+        if (PanelTheme.wallpaperBusy()) {
+            PanelTheme.reopen = if (::quickPanel.isInitialized && quickPanel.isOpen) 1 else if (::notifPage.isInitialized && notifPage.isOpen) 2 else 0
+        }
         PanelOverlayService.notifyHomePanelOpen(false)
         dragLayer.dismiss()
         folderLayer.close(animated = false)
