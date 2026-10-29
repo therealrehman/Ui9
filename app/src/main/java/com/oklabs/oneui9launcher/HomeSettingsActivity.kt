@@ -743,6 +743,36 @@ class HomeSettingsActivity : Activity() {
                 -1, 0, "Draw over other apps",
                 if (OverlayPanel.canDraw(this)) "Allowed" else "Not allowed: tap to allow"
             ) { OverlayPanel.openPermissionScreen(this) },
+            kit.slider("Round buttons - portrait", QuickSize.MAX - QuickSize.MIN, QuickSize.pct(this, QuickSize.BUTTON, false) - QuickSize.MIN, { (it + QuickSize.MIN).toString() + "%" }) { v ->
+                prefs().edit().putInt(QuickSize.key(QuickSize.BUTTON, false), v + QuickSize.MIN).apply()
+            },
+            kit.slider("Round buttons - landscape", QuickSize.MAX - QuickSize.MIN, QuickSize.pct(this, QuickSize.BUTTON, true) - QuickSize.MIN, { (it + QuickSize.MIN).toString() + "%" }) { v ->
+                prefs().edit().putInt(QuickSize.key(QuickSize.BUTTON, true), v + QuickSize.MIN).apply()
+            },
+            kit.slider("Wide buttons (Wi-Fi, Bluetooth) - portrait", QuickSize.MAX - QuickSize.MIN, QuickSize.pct(this, QuickSize.WIDE, false) - QuickSize.MIN, { (it + QuickSize.MIN).toString() + "%" }) { v ->
+                prefs().edit().putInt(QuickSize.key(QuickSize.WIDE, false), v + QuickSize.MIN).apply()
+            },
+            kit.slider("Wide buttons (Wi-Fi, Bluetooth) - landscape", QuickSize.MAX - QuickSize.MIN, QuickSize.pct(this, QuickSize.WIDE, true) - QuickSize.MIN, { (it + QuickSize.MIN).toString() + "%" }) { v ->
+                prefs().edit().putInt(QuickSize.key(QuickSize.WIDE, true), v + QuickSize.MIN).apply()
+            },
+            kit.slider("Sliders (brightness, volume) - portrait", QuickSize.MAX - QuickSize.MIN, QuickSize.pct(this, QuickSize.SLIDER, false) - QuickSize.MIN, { (it + QuickSize.MIN).toString() + "%" }) { v ->
+                prefs().edit().putInt(QuickSize.key(QuickSize.SLIDER, false), v + QuickSize.MIN).apply()
+            },
+            kit.slider("Sliders (brightness, volume) - landscape", QuickSize.MAX - QuickSize.MIN, QuickSize.pct(this, QuickSize.SLIDER, true) - QuickSize.MIN, { (it + QuickSize.MIN).toString() + "%" }) { v ->
+                prefs().edit().putInt(QuickSize.key(QuickSize.SLIDER, true), v + QuickSize.MIN).apply()
+            },
+            kit.row(-1, 0, "Reset all sizes", "Back to 100% for buttons, wide buttons and sliders, portrait and landscape") {
+                val e = prefs().edit()
+                for (part in listOf(QuickSize.BUTTON, QuickSize.WIDE, QuickSize.SLIDER)) {
+                    e.remove(QuickSize.key(part, false))
+                    e.remove(QuickSize.key(part, true))
+                }
+                e.apply()
+                show()
+            },
+            kit.chips("Panel style", listOf("Bottom sheet", "Full screen from top"), if (prefs().getBoolean(PREF_SHEET, true)) 0 else 1) { i ->
+                prefs().edit().putBoolean(PREF_SHEET, i == 0).apply()
+            },
             kit.toggle(-1, 0, "Cover the navigation bar", "On: the panel hides the phone's bottom buttons while it is open, so it fills the whole screen (swipe up from the bottom edge to see them)", prefs().getBoolean(PanelOverlayService.PREF_COVER_NAV, true)) { on ->
                 prefs().edit().putBoolean(PanelOverlayService.PREF_COVER_NAV, on).apply()
             },

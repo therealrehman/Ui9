@@ -42,6 +42,9 @@ private const val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
 private const val HIDE_BRIGHT = "qp_hide_bright" // Step 38: parts of the panel taken off with the red minus
 private const val HIDE_VOLUME = "qp_hide_volume"
 private const val HIDE_MEDIA = "qp_hide_media"
+
+/** Step 64: true (default) = the Quick panel slides up from the bottom as a sheet; false = the old full-height panel from the top. */
+const val PREF_SHEET = "qp_sheet"
 private const val KEY_ROWS = "qp_rows" // Step 38: rows of round buttons on a page (1-4)
 
 /**
@@ -393,6 +396,15 @@ class QuickPanel(
     private var notifsWatching = false
     private val notifsListener: () -> Unit = { notifs?.bind() }
     private var insetTop = 0
+    private var insetBottom = 0
+
+    /** Step 64: true = the panel is a sheet that slides up from the bottom (default); false = the old full-height panel from the top. */
+    private var sheetMode = true
+    private fun sgn(): Float = if (sheetMode) 1f else -1f
+    private fun trackY(rawY: Float): Float = if (sheetMode) -rawY else rawY
+    private fun closeDy(rawY: Float): Float = if (sheetMode) rawY - sDownY else sDownY - rawY
+    private fun atCloseEdge(): Boolean = if (sheetMode) !body.canScrollVertically(-1) else !body.canScrollVertically(1)
+    private fun scrimA(a: Int): Int = if (sheetMode) a * 55 / 100 else a
     private var closing = false
     private var receiverOn = false
     private val handler = Handler(Looper.getMainLooper())
@@ -431,23 +443,23 @@ class QuickPanel(
                 sDownScroll = body.scrollY // Step 39: where the panel was scrolled when the finger came down
                 swiped = false
                 dragging = false
-                sListBlocks = notifs?.blocksSwipeUpAtRaw(sDownX, sDownY) ?: false
+                sListBlocks = (if (sheetMode) notifs?.blocksSwipeDownAtRaw(sDownX, sDownY) else notifs?.blocksSwipeUpAtRaw(sDownX, sDownY)) ?: false
                 sOnSlider = (slider?.let { insideRaw(it, sDownX, sDownY) } ?: false) || (cards?.sliderAtRaw(sDownX, sDownY) ?: false) // Step 61
                 tracker.clear()
-                tracker.add(ev.eventTime, ev.rawY)
+                tracker.add(ev.eventTime, trackY(ev.rawY))
             }
             MotionEvent.ACTION_MOVE -> {
-                tracker.add(ev.eventTime, ev.rawY)
+                tracker.add(ev.eventTime, trackY(ev.rawY))
                 if (dragging) {
-                    dragTo(sDownY - ev.rawY)
+                    dragTo(closeDy(ev.rawY))
                     return true
                 }
                 if (swiped) return true
-                val dy = sDownY - ev.rawY
+                val dy = closeDy(ev.rawY)
                 val dx = ev.rawX - sDownX
                 val free = editor == null && gallery == null && !layoutEdit && slider?.isDragging != true && cards?.anySliderDragging() != true
                 if (free && !sListBlocks && PanelSwipe.startsDrag(dx, dy, density) &&
-                    (!body.canScrollVertically(1) || sDownScroll == 0 && dy > closeSwipe * 3 / 2)
+                    (atCloseEdge() || (!sheetMode && sDownScroll == 0 && dy > closeSwipe * 3 / 2))
                 ) {
                     swiped = true
                     dragging = true
@@ -468,8 +480,8 @@ class QuickPanel(
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> if (dragging) {
                 dragging = false
-                tracker.add(ev.eventTime, ev.rawY)
-                val dy = sDownY - ev.rawY
+                tracker.add(ev.eventTime, trackY(ev.rawY))
+                val dy = closeDy(ev.rawY)
                 if (ev.actionMasked == MotionEvent.ACTION_UP && PanelSwipe.shouldClose(dy, tracker.velocity(), density)) close(true, fromDrag = true) else springBack()
                 return true
             }
@@ -481,7 +493,7 @@ class QuickPanel(
     private fun dragTo(dy: Float) {
         val d = (dy - dragBase).coerceAtLeast(0f)
         val q = (d / closeTravel()).coerceIn(0f, 1f)
-        card.translationY = -d
+        card.translationY = sgn() * d
         card.alpha = Motion.fadeOut(q)
         scrim.alpha = Motion.fadeOut(q)
         scrim.translationY = card.translationY
@@ -492,7 +504,7 @@ class QuickPanel(
         card.animate().cancel()
         card.animate().translationY(0f).setDuration(PanelSwipe.BACK_MS).setInterpolator(PanelSwipe.GLIDE)
             .setUpdateListener {
-                val q = (-card.translationY / closeTravel()).coerceIn(0f, 1f)
+                val q = (abs(card.translationY) / closeTravel()).coerceIn(0f, 1f)
                 card.alpha = Motion.fadeOut(q)
                 scrim.alpha = Motion.fadeOut(q)
                 scrim.translationY = card.translationY
@@ -564,7 +576,7 @@ class QuickPanel(
     init {
         visibility = View.GONE
 
-        scrim.background = PanelTheme.scrim(150, PanelLook.dark)
+        scrim.background = PanelTheme.scrim(scrimA(150), PanelLook.dark)
         scrim.isClickable = true
         scrim.setOnClickListener { close(true) }
         scrim.setOnTouchListener { _, ev -> closing || swipeEvent(ev) || (swiped && ev.actionMasked != MotionEvent.ACTION_DOWN) } // Step 32: swipe beside the buttons works too
@@ -585,9 +597,48 @@ class QuickPanel(
         setInsets(0)
     }
 
+    /** Step 64: reads Settings > Quick panel > Panel style and puts the card on the bottom (sheet) or the top (full height). */
+    private fun applyStyle() {
+        sheetMode = context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getBoolean(PREF_SHEET, true)
+        val lp = card.layoutParams as LayoutParams
+        val bp = body.layoutParams as LinearLayout.LayoutParams
+        if (sheetMode) {
+            lp.height = WRAP
+            lp.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            bp.height = WRAP
+            bp.weight = 0f
+            val r = context.dpf(28f)
+            card.background = PanelTheme.scrim(240, PanelLook.dark)
+            card.outlineProvider = object : android.view.ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: android.graphics.Outline) {
+                    outline.setRoundRect(0, 0, view.width, (view.height + r).toInt(), r)
+                }
+            }
+            card.clipToOutline = true
+        } else {
+            lp.height = MATCH
+            lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            bp.height = 0
+            bp.weight = 1f
+            card.background = null
+            card.clipToOutline = false
+        }
+        card.layoutParams = lp
+        body.layoutParams = bp
+        setInsets(insetTop, insetBottom)
+    }
+
     /** The status bar height, so the clock sits below it. */
     fun setInsets(top: Int, bottom: Int = 0) {
         insetTop = top
+        insetBottom = bottom
+        if (sheetMode) {
+            // Step 64: a sheet: it is only as tall as its content (at most 80% of the screen) and sits on the bottom edge
+            card.setPadding(context.dp(18), context.dp(16), context.dp(18), bottom + context.dp(12))
+            body.maxPx = (context.resources.displayMetrics.heightPixels * 0.80f).toInt() - bottom - context.dp(28)
+            body.maxPx = body.maxPx.coerceAtLeast(context.dp(200))
+            return
+        }
         // Step 22a: the panel ends right above the navigation bar (no empty strip under it).
         card.setPadding(context.dp(18), top + context.dp(12), context.dp(18), bottom + context.dp(10))
         // the panel never grows past the screen: below this it scrolls
@@ -618,7 +669,7 @@ class QuickPanel(
         wideRow.orientation = LinearLayout.HORIZONTAL
         for ((i, def) in order.take(2).withIndex()) {
             val tile = TileView(c, def, wide = true)
-            val lp = LinearLayout.LayoutParams(0, c.dp(62), 1f)
+            val lp = LinearLayout.LayoutParams(0, QuickSize.dp(c, 62, QuickSize.WIDE), 1f)
             if (i == 0) lp.rightMargin = c.dp(5) else lp.leftMargin = c.dp(5)
             wideRow.addView(if (layoutEdit) minus(tile, true) { removeTile(def.id) } else tile, lp)
             tiles.add(Pair(def.id, tile))
@@ -793,9 +844,9 @@ class QuickPanel(
         val row = LinearLayout(c)
         row.orientation = LinearLayout.HORIZONTAL
         row.gravity = Gravity.CENTER_VERTICAL
-        row.addView(bright, LinearLayout.LayoutParams(0, c.dp(PillSlider.HEIGHT_DP), 1f))
+        row.addView(bright, LinearLayout.LayoutParams(0, QuickSize.dp(c, PillSlider.HEIGHT_DP, QuickSize.SLIDER), 1f))
         val moon = roundGlyphButton(c, QuickGlyph(c, QuickGlyph.DARK), "Display and dark mode settings") { openDisplaySettings() }
-        val moonLp = LinearLayout.LayoutParams(c.dp(PillSlider.HEIGHT_DP), c.dp(PillSlider.HEIGHT_DP))
+        val moonLp = LinearLayout.LayoutParams(QuickSize.dp(c, PillSlider.HEIGHT_DP, QuickSize.SLIDER), QuickSize.dp(c, PillSlider.HEIGHT_DP, QuickSize.SLIDER))
         moonLp.leftMargin = c.dp(10)
         row.addView(moon, moonLp)
         val bp = LinearLayout.LayoutParams(MATCH, WRAP)
@@ -1013,7 +1064,7 @@ class QuickPanel(
         context.getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putInt(PanelTheme.KEY, i).apply()
         PanelTheme.load(context)
         PanelTheme.syncWallpaper(context, i) // Step 62b
-        scrim.background = PanelTheme.scrim(205, PanelLook.dark)
+        scrim.background = PanelTheme.scrim(scrimA(205), PanelLook.dark)
         build() // every glass of the panel is drawn again in the new colour
     }
 
@@ -1300,6 +1351,7 @@ class QuickPanel(
 
     fun open() {
         if (isOpen && !closing) return
+        applyStyle()
         if (closing) finishClose() // Step 39: a close that never finished must not block the next open
         card.animate().setUpdateListener(null).cancel()
         card.setLayerType(View.LAYER_TYPE_NONE, null)
@@ -1333,9 +1385,9 @@ class QuickPanel(
         handler.postDelayed(poll, 1200L)
         visibility = View.VISIBLE
         // Step 25: nothing is blurred behind the panel any more, so the veil alone must hide the Home screen: stronger than before.
-        scrim.background = PanelTheme.scrim(205, PanelLook.dark)
+        scrim.background = PanelTheme.scrim(scrimA(205), PanelLook.dark)
         // Step 31: slide down AND fade 0 -> 100 together (panel first, the veil a little later), one smooth curve.
-        val h0 = -context.resources.displayMetrics.heightPixels.toFloat()
+        val h0 = sgn() * context.resources.displayMetrics.heightPixels.toFloat()
         scrim.alpha = 0f
         scrim.translationY = h0 * 0.35f
         card.alpha = 0f
@@ -1392,8 +1444,8 @@ class QuickPanel(
             scrim.alpha = Motion.CLOSE_START_ALPHA
         }
         card.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-        val travel = -closeTravel()
-        val target = if (fromDrag) min(card.translationY, travel) else travel
+        val travel = sgn() * closeTravel()
+        val target = if (fromDrag) (if (sheetMode) max(card.translationY, travel) else min(card.translationY, travel)) else travel
         val ms = if (fromDrag) PanelSwipe.closeMs((card.translationY / travel).coerceIn(0f, 1f)) else Motion.CLOSE_MS
         card.animate().translationY(target).setDuration(ms)
             .setInterpolator(if (fromDrag) PanelSwipe.GLIDE else Motion.CLOSE)
@@ -1511,7 +1563,7 @@ class QuickPanel(
             isClickable = true
             isLongClickable = true
             label.text = def.label
-            label.setTextSize(TypedValue.COMPLEX_UNIT_SP, if (wide) 14f else 11.5f)
+            label.setTextSize(TypedValue.COMPLEX_UNIT_SP, if (wide) QuickSize.scale(c, 14f, QuickSize.WIDE) else QuickSize.scale(c, 11.5f, QuickSize.BUTTON))
             label.maxLines = if (wide) 1 else 2
             label.ellipsize = android.text.TextUtils.TruncateAt.END
             sub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
@@ -1521,8 +1573,8 @@ class QuickPanel(
                 orientation = HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(c.dp(10), 0, c.dp(10), 0)
-                circle.addView(glyph, FrameLayout.LayoutParams(c.dp(26), c.dp(26), Gravity.CENTER))
-                addView(circle, LayoutParams(c.dp(42), c.dp(42)))
+                circle.addView(glyph, FrameLayout.LayoutParams(QuickSize.dp(c, 26, QuickSize.WIDE), QuickSize.dp(c, 26, QuickSize.WIDE), Gravity.CENTER))
+                addView(circle, LayoutParams(QuickSize.dp(c, 42, QuickSize.WIDE), QuickSize.dp(c, 42, QuickSize.WIDE)))
                 val texts = LinearLayout(c)
                 texts.orientation = VERTICAL
                 texts.addView(label, LayoutParams(WRAP, WRAP))
@@ -1533,8 +1585,8 @@ class QuickPanel(
             } else {
                 orientation = VERTICAL
                 gravity = Gravity.CENTER_HORIZONTAL
-                circle.addView(glyph, FrameLayout.LayoutParams(c.dp(28), c.dp(28), Gravity.CENTER))
-                addView(circle, LayoutParams(c.dp(58), c.dp(58)))
+                circle.addView(glyph, FrameLayout.LayoutParams(QuickSize.dp(c, 28, QuickSize.BUTTON), QuickSize.dp(c, 28, QuickSize.BUTTON), Gravity.CENTER))
+                addView(circle, LayoutParams(QuickSize.dp(c, 58, QuickSize.BUTTON), QuickSize.dp(c, 58, QuickSize.BUTTON)))
                 label.gravity = Gravity.CENTER
                 val lp = LayoutParams(MATCH, WRAP)
                 lp.topMargin = c.dp(5)

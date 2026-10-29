@@ -103,9 +103,9 @@ class QuickCards(context: Context, private val say: (String) -> Unit, private va
         row.orientation = HORIZONTAL
         val output = pill(QuickGlyph.OUTPUT, "Media output", outputSub) { openOutput() }
         val devices = pill(QuickGlyph.DEVICES, "Devices", devicesSub) { openDevices() }
-        val a = LayoutParams(0, c.dp(62), 1f)
+        val a = LayoutParams(0, QuickSize.dp(c, 62, QuickSize.WIDE), 1f)
         a.rightMargin = c.dp(5)
-        val b = LayoutParams(0, c.dp(62), 1f)
+        val b = LayoutParams(0, QuickSize.dp(c, 62, QuickSize.WIDE), 1f)
         b.leftMargin = c.dp(5)
         row.addView(output, a)
         row.addView(devices, b)
@@ -362,7 +362,7 @@ class QuickCards(context: Context, private val say: (String) -> Unit, private va
         val top = LinearLayout(c)
         top.orientation = HORIZONTAL
         top.gravity = Gravity.CENTER_VERTICAL
-        top.addView(volumeSlider(AudioManager.STREAM_MUSIC, QuickGlyph.SOUND, "Media volume"), LayoutParams(0, c.dp(PillSlider.HEIGHT_DP), 1f))
+        top.addView(volumeSlider(AudioManager.STREAM_MUSIC, QuickGlyph.SOUND, "Media volume"), LayoutParams(0, QuickSize.dp(c, PillSlider.HEIGHT_DP, QuickSize.SLIDER), 1f))
         val speaker = roundGlyphButton(c, chevron, "More volume sliders") { toggleExpanded() }
         val speakerLp = LayoutParams(c.dp(52), c.dp(52))
         speakerLp.leftMargin = c.dp(10)
@@ -375,7 +375,7 @@ class QuickCards(context: Context, private val say: (String) -> Unit, private va
         )) {
             val s = volumeSlider(stream, glyph, name)
             s.visibility = GONE
-            val lp = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, c.dp(PillSlider.HEIGHT_DP))
+            val lp = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, QuickSize.dp(c, PillSlider.HEIGHT_DP, QuickSize.SLIDER))
             lp.topMargin = c.dp(8)
             lp.rightMargin = c.dp(62)
             card.addView(s, lp)

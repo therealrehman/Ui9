@@ -100,6 +100,13 @@ class QuickNotifs(
         return r.contains(rawX.toInt(), rawY.toInt()) && scroller.canScrollVertically(1)
     }
 
+    /** Step 64: for the bottom sheet (closed by a swipe DOWN): the finger is on a list that can still scroll up. */
+    fun blocksSwipeDownAtRaw(rawX: Float, rawY: Float): Boolean {
+        val r = Rect()
+        if (!scroller.getGlobalVisibleRect(r)) return false
+        return r.contains(rawX.toInt(), rawY.toInt()) && scroller.canScrollVertically(-1)
+    }
+
     /** Step 59: same as [blocksSwipeUpAtRaw] for a point in the coordinates of this view's parent (the Notifications page). */
     fun blocksSwipeUpAt(x: Float, y: Float): Boolean {
         val r = Rect()
