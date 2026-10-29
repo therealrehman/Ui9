@@ -9,7 +9,7 @@ Contact email for everything below: a.rehmanmazher11@gmail.com
    (impersonation / intellectual-property policy). Safest: publish under your own name, e.g. **"Glassy launcher"**.
    Change it in one place: `app_name` in `app/src/main/res/values/strings.xml`. Then replace "OneUI 9 Launcher" in `docs/*.html`
    (`sed -i 's/OneUI 9 Launcher/Glassy launcher/g' docs/*.html`). Do not mention Samsung or "One UI" in the store listing.
-2. **Package name is permanent.** `com.oklabs.oneui9launcher` can never be changed after the first upload to Play.
+2. **Package name is permanent.** `com.oklabs.oneui9launcher` (now com.arapks.glassylauncher) can never be changed after the first upload to Play.
    If you want something cleaner (e.g. `com.oklabs.launcher`), change it NOW, before the first upload (namespace, applicationId and the
    Kotlin package folders). Tell me and I will do it.
 3. **Policy URLs.** In `app/src/main/res/values/strings.xml` replace `YOUR_NAME` in `privacy_url` and `terms_url` (see section 1).

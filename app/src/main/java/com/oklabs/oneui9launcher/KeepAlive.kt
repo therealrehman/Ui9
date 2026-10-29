@@ -25,7 +25,7 @@ object KeepAlive {
     const val PREF_RESTART = "ka_restart" // start again after the service is stopped + 15-minute check
 
     const val ACTION_RESTART = "com.oklabs.oneui9launcher.KEEPALIVE_RESTART"
-    const val PKG = "com.oklabs.oneui9launcher"
+    const val PKG = "com.arapks.glassylauncher"
 
     private const val WATCHDOG_MS = 15 * 60 * 1000L
 
