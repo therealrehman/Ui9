@@ -399,12 +399,16 @@ class QuickPanel(
     private var insetBottom = 0
 
     /** Step 64: true = the panel is a sheet that slides up from the bottom (default); false = the old full-height panel from the top. */
-    private var sheetMode = true
+    private var sheetMode = false
+
+    /** Step 65: the host (the overlay opened from the strip) allows the bottom sheet; the Home screen's own panel never is one. */
+    var sheetAllowed = false
+    private val pillHolder = FrameLayout(context)
     private fun sgn(): Float = if (sheetMode) 1f else -1f
     private fun trackY(rawY: Float): Float = if (sheetMode) -rawY else rawY
     private fun closeDy(rawY: Float): Float = if (sheetMode) rawY - sDownY else sDownY - rawY
     private fun atCloseEdge(): Boolean = if (sheetMode) !body.canScrollVertically(-1) else !body.canScrollVertically(1)
-    private fun scrimA(a: Int): Int = if (sheetMode) a * 55 / 100 else a
+    private fun scrimA(a: Int): Int = if (sheetMode) 0 else a // Step 65: the space above the sheet is transparent
     private var closing = false
     private var receiverOn = false
     private val handler = Handler(Looper.getMainLooper())
@@ -593,13 +597,22 @@ class QuickPanel(
         // Step 20: the panel is as tall as the screen; its lower area (player + notifications) takes the space that is left.
         body.isFillViewport = true
         card.addView(body, LinearLayout.LayoutParams(MATCH, 0, 1f))
+        // Step 65: a small grab pill in the transparent space above the sheet (only shown for the bottom sheet)
+        val pillView = View(context)
+        pillView.background = GradientDrawable().apply {
+            setColor(Color.argb(220, 255, 255, 255))
+            cornerRadius = context.dpf(3f)
+        }
+        pillHolder.addView(pillView, FrameLayout.LayoutParams(context.dp(48), context.dp(5), Gravity.CENTER))
+        pillHolder.visibility = View.GONE
+        card.addView(pillHolder, 0, LinearLayout.LayoutParams(MATCH, context.dp(26)))
         addView(card, LayoutParams(width, MATCH, Gravity.TOP or Gravity.CENTER_HORIZONTAL))
         setInsets(0)
     }
 
     /** Step 64: reads Settings > Quick panel > Panel style and puts the card on the bottom (sheet) or the top (full height). */
     private fun applyStyle() {
-        sheetMode = context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getBoolean(PREF_SHEET, true)
+        sheetMode = sheetAllowed && context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getBoolean(PREF_SHEET, true)
         val lp = card.layoutParams as LayoutParams
         val bp = body.layoutParams as LinearLayout.LayoutParams
         if (sheetMode) {
@@ -608,20 +621,24 @@ class QuickPanel(
             bp.height = WRAP
             bp.weight = 0f
             val r = context.dpf(28f)
-            card.background = PanelTheme.scrim(240, PanelLook.dark)
-            card.outlineProvider = object : android.view.ViewOutlineProvider() {
+            card.background = null
+            body.background = PanelTheme.scrim(240, PanelLook.dark) // only the sheet itself is coloured; the card above it (the pill) stays transparent
+            body.outlineProvider = object : android.view.ViewOutlineProvider() {
                 override fun getOutline(view: View, outline: android.graphics.Outline) {
                     outline.setRoundRect(0, 0, view.width, (view.height + r).toInt(), r)
                 }
             }
-            card.clipToOutline = true
+            body.clipToOutline = true
+            pillHolder.visibility = View.VISIBLE
         } else {
             lp.height = MATCH
             lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             bp.height = 0
             bp.weight = 1f
             card.background = null
-            card.clipToOutline = false
+            body.background = null
+            body.clipToOutline = false
+            pillHolder.visibility = View.GONE
         }
         card.layoutParams = lp
         body.layoutParams = bp
@@ -633,12 +650,13 @@ class QuickPanel(
         insetTop = top
         insetBottom = bottom
         if (sheetMode) {
-            // Step 64: a sheet: it is only as tall as its content (at most 80% of the screen) and sits on the bottom edge
-            card.setPadding(context.dp(18), context.dp(16), context.dp(18), bottom + context.dp(12))
-            body.maxPx = (context.resources.displayMetrics.heightPixels * 0.80f).toInt() - bottom - context.dp(28)
-            body.maxPx = body.maxPx.coerceAtLeast(context.dp(200))
+            // Step 64/65: a sheet: only as tall as its content (at most 80% of the screen) on the bottom edge; the padding is inside the coloured body
+            card.setPadding(0, 0, 0, 0)
+            content.setPadding(context.dp(18), context.dp(16), context.dp(18), bottom + context.dp(12))
+            body.maxPx = ((context.resources.displayMetrics.heightPixels * 0.80f).toInt() - bottom - context.dp(54)).coerceAtLeast(context.dp(200))
             return
         }
+        content.setPadding(0, 0, 0, 0)
         // Step 22a: the panel ends right above the navigation bar (no empty strip under it).
         card.setPadding(context.dp(18), top + context.dp(12), context.dp(18), bottom + context.dp(10))
         // the panel never grows past the screen: below this it scrolls
@@ -675,9 +693,9 @@ class QuickPanel(
             tiles.add(Pair(def.id, tile))
             if (!layoutEdit) wire(def.id, tile)
         }
-        val wideParams = LinearLayout.LayoutParams(MATCH, WRAP)
+        val wideParams = rowLp(QuickSize.WIDE)
         wideParams.topMargin = c.dp(14)
-        content.addView(wideRow, wideParams)
+        content.addView(if (layoutEdit) resizable(wideRow, QuickSize.WIDE, true) else wideRow, wideParams)
 
         // The rest: round buttons, four to a row, eight to a page, all inside ONE dark frosted rectangle (like the reference phone).
         // Step 26b: more than one page = drag left / right, the pages loop.
@@ -733,7 +751,7 @@ class QuickPanel(
                 val edit = pill("Edit", 18f)
                 edit.setOnClickListener { startEdit() }
                 frame.addView(edit, FrameLayout.LayoutParams(WRAP, WRAP, Gravity.CENTER))
-                content.addView(frame, gp)
+                content.addView(resizable(frame, QuickSize.BUTTON, false), gp)
                 content.addView(resizeBar(rowsPerPage), LinearLayout.LayoutParams(MATCH, c.dp(34)))
             } else {
                 content.addView(pager, gp)
@@ -753,9 +771,9 @@ class QuickPanel(
         if (cardsOn && !isHidden(HIDE_VOLUME)) {
             val k = QuickCards(c, { Toast.makeText(c, it, Toast.LENGTH_SHORT).show() }) { close(false) }
             cards = k
-            val kp = LinearLayout.LayoutParams(MATCH, WRAP)
+            val kp = rowLp(QuickSize.SLIDER)
             kp.topMargin = c.dp(14)
-            content.addView(if (layoutEdit) minus(k, true) { setHidden(HIDE_VOLUME, true) } else k, kp)
+            content.addView(if (layoutEdit) resizable(minus(k, true) { setHidden(HIDE_VOLUME, true) }, QuickSize.SLIDER, true) else k, kp)
             if (isOpen) k.start() // the panel is already showing (back from the editor)
         }
         val lower = LinearLayout(c)
@@ -803,6 +821,15 @@ class QuickPanel(
             addLp.gravity = Gravity.CENTER_HORIZONTAL
             addLp.topMargin = c.dp(10)
             content.addView(add, addLp)
+            val reset = pill("Reset sizes", 14f)
+            reset.setOnClickListener {
+                QuickSize.reset(c)
+                build()
+            }
+            val resetLp = LinearLayout.LayoutParams(WRAP, WRAP)
+            resetLp.gravity = Gravity.CENTER_HORIZONTAL
+            resetLp.topMargin = c.dp(8)
+            content.addView(reset, resetLp)
         }
 
         // A little grab bar: it says "swipe up to close".
@@ -849,9 +876,9 @@ class QuickPanel(
         val moonLp = LinearLayout.LayoutParams(QuickSize.dp(c, PillSlider.HEIGHT_DP, QuickSize.SLIDER), QuickSize.dp(c, PillSlider.HEIGHT_DP, QuickSize.SLIDER))
         moonLp.leftMargin = c.dp(10)
         row.addView(moon, moonLp)
-        val bp = LinearLayout.LayoutParams(MATCH, WRAP)
+        val bp = rowLp(QuickSize.SLIDER)
         bp.topMargin = c.dp(topMarginDp)
-        content.addView(if (layoutEdit) minus(row, true) { setHidden(HIDE_BRIGHT, true) } else row, bp)
+        content.addView(if (layoutEdit) resizable(minus(row, true) { setHidden(HIDE_BRIGHT, true) }, QuickSize.SLIDER, true) else row, bp)
     }
 
     /** The power icon in the header: locks the screen (the phone's power menu is not open to launchers). Needs "Double-tap to lock" to be allowed once. */
@@ -1110,6 +1137,100 @@ class QuickPanel(
     }
 
     /** [view] with a red round minus at its top-left corner; the minus calls [onRemove]. [outside]: the minus sticks out over the corner. */
+    /** Row width: the full row, or narrower (centred) when the part was made narrower with its drag handle. */
+    private fun rowLp(part: String): LinearLayout.LayoutParams {
+        val c = context
+        val avail = min(c.resources.displayMetrics.widthPixels, c.dp(MAX_WIDTH_DP)) - c.dp(36)
+        val lp = if (QuickSize.wpct(c, part) >= 100) LinearLayout.LayoutParams(MATCH, WRAP) else LinearLayout.LayoutParams(QuickSize.widthPx(c, avail, part), WRAP)
+        lp.gravity = Gravity.CENTER_HORIZONTAL
+        return lp
+    }
+
+    /**
+     * Step 65: edit mode: a part gets a dashed rectangle and a round handle in its lower right corner. Drag the handle to make the part
+     * bigger or smaller (height and, for the wide parts and the sliders, width too); the rectangle follows the finger and the new size is
+     * kept for the phone's current orientation (portrait and landscape are separate) when the finger lifts. [withWidth] false = the round
+     * buttons: they keep their shape and grow as one.
+     */
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    private fun resizable(view: View, part: String, withWidth: Boolean): View {
+        val c = context
+        val box = FrameLayout(c)
+        box.clipChildren = false
+        box.clipToPadding = false
+        box.addView(view, FrameLayout.LayoutParams(MATCH, WRAP))
+        val ghost = View(c)
+        ghost.background = GradientDrawable().apply {
+            setColor(Color.TRANSPARENT)
+            cornerRadius = c.dpf(18f)
+            setStroke(c.dp(2), Color.argb(230, 255, 255, 255), c.dpf(7f), c.dpf(5f))
+        }
+        val ghostLp = FrameLayout.LayoutParams(MATCH, MATCH, Gravity.TOP or Gravity.CENTER_HORIZONTAL)
+        box.addView(ghost, ghostLp)
+        val handle = View(c)
+        handle.background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Color.WHITE)
+            setStroke(c.dp(3), Color.argb(255, 90, 130, 255))
+        }
+        handle.contentDescription = "Resize"
+        val hlp = FrameLayout.LayoutParams(c.dp(30), c.dp(30), Gravity.BOTTOM or Gravity.END)
+        hlp.rightMargin = c.dp(2)
+        hlp.bottomMargin = c.dp(2)
+        box.addView(handle, hlp)
+        var downX = 0f
+        var downY = 0f
+        var startH = 100
+        var startW = 100
+        var viewW = 1
+        var viewH = 1
+        var newH = 100
+        var newW = 100
+        handle.setOnTouchListener { v, ev ->
+            when (ev.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    v.parent.requestDisallowInterceptTouchEvent(true)
+                    downX = ev.rawX
+                    downY = ev.rawY
+                    startH = QuickSize.pct(c, part)
+                    startW = QuickSize.wpct(c, part)
+                    viewW = max(1, box.width)
+                    viewH = max(1, box.height)
+                    newH = startH
+                    newW = startW
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = ev.rawX - downX
+                    val dy = ev.rawY - downY
+                    if (withWidth) {
+                        newH = (startH * (viewH + dy) / viewH).toInt().coerceIn(QuickSize.MIN, QuickSize.MAX)
+                        newW = (startW * (viewW + 2f * dx) / viewW).toInt().coerceIn(QuickSize.W_MIN, QuickSize.W_MAX)
+                        ghostLp.width = (viewW * newW / startW.toFloat()).toInt()
+                    } else {
+                        newH = (startH * (viewH + (dx + dy) / 2f) / viewH).toInt().coerceIn(QuickSize.MIN, QuickSize.MAX)
+                    }
+                    ghostLp.height = (viewH * newH / startH.toFloat()).toInt()
+                    ghost.layoutParams = ghostLp
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    QuickSize.save(c, part, newH, if (withWidth) newW else null)
+                    build()
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    ghostLp.width = MATCH
+                    ghostLp.height = MATCH
+                    ghost.layoutParams = ghostLp
+                    true
+                }
+                else -> true
+            }
+        }
+        return box
+    }
+
     private fun minus(view: View, outside: Boolean, onRemove: () -> Unit): View {
         val c = context
         val box = FrameLayout(c)
@@ -1162,7 +1283,7 @@ class QuickPanel(
         row.addView(done, LinearLayout.LayoutParams(WRAP, WRAP))
         col.addView(row, LinearLayout.LayoutParams(MATCH, WRAP))
         val hint = TextView(c)
-        hint.text = "Tap  \u2212  to remove a part. Drag the bar under the buttons to change their height."
+        hint.text = "Tap  \u2212  to remove a part. Drag the round dot in the corner of a part to resize it. Drag the bar under the buttons to change the rows."
         hint.setTextColor(PanelLook.textA(215))
         hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
         hint.gravity = Gravity.CENTER

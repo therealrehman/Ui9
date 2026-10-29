@@ -78,6 +78,8 @@ class NotificationPage(
         private var listBlocks = false // the finger came down on a list that can still scroll down: that swipe scrolls it
         private val tracker = FlingTracker()
 
+        private fun closeDy(rawY: Float): Float = if (sheetMode) rawY - downRawY else downRawY - rawY
+
         private fun swipedRight(x: Float, y: Float): Boolean {
             val dx = x - downX
             return dx > context.dp(72) && dx > abs(y - downY) * 2f // Step 58: a real swipe, not a light touch
@@ -96,18 +98,18 @@ class NotificationPage(
                     downRawY = ev.rawY
                     taken = false
                     dragging = false
-                    listBlocks = notifs?.blocksSwipeUpAt(downX, downY) ?: false
+                    listBlocks = (if (sheetMode) notifs?.blocksSwipeDownAt(downX, downY) else notifs?.blocksSwipeUpAt(downX, downY)) ?: false
                     tracker.clear()
-                    tracker.add(ev.eventTime, ev.rawY)
+                    tracker.add(ev.eventTime, trackY(ev.rawY))
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    tracker.add(ev.eventTime, ev.rawY)
+                    tracker.add(ev.eventTime, trackY(ev.rawY))
                     if (dragging) {
-                        dragTo(downRawY - ev.rawY)
+                        dragTo(closeDy(ev.rawY))
                         return true
                     }
                     if (taken) return true
-                    val dyUp = downRawY - ev.rawY
+                    val dyUp = closeDy(ev.rawY)
                     if (!listBlocks && PanelSwipe.startsDrag(ev.x - downX, dyUp, density)) {
                         taken = true
                         dragging = true
@@ -124,8 +126,8 @@ class NotificationPage(
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> if (dragging) {
                     dragging = false
-                    tracker.add(ev.eventTime, ev.rawY)
-                    val dyUp = downRawY - ev.rawY
+                    tracker.add(ev.eventTime, trackY(ev.rawY))
+                    val dyUp = closeDy(ev.rawY)
                     if (ev.actionMasked == MotionEvent.ACTION_UP && PanelSwipe.shouldClose(dyUp, tracker.velocity(), density)) close(true, fromDrag = true) else springBack()
                     return true
                 }
@@ -165,13 +167,46 @@ class NotificationPage(
 
     private var dragBase = 0f
 
+    /** Step 65: opened from the strip (the host sets this) the page is a bottom sheet: it slides UP from the bottom and closes with a swipe DOWN. On the Home screen it stays the full page from the top. */
+    var sheetAllowed = false
+    private var sheetMode = false
+    private var insetTop = 0
+    private var insetBottom = 0
+    private fun sgn(): Float = if (sheetMode) 1f else -1f
+    private fun trackY(rawY: Float): Float = if (sheetMode) -rawY else rawY
+    private fun scrimA(a: Int): Int = if (sheetMode) 0 else a // the space above the sheet is transparent
+
+    private fun applyStyle() {
+        sheetMode = sheetAllowed && context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getBoolean(PREF_SHEET, true)
+        val lp = column.layoutParams as LayoutParams
+        if (sheetMode) {
+            lp.height = (context.resources.displayMetrics.heightPixels * 0.78f).toInt()
+            lp.gravity = Gravity.BOTTOM
+            column.background = PanelTheme.scrim(240, PanelLook.dark)
+            val rad = context.dpf(28f)
+            column.outlineProvider = object : android.view.ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: android.graphics.Outline) {
+                    outline.setRoundRect(0, 0, view.width, (view.height + rad).toInt(), rad)
+                }
+            }
+            column.clipToOutline = true
+        } else {
+            lp.height = MATCH
+            lp.gravity = Gravity.TOP
+            column.background = null
+            column.clipToOutline = false
+        }
+        column.layoutParams = lp
+        setInsets(insetTop, insetBottom)
+    }
+
     private fun dragTravel(): Float = column.height * 0.35f
 
     /** Step 59: the page and its veil follow the finger [dy] pixels up ([dragBase] of it was used up before the drag started). */
     private fun dragTo(dy: Float) {
         val d = (dy - dragBase).coerceAtLeast(0f)
         val q = (d / dragTravel()).coerceIn(0f, 1f)
-        column.translationY = -d
+        column.translationY = sgn() * d
         column.alpha = Motion.fadeOut(q)
         veil.alpha = Motion.fadeOut(q)
         veil.translationY = column.translationY
@@ -181,7 +216,7 @@ class NotificationPage(
         column.animate().cancel()
         column.animate().translationY(0f).setDuration(PanelSwipe.BACK_MS).setInterpolator(PanelSwipe.GLIDE)
             .setUpdateListener {
-                val q = (-column.translationY / dragTravel()).coerceIn(0f, 1f)
+                val q = (abs(column.translationY) / dragTravel()).coerceIn(0f, 1f)
                 column.alpha = Motion.fadeOut(q)
                 veil.alpha = Motion.fadeOut(q)
                 veil.translationY = column.translationY
@@ -215,9 +250,11 @@ class NotificationPage(
 
     /** The status bar height (so the clock sits below it) and the navigation bar height (so the buttons sit above it). */
     fun setInsets(top: Int, bottom: Int) {
+        insetTop = top
+        insetBottom = bottom
         column.setPadding(
             context.dp(22),
-            top + context.dp(16),
+            (if (sheetMode) 0 else top) + context.dp(16),
             context.dp(22),
             max(bottom, context.dp(12)) + context.dp(14)
         )
@@ -315,6 +352,7 @@ class NotificationPage(
 
     fun open() {
         if (isOpen) return
+        applyStyle()
         column.animate().setUpdateListener(null).cancel()
         veil.animate().cancel()
         Motion.setBlur(column, 0f)
@@ -327,14 +365,14 @@ class NotificationPage(
         visibility = View.VISIBLE
         // Without a working window blur the wallpaper stays sharp, so the dark veil is stronger to hide it.
         PanelTheme.load(context)
-        veil.background = PanelTheme.scrim(if (context.windowBlurWorks()) 140 else 195, PanelLook.dark)
+        veil.background = PanelTheme.scrim(scrimA(if (context.windowBlurWorks()) 140 else 195), PanelLook.dark)
         // Step 31: veil and list slide a little and fade 0 -> 100 on the same smooth curve
         val h = context.resources.displayMetrics.heightPixels.toFloat()
         veil.alpha = 0f
-        veil.translationY = -h * 0.12f
+        veil.translationY = sgn() * h * 0.12f
         veil.translationX = 0f
         column.alpha = 0f
-        column.translationY = -context.dp(56).toFloat()
+        column.translationY = sgn() * (if (sheetMode) h * 0.25f else context.dp(56).toFloat())
         Motion.setBlur(column, Motion.BLUR_PX)
         veil.animate().alpha(1f).translationY(0f).setDuration(Motion.OPEN_MS).setInterpolator(Motion.OPEN).start()
         // Step 33: the page fades 0 -> 100 while it sharpens from a blur (Step 35: faster)
@@ -366,8 +404,8 @@ class NotificationPage(
         closing = true
         if (fromDrag) {
             // Step 59: after a swipe up the page is already part-way and fading: it carries on from there and glides the rest in about 0.2 s.
-            val travel = -dragTravel()
-            val target = minOf(column.translationY, travel)
+            val travel = sgn() * dragTravel()
+            val target = if (sheetMode) maxOf(column.translationY, travel) else minOf(column.translationY, travel)
             val ms = PanelSwipe.closeMs((column.translationY / travel).coerceIn(0f, 1f))
             veil.animate().cancel()
             column.animate().translationY(target).setDuration(ms).setInterpolator(PanelSwipe.GLIDE)
@@ -385,9 +423,9 @@ class NotificationPage(
         // Step 35: a tap / Back: straight from 100% to 20% the moment the close starts, then down to 0 fast; no blur while closing.
         veil.alpha = Motion.CLOSE_START_ALPHA
         column.alpha = Motion.CLOSE_START_ALPHA
-        veil.animate().alpha(0f).translationY(-context.resources.displayMetrics.heightPixels * 0.12f).setDuration(Motion.CLOSE_MS)
+        veil.animate().alpha(0f).translationY(sgn() * context.resources.displayMetrics.heightPixels * 0.12f).setDuration(Motion.CLOSE_MS)
             .setInterpolator(Motion.CLOSE).start()
-        val travel = -context.dp(56).toFloat()
+        val travel = sgn() * (if (sheetMode) context.resources.displayMetrics.heightPixels * 0.25f else context.dp(56).toFloat())
         column.animate().translationY(travel).setDuration(Motion.CLOSE_MS).setInterpolator(Motion.CLOSE)
             .setUpdateListener {
                 val q = (column.translationY / travel).coerceIn(0f, 1f)

@@ -115,6 +115,14 @@ class QuickNotifs(
         return r.contains(x.toInt(), y.toInt()) && scroller.canScrollVertically(1)
     }
 
+    /** Step 65: for the bottom sheet: the finger is on a list that can still scroll up (coordinates of this view's parent). */
+    fun blocksSwipeDownAt(x: Float, y: Float): Boolean {
+        val r = Rect()
+        scroller.getHitRect(r)
+        r.offset(left, top)
+        return r.contains(x.toInt(), y.toInt()) && scroller.canScrollVertically(-1)
+    }
+
     /** Step 20: same as [cardsAt], in screen coordinates. */
     fun cardsAtRaw(rawX: Float, rawY: Float): Boolean {
         if (Notifs.current().isEmpty() || !Badges.accessGranted(context)) return false
