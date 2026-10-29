@@ -424,8 +424,10 @@ class PanelOverlayService : Service() {
             val w = (screenW * TopHandle.widthPct(this) / 100f).toInt().coerceAtLeast(dp(48))
             val bottom = TopHandle.atBottom(this)
             var flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED or
-                WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM // Step 65: the keyboard is drawn OVER the strip, so the strip never sits on the keys
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
+            // Fix: FLAG_ALT_FOCUSABLE_IM (Step 65) is gone. It made the phone treat this window as a keyboard target, so every time the strip
+            // changed (copy popup, clipboard chip, notification) the keyboard was laid out again and its top row flickered. A plain
+            // NOT_FOCUSABLE window never touches the keyboard. The strip is hidden while the keyboard is up anyway (Smart rules).
             if (hide) flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             val gravity = (if (bottom) Gravity.BOTTOM else Gravity.TOP) or when (TopHandle.side(this)) {
                 1 -> Gravity.START
