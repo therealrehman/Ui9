@@ -973,3 +973,8 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - **Resizing.** New `QuickSize.kt`: a percent (60-160, 100 = normal) for round buttons, wide buttons (Wi-Fi, Bluetooth, Media output, Devices) and the sliders (brightness + volume), each one separately for portrait and landscape. Settings > Quick panel > six size sliders + "Reset all sizes". Applied to the button circles and glyphs, the wide button height and text, and the slider and moon-button height. Read each time the panel opens.
 - Not changed: the Notifications page (still full screen from the top; swipe left from the sheet opens it as before).
 - Version 1.0.64 (code 174). Not compiled and not run on a phone: send the build log if there is an error.
+
+## Step 65 - bottom strip right on top of the navigation bar, never over the keyboard
+- The strip was far too high (it sat over the dock): the window was already measured from the edge above the buttons and step 63 added the bar height again. Now only the user's distance is used, and after the strip is on the screen its real bottom is measured and corrected once so it sits right on top of the navigation bar (`PanelOverlayService.alignAboveNavBar`, `navBarPx`).
+- The strip window now has `FLAG_ALT_FOCUSABLE_IM`: Android draws the keyboard OVER it, so it no longer sits on the space bar / keys and takes no touches from the keyboard (the "hide with keyboard" smart rule still works as before where the phone reports the keyboard).
+- Version 1.0.65 (code 175). Not compiled and not run on a phone.

@@ -394,7 +394,8 @@ class PanelOverlayService : Service() {
                 w, dp(TopHandle.heightDp(this)),
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED or
+                    WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM, // Step 65: the keyboard is drawn OVER the strip, so the strip never sits on the keys
                 PixelFormat.TRANSLUCENT
             )
             params.gravity = (if (TopHandle.atBottom(this)) Gravity.BOTTOM else Gravity.TOP) or when (TopHandle.side(this)) {
@@ -402,7 +403,9 @@ class PanelOverlayService : Service() {
                 2 -> Gravity.END
                 else -> Gravity.CENTER_HORIZONTAL
             }
-            params.y = (if (TopHandle.atBottom(this)) navBarPx() else statusBarPx()) + dp(TopHandle.offsetDp(this))
+            // Step 65: at the bottom the window is measured from the edge of the usable screen; the first version also added the bar height,
+            // which put the strip far too high. y is only the user's distance now, and a one-time check below corrects any phone that differs.
+            params.y = if (TopHandle.atBottom(this)) dp(TopHandle.offsetDp(this)) else statusBarPx() + dp(TopHandle.offsetDp(this))
             params.setTitle("Quick panel handle")
             if (view.parent != null) {
                 wm.updateViewLayout(view, params)
@@ -410,8 +413,34 @@ class PanelOverlayService : Service() {
             } else {
                 wm.addView(view, params)
             }
+            if (TopHandle.atBottom(this)) alignAboveNavBar(view, params, wm)
         } catch (e: Exception) {
             handle = null // a window that could not be added is made again next time
+        }
+    }
+
+    /**
+     * Step 65: once the strip is on the screen, looks where its bottom really is and moves it so it sits right on top of the navigation bar
+     * (plus the user's distance). Phones disagree about where a bottom-gravity overlay starts, so it is measured, not assumed. Runs once per refresh.
+     */
+    private fun alignAboveNavBar(view: View, params: WindowManager.LayoutParams, wm: WindowManager) {
+        view.post {
+            try {
+                if (view.parent == null || view.height == 0) return@post
+                val loc = IntArray(2)
+                view.getLocationOnScreen(loc)
+                val m = android.util.DisplayMetrics()
+                @Suppress("DEPRECATION")
+                wm.defaultDisplay.getRealMetrics(m)
+                val wantBottom = m.heightPixels - navBarPx() - dp(TopHandle.offsetDp(this))
+                val diff = (loc[1] + view.height) - wantBottom
+                if (kotlin.math.abs(diff) > dp(2)) {
+                    params.y = (params.y + diff).coerceAtLeast(0)
+                    wm.updateViewLayout(view, params)
+                }
+            } catch (e: Exception) {
+                // keep the position it has
+            }
         }
     }
 
