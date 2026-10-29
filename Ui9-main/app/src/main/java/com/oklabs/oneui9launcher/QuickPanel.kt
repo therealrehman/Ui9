@@ -618,7 +618,8 @@ class QuickPanel(
         if (sheetMode) {
             lp.height = WRAP
             lp.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            bp.height = WRAP
+            // Fix: same sheet height as the Notifications page (78% of the screen), so both panels open to the same size
+            bp.height = (context.resources.displayMetrics.heightPixels * 0.78f).toInt()
             bp.weight = 0f
             val r = context.dpf(28f)
             card.background = null
