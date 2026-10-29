@@ -961,3 +961,9 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - **Build error fixed:** `PanelOverlayService.homePanelOpen` and `setHomePanelOpen()` had the same JVM name (setter clash). Function renamed `notifyHomePanelOpen()` (`OverlayPanel.kt`, `LauncherActivity.kt`).
 - **Wallpaper did not change when the colour was picked inside the Quick panel:** only the Settings page was hooked, and the switch was off by default. Now `PanelTheme.syncWallpaper()` runs on every colour pick, in the Quick panel colour strip AND in Settings, and **"Wallpaper follows the panel colour" is ON by default** (switch it off in Settings > Quick panel > Colour). Target (Home / Lock / Both) is saved (`qp_wp_target`, default Both). Shared code: `PanelTheme.setWallpaper()`.
 - Version 1.0.62 (code 172). Not compiled here: send the next build log if there is another error.
+
+## Step 63 - strip at the bottom, music player off by default (part 1)
+- **Strip above the navigation bar.** New setting Settings > Quick panel > Top handle > **Edge** (Top / Bottom). Default is now **Bottom**: the strip sits right above the phone's buttons and opens the panel with a swipe UP (top edge keeps swipe down). `TopHandle.PREF_EDGE`, `atBottom()`, `isSwipeUp()`, `TopHandleView.atBottom`, `OverlayPanel.navBarPx()`. The "Distance" slider is now measured from whichever edge is used.
+- **Music player is off by default** in the Quick panel (`QuickPanel.isHidden`: HIDE_MEDIA defaults to hidden). It is added back with Edit > the list of removed parts > "Media player" (existing mechanism).
+- Version 1.0.63 (code 173). Not compiled here.
+- **Left (step 64):** (1) the panel opens from the BOTTOM upward as a sheet that does not cover the whole window (animation, drag-to-close downward, scrim above it); (2) resize options for every button, the sliders and the Wi-Fi / Bluetooth tiles, separately for portrait and landscape.

@@ -1021,7 +1021,7 @@ class QuickPanel(
 
     private fun uiPrefs() = context.getSharedPreferences("launcher", Context.MODE_PRIVATE)
 
-    private fun isHidden(key: String): Boolean = uiPrefs().getBoolean(key, false)
+    private fun isHidden(key: String): Boolean = uiPrefs().getBoolean(key, key == HIDE_MEDIA) // Step 63: the music player is off until the user adds it back
 
     private fun setHidden(key: String, hidden: Boolean) {
         uiPrefs().edit().putBoolean(key, hidden).apply()

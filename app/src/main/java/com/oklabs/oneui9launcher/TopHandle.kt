@@ -19,6 +19,7 @@ object TopHandle {
     const val PREF_WIDTH = "th_width" // percent of the screen width
     const val PREF_HEIGHT = "th_height" // dp, the touch height
     const val PREF_OFFSET = "th_offset" // dp below the status bar
+    const val PREF_EDGE = "th_edge" // Step 63: 0 top (under the status bar), 1 bottom (above the navigation bar)
     const val PREF_SIDE = "th_side" // 0 centre, 1 left, 2 right
     const val PREF_VISIBLE = "th_visible" // true = a pill is drawn, false = invisible
     const val PREF_HAPTIC = "th_haptic"
@@ -33,6 +34,7 @@ object TopHandle {
     fun widthPct(c: Context): Int = clampWidth(prefs(c).getInt(PREF_WIDTH, 60))
     fun heightDp(c: Context): Int = clampHeight(prefs(c).getInt(PREF_HEIGHT, 22))
     fun offsetDp(c: Context): Int = clampOffset(prefs(c).getInt(PREF_OFFSET, 0))
+    fun atBottom(c: Context): Boolean = prefs(c).getInt(PREF_EDGE, 1) == 1
     fun side(c: Context): Int = prefs(c).getInt(PREF_SIDE, 0).coerceIn(0, 2)
     fun visible(c: Context): Boolean = prefs(c).getBoolean(PREF_VISIBLE, true)
     fun haptic(c: Context): Boolean = prefs(c).getBoolean(PREF_HAPTIC, true)
@@ -55,6 +57,8 @@ object TopHandle {
     fun clampOffset(v: Int) = v.coerceIn(0, 60)
 
     /** True when a drag of ([dx], [dy]) pixels is "a swipe down": far enough down and mostly down. Pure, so it can be tested. */
+    fun isSwipeUp(dx: Float, dy: Float, slop: Float): Boolean = -dy > slop * 1.5f && -dy > abs(dx) * 0.9f
+
     fun isSwipeDown(dx: Float, dy: Float, slop: Float): Boolean = dy > slop * 1.5f && dy > abs(dx) * 0.9f
 }
 
@@ -79,6 +83,7 @@ class TopHandleView(context: Context, var showPill: Boolean, var buzz: Boolean, 
     private var downX = 0f
     private var downY = 0f
     private var downLocalX = 0f
+    var atBottom = false // Step 63: the strip sits above the navigation bar, so the opening swipe goes UP
     private var fired = false
 
     /** Step 58: how the strip is drawn. [shape] 0 = small pill, 1 = a bar over the whole width of the strip; [thickPx] = drawn thickness; [colors] = 1 colour or a gradient. */
@@ -129,7 +134,7 @@ class TopHandleView(context: Context, var showPill: Boolean, var buzz: Boolean, 
                     moved = true
                     removeCallbacks(longRun)
                 }
-                if (!fired && TopHandle.isSwipeDown(ev.rawX - downX, ev.rawY - downY, slop)) {
+                if (!fired && (if (atBottom) TopHandle.isSwipeUp(ev.rawX - downX, ev.rawY - downY, slop) else TopHandle.isSwipeDown(ev.rawX - downX, ev.rawY - downY, slop))) {
                     fired = true
                     if (buzz) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                     onOpen(MoreTriggers.swipeToNotifs(downLocalX, width, splitSides))

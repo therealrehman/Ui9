@@ -128,7 +128,7 @@ class PanelOverlayService : Service() {
 
     private val handleKeys = setOf(
         TopHandle.PREF_ON, TopHandle.PREF_WIDTH, TopHandle.PREF_HEIGHT, TopHandle.PREF_OFFSET,
-        TopHandle.PREF_SIDE, TopHandle.PREF_VISIBLE, TopHandle.PREF_HAPTIC,
+        TopHandle.PREF_SIDE, TopHandle.PREF_EDGE, TopHandle.PREF_VISIBLE, TopHandle.PREF_HAPTIC,
         TopHandle.PREF_SHAPE, TopHandle.PREF_THICK, TopHandle.PREF_COLOR, TopHandle.PREF_GRAD, PanelTheme.KEY // Step 58: the strip follows the panel colour too
     )
     private val buttonKeys = setOf(FloatButton.PREF_ON, FloatButton.PREF_SIZE, FloatButton.PREF_ALPHA, FloatButton.PREF_SNAP, FloatButton.PREF_FX, FloatButton.PREF_FY, FloatButton.PREF_HAPTIC)
@@ -385,6 +385,7 @@ class PanelOverlayService : Service() {
             view.thickPx = dp(TopHandle.thickDp(this)).toFloat()
             view.colors = TopHandle.colors(this)
             view.splitSides = MoreTriggers.split(this) // Step 6
+            view.atBottom = TopHandle.atBottom(this) // Step 63
             view.doubleAction = MoreTriggers.doubleTap(this)
             view.longAction = MoreTriggers.longPress(this)
             val screenW = resources.displayMetrics.widthPixels
@@ -396,12 +397,12 @@ class PanelOverlayService : Service() {
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
                 PixelFormat.TRANSLUCENT
             )
-            params.gravity = Gravity.TOP or when (TopHandle.side(this)) {
+            params.gravity = (if (TopHandle.atBottom(this)) Gravity.BOTTOM else Gravity.TOP) or when (TopHandle.side(this)) {
                 1 -> Gravity.START
                 2 -> Gravity.END
                 else -> Gravity.CENTER_HORIZONTAL
             }
-            params.y = statusBarPx() + dp(TopHandle.offsetDp(this))
+            params.y = (if (TopHandle.atBottom(this)) navBarPx() else statusBarPx()) + dp(TopHandle.offsetDp(this))
             params.setTitle("Quick panel handle")
             if (view.parent != null) {
                 wm.updateViewLayout(view, params)
@@ -629,6 +630,11 @@ class PanelOverlayService : Service() {
         } catch (e: Exception) {
             // already removed
         }
+    }
+
+    private fun navBarPx(): Int {
+        val id = resources.getIdentifier("navigation_bar_height", "dimen", "android")
+        return if (id > 0) resources.getDimensionPixelSize(id) else dp(48)
     }
 
     private fun statusBarPx(): Int {

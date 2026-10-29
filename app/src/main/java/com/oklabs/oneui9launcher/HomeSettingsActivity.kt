@@ -835,6 +835,9 @@ class HomeSettingsActivity : Activity() {
                 prefs().edit().putInt(TopHandle.PREF_WIDTH, 100).apply()
                 show()
             },
+            kit.chips("Edge", listOf("Top", "Bottom (above the buttons)"), if (TopHandle.atBottom(this)) 1 else 0) { i ->
+                prefs().edit().putInt(TopHandle.PREF_EDGE, i).apply()
+            },
             kit.chips("Place", listOf("Middle", "Left", "Right"), TopHandle.side(this)) { i ->
                 prefs().edit().putInt(TopHandle.PREF_SIDE, i).apply()
             },
@@ -844,7 +847,7 @@ class HomeSettingsActivity : Activity() {
             kit.slider("Height (touch area)", 40, TopHandle.heightDp(this) - 8, { (it + 8).toString() + " dp" }) { v ->
                 prefs().edit().putInt(TopHandle.PREF_HEIGHT, TopHandle.clampHeight(v + 8)).apply()
             },
-            kit.slider("Distance below the status bar", 60, TopHandle.offsetDp(this), { it.toString() + " dp" }) { v ->
+            kit.slider("Distance from the edge (status bar / buttons)", 60, TopHandle.offsetDp(this), { it.toString() + " dp" }) { v ->
                 prefs().edit().putInt(TopHandle.PREF_OFFSET, TopHandle.clampOffset(v)).apply()
             },
             kit.toggle(-1, 0, "Vibrate on swipe", null, TopHandle.haptic(this)) { on ->
