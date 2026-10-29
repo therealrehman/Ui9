@@ -1012,6 +1012,7 @@ class QuickPanel(
     private fun chooseColour(i: Int) {
         context.getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putInt(PanelTheme.KEY, i).apply()
         PanelTheme.load(context)
+        PanelTheme.syncWallpaper(context, i) // Step 62b
         scrim.background = PanelTheme.scrim(205, PanelLook.dark)
         build() // every glass of the panel is drawn again in the new colour
     }

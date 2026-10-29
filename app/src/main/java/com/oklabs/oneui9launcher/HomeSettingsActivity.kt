@@ -696,14 +696,14 @@ class HomeSettingsActivity : Activity() {
             kit.panelThemeDots("Panel colour", PanelTheme.saved(this)) { i ->
                 prefs().edit().putInt(PanelTheme.KEY, i).apply()
                 PanelTheme.load(this)
-                if (prefs().getBoolean("qp_wp_follow", false)) applyWallpaperDef(PanelTheme.wallpaperFor(i))
+                PanelTheme.syncWallpaper(this, i)
             },
-            kit.chips("Wallpaper set on", listOf("Home", "Lock", "Both"), wpTarget) { wpTarget = it },
+            kit.chips("Wallpaper set on", listOf("Home", "Lock", "Both"), prefs().getInt(PanelTheme.KEY_WP_TARGET, 2)) { wpTarget = it; prefs().edit().putInt(PanelTheme.KEY_WP_TARGET, it).apply() },
             kit.row(-1, 0, "Wallpaper in this panel colour", "Makes a wallpaper of the same colour as the panel (" + PanelTheme.name(PanelTheme.saved(this)) + ")") {
-                applyWallpaperDef(PanelTheme.wallpaperFor(PanelTheme.saved(this)))
+                PanelTheme.setWallpaper(this, PanelTheme.saved(this)) { toast(it) }
             },
-            kit.toggle(-1, 0, "Wallpaper follows the panel colour", "Every time you pick a panel colour the wallpaper changes to match", prefs().getBoolean("qp_wp_follow", false)) { on ->
-                prefs().edit().putBoolean("qp_wp_follow", on).apply()
+            kit.toggle(-1, 0, "Wallpaper follows the panel colour", "Every time you pick a panel colour the wallpaper changes to match", prefs().getBoolean(PanelTheme.KEY_WP_FOLLOW, true)) { on ->
+                prefs().edit().putBoolean(PanelTheme.KEY_WP_FOLLOW, on).apply()
             }
         )
         kit.note(box, "White glass is the default. It colours the Quick panel and the Notifications page.")

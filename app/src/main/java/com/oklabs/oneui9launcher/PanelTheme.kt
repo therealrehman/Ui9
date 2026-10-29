@@ -12,6 +12,44 @@ import android.graphics.drawable.GradientDrawable
  * Step 25: 11-20 = ten more gradients, made for the panel ([extra]). Saved numbers 0-10 keep their old meaning.
  */
 object PanelTheme {
+    const val KEY_WP_FOLLOW = "qp_wp_follow" // Step 62b: default ON
+    const val KEY_WP_TARGET = "qp_wp_target" // 0 Home, 1 Lock, 2 Both
+
+    /** Step 62b: puts the wallpaper of panel colour [index] on the phone (portrait size, Home / Lock / Both as saved). Runs in the background; [done] gets the message. */
+    fun setWallpaper(context: Context, index: Int, done: (String) -> Unit = {}) {
+        val app = context.applicationContext
+        val target = app.getSharedPreferences("launcher", Context.MODE_PRIVATE).getInt(KEY_WP_TARGET, 2)
+        val manager = android.app.WallpaperManager.getInstance(app)
+        if (!manager.isWallpaperSupported || !manager.isSetWallpaperAllowed) {
+            done("This phone does not let apps change the wallpaper.")
+            return
+        }
+        val m = app.resources.displayMetrics
+        val (w, h) = Gradients.sizeFor(Gradients.PORTRAIT, m.widthPixels, m.heightPixels)
+        val which = when (target) {
+            0 -> android.app.WallpaperManager.FLAG_SYSTEM
+            1 -> android.app.WallpaperManager.FLAG_LOCK
+            else -> android.app.WallpaperManager.FLAG_SYSTEM or android.app.WallpaperManager.FLAG_LOCK
+        }
+        val def = wallpaperFor(index)
+        Thread {
+            val msg = try {
+                val bmp = Gradients.render(def, w, h)
+                manager.setBitmap(bmp, null, true, which)
+                bmp.recycle()
+                "Wallpaper set: " + def.name
+            } catch (e: Throwable) {
+                "Could not set the wallpaper"
+            }
+            android.os.Handler(android.os.Looper.getMainLooper()).post { done(msg) }
+        }.start()
+    }
+
+    /** Step 62b: called after a panel colour pick: sets the matching wallpaper when "Wallpaper follows the panel colour" is on (it is by default). */
+    fun syncWallpaper(context: Context, index: Int) {
+        if (!context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getBoolean(KEY_WP_FOLLOW, true)) return
+        setWallpaper(context, index) { android.widget.Toast.makeText(context.applicationContext, it, android.widget.Toast.LENGTH_SHORT).show() }
+    }
 
     const val KEY = "qp_theme"
     const val COUNT = 21

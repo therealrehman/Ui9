@@ -956,3 +956,8 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 ## Step 62 - no strip on the Home screen's own Quick panel (final)
 - When the Quick panel or the Notifications page is opened on the Home screen itself (swipe down on Home), the top handle strip and the floating button are taken away while it is open, and come back when it closes (also when the launcher goes to the background). Before, the strip stayed drawn over the Home panel (the thin bar at the top of the panel). `PanelOverlayService.homePanelOpen` / `setHomePanelOpen`, `LauncherActivity.syncHomePanelFlag`.
 - Changed: `OverlayPanel.kt`, `LauncherActivity.kt`, `build.gradle.kts`, `STEPS.md`. Version 1.0.61 (code 171). Not compiled and not run on a phone. Open from step 61: nav bar test on the Vivo phone.
+
+## Step 62b - build fix and wallpaper follows the panel colour everywhere
+- **Build error fixed:** `PanelOverlayService.homePanelOpen` and `setHomePanelOpen()` had the same JVM name (setter clash). Function renamed `notifyHomePanelOpen()` (`OverlayPanel.kt`, `LauncherActivity.kt`).
+- **Wallpaper did not change when the colour was picked inside the Quick panel:** only the Settings page was hooked, and the switch was off by default. Now `PanelTheme.syncWallpaper()` runs on every colour pick, in the Quick panel colour strip AND in Settings, and **"Wallpaper follows the panel colour" is ON by default** (switch it off in Settings > Quick panel > Colour). Target (Home / Lock / Both) is saved (`qp_wp_target`, default Both). Shared code: `PanelTheme.setWallpaper()`.
+- Version 1.0.62 (code 172). Not compiled here: send the next build log if there is another error.

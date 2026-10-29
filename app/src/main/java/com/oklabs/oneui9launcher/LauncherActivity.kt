@@ -368,7 +368,7 @@ class LauncherActivity : Activity() {
     }
 
     override fun onPause() {
-        PanelOverlayService.setHomePanelOpen(false)
+        PanelOverlayService.notifyHomePanelOpen(false)
         dragLayer.dismiss()
         folderLayer.close(animated = false)
         widgetPicker.close(animated = false)
@@ -1249,7 +1249,7 @@ class LauncherActivity : Activity() {
     /** Step 62: tells the overlay service whether a Home panel is open (it then hides the strip and the floating button). */
     private fun syncHomePanelFlag() {
         val open = (::quickPanel.isInitialized && quickPanel.isOpen) || (::notifPage.isInitialized && notifPage.isOpen)
-        PanelOverlayService.setHomePanelOpen(open)
+        PanelOverlayService.notifyHomePanelOpen(open)
     }
 
     private fun openQuickPanel() {

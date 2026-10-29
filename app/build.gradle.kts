@@ -27,8 +27,8 @@ android {
         applicationId = "com.oklabs.oneui9launcher"
         minSdk = 26                       // Android 8.0 and newer
         targetSdk = minOf(sdkApi, 36)   // Google Play: new apps and updates must target API 36
-        versionCode = 171
-        versionName = "1.0.61"
+        versionCode = 172
+        versionName = "1.0.62"
     }
 
     signingConfigs {

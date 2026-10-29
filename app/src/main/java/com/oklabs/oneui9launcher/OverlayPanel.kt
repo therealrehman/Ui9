@@ -720,7 +720,7 @@ class PanelOverlayService : Service() {
         @Volatile
         var homePanelOpen = false
 
-        fun setHomePanelOpen(open: Boolean) {
+        fun notifyHomePanelOpen(open: Boolean) {
             if (homePanelOpen == open) return
             homePanelOpen = open
             instance?.let { svc -> svc.uiHandler.post { svc.refreshHandle(); svc.refreshButton() } }
