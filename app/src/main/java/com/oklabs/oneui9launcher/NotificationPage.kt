@@ -180,7 +180,7 @@ class NotificationPage(
         sheetMode = sheetAllowed && context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getBoolean(PREF_SHEET, true)
         val lp = column.layoutParams as LayoutParams
         if (sheetMode) {
-            lp.height = (context.resources.displayMetrics.heightPixels * 0.78f).toInt()
+            lp.height = context.sheetHeightPx() // Step 70: same height as the Quick panel sheet
             lp.gravity = Gravity.BOTTOM
             column.background = PanelTheme.scrim(240, PanelLook.dark)
             val rad = context.dpf(28f)
@@ -450,6 +450,7 @@ class NotificationPage(
         veil.translationY = 0f
         closing = false
         visibility = View.GONE
+        onOpenChanged?.invoke() // Step 70: tell the Home screen the page is really gone (the strip comes back)
         onGone?.invoke()
     }
 

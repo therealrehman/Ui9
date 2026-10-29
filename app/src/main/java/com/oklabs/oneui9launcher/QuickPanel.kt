@@ -616,10 +616,11 @@ class QuickPanel(
         val lp = card.layoutParams as LayoutParams
         val bp = body.layoutParams as LinearLayout.LayoutParams
         if (sheetMode) {
-            lp.height = WRAP
+            // Step 70: a fixed height, the same as the Notifications sheet (the pill above it is 26 dp more); a taller panel scrolls inside
+            lp.height = context.sheetHeightPx() + context.dp(26)
             lp.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            bp.height = WRAP
-            bp.weight = 0f
+            bp.height = 0
+            bp.weight = 1f
             val r = context.dpf(28f)
             card.background = null
             body.background = PanelTheme.scrim(240, PanelLook.dark) // only the sheet itself is coloured; the card above it (the pill) stays transparent
@@ -1092,6 +1093,8 @@ class QuickPanel(
         PanelTheme.load(context)
         PanelTheme.syncWallpaper(context, i) // Step 62b
         scrim.background = PanelTheme.scrim(scrimA(205), PanelLook.dark)
+        // Step 70: the sheet itself is coloured by `body`, which only applyStyle set, so a new colour showed on the buttons but not on the sheet until the next open
+        if (sheetMode) body.background = PanelTheme.scrim(240, PanelLook.dark)
         build() // every glass of the panel is drawn again in the new colour
     }
 
@@ -1597,6 +1600,7 @@ class QuickPanel(
         scrim.translationY = 0f
         closing = false
         visibility = View.GONE
+        onOpenChanged?.invoke() // Step 70: tell the Home screen the panel is really gone (the strip comes back)
         onGone?.invoke()
     }
 

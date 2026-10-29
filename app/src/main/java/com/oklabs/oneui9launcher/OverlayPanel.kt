@@ -117,6 +117,30 @@ class PanelOverlayService : Service() {
     private var probeFullscreen = false
     private var probeKeyboard = false
     private var lastHidden = false
+
+    /** Step 70: the Home screen's panel is gone: show the strip and the button again (see [notifyHomePanelOpen]). */
+    private val homeShow = Runnable {
+        if (homePanelOpen) {
+            homePanelOpen = false
+            refreshHandle()
+            refreshButton()
+        }
+    }
+
+    /** Step 70: the smart rules said "show again" and the answer stayed so for a moment (see [refreshSmart]). */
+    private val smartShow = Runnable {
+        try {
+            if (lastHidden && !smartHidden()) {
+                lastHidden = false
+                refreshHandle()
+                refreshButton()
+            }
+        } catch (e: Exception) {
+            // the rules then stay as they were
+        }
+    }
+    private var alignedY = -1
+    private var alignedKey = ""
     val uiHandler = Handler(Looper.getMainLooper())
     private val probeTick = object : Runnable {
         override fun run() {
@@ -409,7 +433,11 @@ class PanelOverlayService : Service() {
             }
             // Step 65: at the bottom the window is measured from the edge of the usable screen; the first version also added the bar height,
             // which put the strip far too high. y is only the user's distance now, and a one-time check below corrects any phone that differs.
-            params.y = if (TopHandle.atBottom(this)) dp(TopHandle.offsetDp(this)) else statusBarPx() + dp(TopHandle.offsetDp(this))
+            // Step 70: the corrected place is kept: every refresh used to put the strip back to the uncorrected place and then move it again (a visible jump / blink)
+            val alignKey = "" + TopHandle.offsetDp(this) + "|" + TopHandle.heightDp(this) + "|" + resources.displayMetrics.heightPixels + "|" + w
+            params.y = if (TopHandle.atBottom(this)) {
+                if (alignedKey == alignKey && alignedY >= 0) alignedY else dp(TopHandle.offsetDp(this))
+            } else statusBarPx() + dp(TopHandle.offsetDp(this))
             params.setTitle("Quick panel handle")
             if (view.parent != null) {
                 wm.updateViewLayout(view, params)
@@ -417,7 +445,7 @@ class PanelOverlayService : Service() {
             } else {
                 wm.addView(view, params)
             }
-            if (TopHandle.atBottom(this)) alignAboveNavBar(view, params, wm)
+            if (TopHandle.atBottom(this) && !(alignedKey == alignKey && alignedY >= 0)) alignAboveNavBar(view, params, wm, alignKey)
         } catch (e: Exception) {
             handle = null // a window that could not be added is made again next time
         }
@@ -427,10 +455,10 @@ class PanelOverlayService : Service() {
      * Step 65: once the strip is on the screen, looks where its bottom really is and moves it so it sits right on top of the navigation bar
      * (plus the user's distance). Phones disagree about where a bottom-gravity overlay starts, so it is measured, not assumed. Runs once per refresh.
      */
-    private fun alignAboveNavBar(view: View, params: WindowManager.LayoutParams, wm: WindowManager) {
+    private fun alignAboveNavBar(view: View, params: WindowManager.LayoutParams, wm: WindowManager, key: String) {
         view.post {
             try {
-                if (view.parent == null || view.height == 0) return@post
+                if (view.parent == null || view.height == 0 || probeKeyboard) return@post // not while the keyboard is up: the place measured then is not the real one
                 val loc = IntArray(2)
                 view.getLocationOnScreen(loc)
                 val m = android.util.DisplayMetrics()
@@ -442,6 +470,8 @@ class PanelOverlayService : Service() {
                     params.y = (params.y + diff).coerceAtLeast(0)
                     wm.updateViewLayout(view, params)
                 }
+                alignedY = params.y
+                alignedKey = key
             } catch (e: Exception) {
                 // keep the position it has
             }
@@ -596,10 +626,19 @@ class PanelOverlayService : Service() {
         try {
             updateProbe()
             val h = smartHidden()
-            if (h != lastHidden) {
-                lastHidden = h
-                refreshHandle()
-                refreshButton()
+            if (h) {
+                // hide at once
+                uiHandler.removeCallbacks(smartShow)
+                if (!lastHidden) {
+                    lastHidden = true
+                    refreshHandle()
+                    refreshButton()
+                }
+            } else if (lastHidden) {
+                // Step 70: show again only when "not hidden" stayed true for half a second. A copy bubble, a heads-up notification or the keyboard
+                // moving made the answer flip for a moment, and the strip blinked on and off over the keys.
+                uiHandler.removeCallbacks(smartShow)
+                uiHandler.postDelayed(smartShow, 500L)
             }
         } catch (e: Exception) {
             // the rules then stay as they were
@@ -760,9 +799,22 @@ class PanelOverlayService : Service() {
         var homePanelOpen = false
 
         fun notifyHomePanelOpen(open: Boolean) {
-            if (homePanelOpen == open) return
-            homePanelOpen = open
-            instance?.let { svc -> svc.uiHandler.post { svc.refreshHandle(); svc.refreshButton() } }
+            val svc = instance
+            if (svc == null) {
+                homePanelOpen = open
+                return
+            }
+            svc.uiHandler.removeCallbacks(svc.homeShow)
+            if (open) {
+                // hide the strip at once
+                if (homePanelOpen) return
+                homePanelOpen = true
+                svc.uiHandler.post { svc.refreshHandle(); svc.refreshButton() }
+            } else {
+                // Step 70: bring it back a moment later: a switch between the Quick panel and the Notifications page closes one and opens the other
+                // in the same instant, and the strip must not flash in between
+                svc.uiHandler.postDelayed(svc.homeShow, 120L)
+            }
         }
     }
 }

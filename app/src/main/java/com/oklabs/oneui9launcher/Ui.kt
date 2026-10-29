@@ -16,6 +16,9 @@ internal fun Context.windowBlurWorks(): Boolean = try {
 internal fun Context.dp(value: Int): Int =
     (value * resources.displayMetrics.density + 0.5f).toInt()
 
+/** Step 70: ONE height for the bottom sheets (Quick panel and Notifications page), so both are exactly equally tall: 78% of the screen. */
+internal fun Context.sheetHeightPx(): Int = (resources.displayMetrics.heightPixels * 0.78f).toInt()
+
 /** dp -> px as float (corner radii, shadows). */
 internal fun Context.dpf(value: Float): Float =
     value * resources.displayMetrics.density
