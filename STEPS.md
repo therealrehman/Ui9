@@ -978,3 +978,7 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 - The strip was far too high (it sat over the dock): the window was already measured from the edge above the buttons and step 63 added the bar height again. Now only the user's distance is used, and after the strip is on the screen its real bottom is measured and corrected once so it sits right on top of the navigation bar (`PanelOverlayService.alignAboveNavBar`, `navBarPx`).
 - The strip window now has `FLAG_ALT_FOCUSABLE_IM`: Android draws the keyboard OVER it, so it no longer sits on the space bar / keys and takes no touches from the keyboard (the "hide with keyboard" smart rule still works as before where the phone reports the keyboard).
 - Version 1.0.65 (code 175). Not compiled and not run on a phone.
+
+## Step 66 - strip opens the panel without touching the navigation bar
+- Opening the panel from the strip hid the navigation bar (step 61): it slid down, and when the panel closed it came back from the bottom, so the apps behind the panel were resized and "shook". Now the bar is left alone, exactly like a swipe down on the Home screen. "Cover the navigation bar" is OFF by default (new key `qp_cover_nav2`, so an old saved "on" no longer applies); it can still be switched on in Settings > Quick panel.
+- Version 1.0.66 (code 176). Not compiled and not run on a phone.

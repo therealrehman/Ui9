@@ -773,7 +773,7 @@ class HomeSettingsActivity : Activity() {
             kit.chips("Panel style", listOf("Bottom sheet", "Full screen from top"), if (prefs().getBoolean(PREF_SHEET, true)) 0 else 1) { i ->
                 prefs().edit().putBoolean(PREF_SHEET, i == 0).apply()
             },
-            kit.toggle(-1, 0, "Cover the navigation bar", "On: the panel hides the phone's bottom buttons while it is open, so it fills the whole screen (swipe up from the bottom edge to see them)", prefs().getBoolean(PanelOverlayService.PREF_COVER_NAV, true)) { on ->
+            kit.toggle(-1, 0, "Cover the navigation bar", "Off (recommended): the phone's buttons stay, like when you swipe down on the Home screen. On: the buttons slide away while the panel is open (the screen behind may jump when they come back)", prefs().getBoolean(PanelOverlayService.PREF_COVER_NAV, false)) { on ->
                 prefs().edit().putBoolean(PanelOverlayService.PREF_COVER_NAV, on).apply()
             },
             kit.row(-1, 0, "Show panel now", "Test the panel over this screen") {

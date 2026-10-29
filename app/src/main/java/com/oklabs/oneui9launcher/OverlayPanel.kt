@@ -705,7 +705,7 @@ class PanelOverlayService : Service() {
          */
         @Suppress("DEPRECATION")
         fun coverNavigationBar() {
-            if (!context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getBoolean(PREF_COVER_NAV, true)) return
+            if (!context.getSharedPreferences("launcher", Context.MODE_PRIVATE).getBoolean(PREF_COVER_NAV, false)) return
             try {
                 if (Build.VERSION.SDK_INT >= 30) {
                     windowInsetsController?.let {
@@ -737,7 +737,7 @@ class PanelOverlayService : Service() {
     }
 
     companion object {
-        const val PREF_COVER_NAV = "qp_cover_nav" // Step 61
+        const val PREF_COVER_NAV = "qp_cover_nav2" // Step 61; Step 66: new key, OFF by default (hiding the bar made it slide away and back, and the apps behind jumped)
         const val ACTION_SHOW = "com.oklabs.oneui9launcher.PANEL_SHOW"
         const val ACTION_SHOW_NOTIFS = "com.oklabs.oneui9launcher.PANEL_SHOW_NOTIFS"
         const val ACTION_HIDE = "com.oklabs.oneui9launcher.PANEL_HIDE"
