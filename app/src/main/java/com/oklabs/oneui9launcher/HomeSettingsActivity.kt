@@ -788,6 +788,19 @@ class HomeSettingsActivity : Activity() {
         kit.label(box, "Keep it running")
         kit.card(
             box,
+            kit.toggle(
+                -1, 0, "Keep as my Home app",
+                if (HomeKeeper.isDefault(this)) "It is your Home app now. If the phone puts its own launcher back, you get a notification to set it again" else "Not your Home app now: tap to set it",
+                HomeKeeper.wanted(this)
+            ) { on ->
+                prefs().edit().putBoolean(HomeKeeper.PREF_ON, on).apply()
+                HomeKeeper.check(this, false)
+                show()
+            },
+            kit.row(-1, 0, "Home app log", HomeKeeper.log(this).ifEmpty { "Nothing yet. Holder now: " + HomeKeeper.holder(this) }) {
+                getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("home log", HomeKeeper.log(this) + "\nHolder now: " + HomeKeeper.holder(this)))
+                toast("Copied")
+            },
             kit.toggle(-1, 0, "Start after the phone restarts", "The panel service comes back by itself after a reboot or an update", KeepAlive.boot(this)) { on ->
                 prefs().edit().putBoolean(KeepAlive.PREF_BOOT, on).apply()
             },

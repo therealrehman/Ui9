@@ -1008,3 +1008,21 @@ The `release` workflow does the same for the signed release APK (see Step 10d).
 
 ## Step 71
 - Package name (applicationId) is now `com.arapks.glassylauncher`. Code folders and `namespace` stay `com.oklabs.oneui9launcher`. Version 1.0.71 (181). Shortcuts targetPackage and KeepAlive.PKG updated. adb grant: `adb shell pm grant com.arapks.glassylauncher android.permission.WRITE_SECURE_SETTINGS`.
+
+## Step 72 - keep the launcher as the Home app
+- Problem: after a phone restart the phone's own launcher took the Home role back. No app can set the default Home app silently (only the person can agree, in Android's own dialog), so the launcher now makes that one tap automatic and hard to miss.
+- New `HomeKeeper.kt` (`HomeKeeper`, `HomeRoleActivity`). After a restart / update / the 15-minute check / when the launcher is opened: if it is not the Home app, a high-priority notification "... is not your Home app: tap to make it your Home app again" appears (it goes away by itself once it is). With "Draw over other apps" allowed and the Quick panel service running, Android's Home-app dialog is also opened by itself (at most every 20 minutes). After two refusals Android stops showing that dialog, so the phone's own Home app screen is opened instead.
+- Settings > Quick panel > Keep it running > **Keep as my Home app** (on by default). `KeepAliveReceiver` now also runs this check and starts the 15-minute check when it is on.
+- Optional, strongest (computer, USB debugging): `adb shell cmd role add-role-holder android.app.role.HOME com.arapks.glassylauncher` sets the role without the dialog. Not tried on a phone.
+- Changed: `HomeKeeper.kt` (new), `KeepAlive.kt`, `LauncherActivity.kt`, `HomeSettingsActivity.kt`, `AndroidManifest.xml`, `build.gradle.kts`, `STEPS.md`. Version 1.0.72 (code 182). Compiler check: only the known API-34 / `R` errors remain; not run on a phone.
+
+## Step 73 - package name back to com.oklabs.oneui9launcher
+- Compared the user's good commit a20b61c (1.0.70, "the launcher did not get lost as Home app") with 1.0.72. The only change in how the app is identified was `applicationId`: com.oklabs.oneui9launcher (good) -> com.arapks.glassylauncher. All Home / manifest code is otherwise the same. So the id is put back in `build.gradle.kts`, `shortcuts.xml` (targetPackage) and `KeepAlive.PKG` (the adb commands).
+- Install note: this is a different app from com.arapks.glassylauncher. Uninstall that one, install this, set it as Home app once. The Step 72 "Keep as my Home app" check stays as a safety net.
+- If the Huawei AppGallery app must use another package name, change `applicationId` only after the Home problem is understood (the name is also in `PLAY_STORE.md`). Version 1.0.73 (code 183). Not run on a phone.
+
+## Step 74 - Home app watch + log (the stock launcher comes back after opening an app)
+- New symptom: the launcher is selected, an app is opened, Home is pressed and the phone's own launcher shows. The code (Home activity, manifest) is identical to the good 1.0.70, so this cannot be seen from the code: the new tools tell.
+- `PanelOverlayService` now checks every 8 s whether this launcher still answers the Home button (`HomeKeeper.watch`). When it changes hands it writes a line to the **Home app log** (time, which package took it, whether a crash note exists) and asks again at once (notification, and Android's Home dialog at most every 3 minutes). Works while "Quick panel over other apps" is on.
+- Settings > Quick panel > Keep it running > **Home app log** (tap = copy). Send me those lines after it happens.
+- Changed: `HomeKeeper.kt`, `OverlayPanel.kt`, `HomeSettingsActivity.kt`, `build.gradle.kts`, `STEPS.md`. Version 1.0.74 (code 184). Compiler check only; not run on a phone.

@@ -24,11 +24,11 @@ android {
     compileSdk = sdkApi
 
     defaultConfig {
-        applicationId = "com.arapks.glassylauncher"
+        applicationId = "com.oklabs.oneui9launcher"
         minSdk = 26                       // Android 8.0 and newer
         targetSdk = minOf(sdkApi, 36)   // Google Play: new apps and updates must target API 36
-        versionCode = 181
-        versionName = "1.0.71"
+        versionCode = 184
+        versionName = "1.0.74"
     }
 
     signingConfigs {

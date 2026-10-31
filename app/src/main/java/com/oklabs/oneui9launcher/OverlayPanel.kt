@@ -191,6 +191,13 @@ class PanelOverlayService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    private val homeWatch = object : Runnable {
+        override fun run() {
+            HomeKeeper.watch(this@PanelOverlayService)
+            uiHandler.postDelayed(this, 8000L)
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         instance = this
@@ -200,6 +207,7 @@ class PanelOverlayService : Service() {
         } catch (e: Exception) {
             // the handle then follows the settings only when the service starts again
         }
+        homeWatch.run() // Home app watch: every 8 s (see HomeKeeper.watch)
         lastHidden = smartHidden()
         refreshHandle()
         refreshButton()
@@ -236,6 +244,7 @@ class PanelOverlayService : Service() {
     }
 
     override fun onDestroy() {
+        uiHandler.removeCallbacks(homeWatch)
         try {
             getSharedPreferences("launcher", MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(prefListener)
         } catch (e: Exception) {
