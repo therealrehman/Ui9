@@ -58,7 +58,7 @@ object HomeKeeper {
     /** The last events, newest last: shown in Settings so we can see WHEN the Home role was lost and to WHICH launcher. */
     fun log(c: Context): String = prefs(c).getString(PREF_LOG, "") ?: ""
 
-    private fun addLog(c: Context, text: String) {
+    fun addLog(c: Context, text: String) {
         val stamp = java.text.SimpleDateFormat("dd MMM HH:mm:ss", java.util.Locale.US).format(java.util.Date())
         val lines = (log(c).split("\n").filter { it.isNotBlank() } + (stamp + "  " + text)).takeLast(12)
         prefs(c).edit().putString(PREF_LOG, lines.joinToString("\n")).apply()

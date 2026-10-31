@@ -281,6 +281,26 @@ class HomeSettingsActivity : Activity() {
             .show()
     }
 
+    /** "Add an app as a button": every installed app, ticked ones become buttons that open the app (the other phone buttons are kept). */
+    private fun addAppButtons() {
+        val apps = PhoneButtons.installedApps(this)
+        val saved = QuickTiles.phoneEntries(this)
+        val savedIds = saved.map { it.id }.toSet()
+        val checked = BooleanArray(apps.size) { apps[it].id in savedIds }
+        AlertDialog.Builder(this)
+            .setTitle("Add an app as a button")
+            .setMultiChoiceItems(apps.map { it.label }.toTypedArray(), checked) { _, i, isChecked -> checked[i] = isChecked }
+            .setPositiveButton("OK") { _, _ ->
+                val picked = apps.filterIndexed { i, _ -> checked[i] }
+                val others = saved.filter { !it.id.startsWith(PhoneButtons.PKG_PREFIX) }
+                QuickTiles.savePhone(this, others + picked)
+                toast(if (picked.isEmpty()) "No app buttons" else "${picked.size} app buttons saved: they are at the end of the panel")
+                show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
     /** "Match my phone's panel": the buttons follow the order of the phone's own tile list, if the phone shares it. */
     private fun matchPhonePanel() {
         val specs = PhoneButtons.parseTileSpecs(PhoneButtons.readTileList(this))
@@ -781,6 +801,12 @@ class HomeSettingsActivity : Activity() {
                 show()
             },
             kit.row(
+                -1, 0, mark(HomeKeeper.isDefault(this)) + "Home app (default launcher)",
+                if (HomeKeeper.isDefault(this)) "This launcher is the Home app" else "Not the Home app now: tap to set it"
+            ) {
+                startActivity(Intent(this, HomeRoleActivity::class.java))
+            },
+            kit.row(
                 -1, 0, "\u2022  Auto-launch / Protected apps",
                 "The phone does not tell apps this one. Tap, then allow \"Auto-launch\", \"Secondary launch\" and \"Run in background\" for this app" +
                     if (KeepAlive.isHuaweiFamily()) " (Huawei: Settings > Battery > App launch)." else "."
@@ -924,6 +950,9 @@ class HomeSettingsActivity : Activity() {
         val phoneCount = QuickTiles.phoneEntries(this).size
         kit.card(
             box,
+            kit.row(-1, 0, "Add an app as a button", "Any app on this phone (works on every phone): a tap opens it") {
+                addAppButtons()
+            },
             kit.row(-1, 0, "Add phone buttons", if (phoneCount == 0) "Tiles of your apps and screens of your phone, as buttons of the Quick panel" else "$phoneCount added: tap to change") {
                 addPhoneButtons()
             },

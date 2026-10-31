@@ -136,7 +136,9 @@ object KeepAlive {
         "adb shell dumpsys deviceidle whitelist +$PKG",
         "adb shell cmd appops set $PKG RUN_IN_BACKGROUND allow",
         "adb shell cmd appops set $PKG RUN_ANY_IN_BACKGROUND allow",
-        "adb shell am set-standby-bucket $PKG active"
+        "adb shell am set-standby-bucket $PKG active",
+        "adb shell cmd role add-role-holder --user 0 android.app.role.HOME $PKG",
+        "adb shell cmd package set-home-activity $PKG/com.oklabs.oneui9launcher.LauncherActivity"
     ).joinToString("\n")
 }
 
@@ -148,9 +150,11 @@ class KeepAliveReceiver : BroadcastReceiver() {
             val boot = action == Intent.ACTION_BOOT_COMPLETED || action == "android.intent.action.QUICKBOOT_POWERON" || action == Intent.ACTION_MY_PACKAGE_REPLACED
             if (!boot && action != KeepAlive.ACTION_RESTART) return
             // Home app: after a restart / an update / the 15-minute check, ask again when the phone put its own launcher back
+            // The log line proves the phone let this app start at boot (if it never appears after a restart, Auto-launch is blocked)
+            HomeKeeper.addLog(context, (if (boot) "boot / update received" else "15-minute check") + ", Home app: " + (if (HomeKeeper.isDefault(context)) "yes" else "NO, holder " + HomeKeeper.holder(context)))
             if (HomeKeeper.wanted(context)) {
                 KeepAlive.scheduleWatchdog(context)
-                HomeKeeper.check(context, !boot)
+                HomeKeeper.check(context, true)
             }
             val panelOk = if (boot) KeepAlive.boot(context) else KeepAlive.restart(context)
             if (!panelOk) return

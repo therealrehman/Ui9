@@ -25,6 +25,7 @@ import android.provider.Settings
 object PhoneButtons {
     const val APP_PREFIX = "app:"
     const val SCR_PREFIX = "scr:"
+    const val PKG_PREFIX = "pkg:" // any installed app as a button: a tap opens the app
     const val KEY_PHONE = "qp_phone"
     private const val QS_TILE = "android.service.quicksettings.action.QS_TILE"
     private const val QS_TILE_PREFS = "android.service.quicksettings.action.QS_TILE_PREFERENCES"
@@ -35,7 +36,7 @@ object PhoneButtons {
 
     // ------------------------------------------------------------------ pure helpers (no phone needed)
 
-    fun isPhoneButtonId(id: String): Boolean = id.startsWith(APP_PREFIX) || id.startsWith(SCR_PREFIX)
+    fun isPhoneButtonId(id: String): Boolean = id.startsWith(APP_PREFIX) || id.startsWith(SCR_PREFIX) || id.startsWith(PKG_PREFIX)
 
     fun idForTile(pkg: String, cls: String): String = "$APP_PREFIX$pkg/$cls"
 
@@ -278,6 +279,31 @@ object PhoneButtons {
         return null
     }
 
+    /** Every app with a launcher icon (this launcher excluded) as a possible button; works on any phone, also when it hides its tile list. */
+    @Suppress("DEPRECATION")
+    fun installedApps(context: Context): List<Entry> {
+        val pm = context.packageManager
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val list = try {
+            if (Build.VERSION.SDK_INT >= 33) pm.queryIntentActivities(intent, PackageManager.ResolveInfoFlags.of(0L)) else pm.queryIntentActivities(intent, 0)
+        } catch (e: Exception) {
+            emptyList()
+        }
+        val seen = HashSet<String>()
+        val out = ArrayList<Entry>()
+        for (ri in list) {
+            val pkg = ri.activityInfo?.packageName ?: continue
+            if (pkg == context.packageName || !seen.add(pkg)) continue
+            val label = try {
+                ri.loadLabel(pm).toString().trim()
+            } catch (e: Exception) {
+                ""
+            }
+            out.add(Entry(PKG_PREFIX + pkg, label.ifEmpty { pkg }))
+        }
+        return out.sortedBy { it.label.lowercase() }
+    }
+
     /** The phone's screens that exist on this phone. */
     fun screens(context: Context): List<Entry> {
         val pm = context.packageManager
@@ -293,7 +319,9 @@ object PhoneButtons {
     /** Opens what the button stands for (NEW_TASK is added, so it also works from the overlay service). Says why when it can not. */
     fun open(context: Context, id: String, say: (String) -> Unit): Boolean {
         val pm = context.packageManager
-        val intent: Intent? = if (id.startsWith(APP_PREFIX)) {
+        val intent: Intent? = if (id.startsWith(PKG_PREFIX)) {
+            pm.getLaunchIntentForPackage(id.removePrefix(PKG_PREFIX))
+        } else if (id.startsWith(APP_PREFIX)) {
             val (pkg, cls) = splitTileId(id) ?: return false
             val prefs = Intent(QS_TILE_PREFS).setPackage(pkg).putExtra(Intent.EXTRA_COMPONENT_NAME, ComponentName(pkg, cls))
             if (canOpen(pm, prefs, false)) prefs else pm.getLaunchIntentForPackage(pkg)
