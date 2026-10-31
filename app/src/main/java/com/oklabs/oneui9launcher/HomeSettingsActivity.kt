@@ -255,7 +255,7 @@ class HomeSettingsActivity : Activity() {
     // ---------------------------------------------------------------- Step 60: phone buttons
 
     /** "Add phone buttons": one list of app tiles and phone screens; ticked ones become buttons of the Quick panel. */
-    private fun addPhoneButtons() {
+    private fun addPhoneButtons(tickAll: Boolean = false) {
         val found = ArrayList<Pair<PhoneButtons.Entry, String>>() // entry, text in the list
         for (t in PhoneButtons.appTiles(this)) found.add(Pair(t, "App tile: " + t.label))
         for (sc in PhoneButtons.screens(this)) found.add(Pair(sc, sc.label))
@@ -267,9 +267,9 @@ class HomeSettingsActivity : Activity() {
             return
         }
         val savedIds = saved.map { it.id }.toSet()
-        val checked = BooleanArray(found.size) { found[it].first.id in savedIds }
+        val checked = BooleanArray(found.size) { tickAll || found[it].first.id in savedIds }
         AlertDialog.Builder(this)
-            .setTitle("Add phone buttons")
+            .setTitle(if (tickAll) "Buttons found on this phone" else "Add phone buttons")
             .setMultiChoiceItems(found.map { it.second }.toTypedArray(), checked) { _, i, isChecked -> checked[i] = isChecked }
             .setPositiveButton("OK") { _, _ ->
                 val picked = found.filterIndexed { i, _ -> checked[i] }.map { it.first }
@@ -285,7 +285,10 @@ class HomeSettingsActivity : Activity() {
     private fun matchPhonePanel() {
         val specs = PhoneButtons.parseTileSpecs(PhoneButtons.readTileList(this))
         if (specs.isEmpty()) {
-            toast("This phone does not share its tile list")
+            // This phone keeps its tile list private (vivo, Huawei...). Other way: scan the phone for every app tile and phone screen it has
+            // and offer all of them, all ticked: untick what you do not want.
+            toast("This phone does not share its tile list: here is what the scan found on it")
+            addPhoneButtons(true)
             return
         }
         val current = QuickTiles.order(this).map { it.id }
@@ -924,7 +927,7 @@ class HomeSettingsActivity : Activity() {
             kit.row(-1, 0, "Add phone buttons", if (phoneCount == 0) "Tiles of your apps and screens of your phone, as buttons of the Quick panel" else "$phoneCount added: tap to change") {
                 addPhoneButtons()
             },
-            kit.row(-1, 0, "Match my phone's panel", "Use the order of the phone's own Quick settings, when the phone shares it") {
+            kit.row(-1, 0, "Match my phone's panel", "Use the order of the phone's own Quick settings, or, if it does not share it, the buttons found by scanning the phone") {
                 matchPhonePanel()
             },
             kit.row(-1, 0, "Show the phone's tile list", "What this phone says its Quick settings hold (with a Copy button)") {

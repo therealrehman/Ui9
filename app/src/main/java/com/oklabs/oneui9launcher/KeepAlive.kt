@@ -144,12 +144,16 @@ object KeepAlive {
 class KeepAliveReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         try {
-            when (intent?.action) {
-                Intent.ACTION_BOOT_COMPLETED, "android.intent.action.QUICKBOOT_POWERON" -> if (!KeepAlive.boot(context)) return
-                Intent.ACTION_MY_PACKAGE_REPLACED -> if (!KeepAlive.boot(context)) return
-                KeepAlive.ACTION_RESTART -> if (!KeepAlive.restart(context)) return
-                else -> return
+            val action = intent?.action ?: return
+            val boot = action == Intent.ACTION_BOOT_COMPLETED || action == "android.intent.action.QUICKBOOT_POWERON" || action == Intent.ACTION_MY_PACKAGE_REPLACED
+            if (!boot && action != KeepAlive.ACTION_RESTART) return
+            // Home app: after a restart / an update / the 15-minute check, ask again when the phone put its own launcher back
+            if (HomeKeeper.wanted(context)) {
+                KeepAlive.scheduleWatchdog(context)
+                HomeKeeper.check(context, !boot)
             }
+            val panelOk = if (boot) KeepAlive.boot(context) else KeepAlive.restart(context)
+            if (!panelOk) return
             OverlayPanel.sync(context) // does nothing when the switch is off, the permission is missing or the service already runs
         } catch (e: Exception) {
             // a phone that does not allow a background start: the notification / tile / shortcut still open the panel
