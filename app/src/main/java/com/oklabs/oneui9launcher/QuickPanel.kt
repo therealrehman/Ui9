@@ -983,6 +983,24 @@ class QuickPanel(
     }
 
     /**
+     * Step 78: the first time the panel opens, the phone's own buttons (Quick Settings tiles of apps) are put on it by themselves.
+     * No Accessibility: it only uses the package list and the tile list the phone shares (see [PhoneButtons.autoAddOnce]). Runs once.
+     */
+    private fun autoAddPhoneButtons() {
+        val names = try {
+            PhoneButtons.autoAddOnce(context)
+        } catch (e: Exception) {
+            emptyList<String>()
+        }
+        if (names.isEmpty()) return
+        handler.postDelayed({
+            val more = if (names.size > 4) "..." else ""
+            val plural = if (names.size == 1) "" else "s"
+            Toast.makeText(context, "Added " + names.size + " button" + plural + " from your phone: " + names.take(4).joinToString(", ") + more, Toast.LENGTH_LONG).show()
+        }, 700L)
+    }
+
+    /**
      * Step 27: reads the phone's own Quick settings once (hidden behind a picture) and adds every button the launcher has no button for
      * (Speed up, Record screen, vivoshare...). [again]: long-press on the pencil reads it again.
      */
@@ -990,15 +1008,7 @@ class QuickPanel(
         if (StoreBuild.noAccessibility(context)) return // Step 8: the store build never uses the Accessibility service
         val prefs = context.getSharedPreferences("launcher", Context.MODE_PRIVATE)
         if (!again) {
-            // Step 77: the first read of the phone's own buttons runs whenever the Accessibility service is RUNNING (as in the first builds),
-            // not only when "In every app, with Accessibility" is switched on. With the service off it stays silent (Step 50), except one tip.
-            if (PanelAccessibilityService.instance == null && !SystemPanel.wanted(context)) {
-                if (!prefs.getBoolean("qp_scan_hint", false) && !prefs.getBoolean("qp_scanned", false)) {
-                    prefs.edit().putBoolean("qp_scan_hint", true).apply()
-                    Toast.makeText(context, "Tip: turn on \"Quick panel\" in Accessibility and the phone's own buttons are found and added by themselves", Toast.LENGTH_LONG).show()
-                }
-                return
-            }
+            if (!SystemPanel.wanted(context)) return // Step 50: Accessibility is not used, so there is nothing to read and nothing to complain about
             if (prefs.getBoolean("qp_scanned", false)) return
             if (prefs.getInt("qp_scan_tries", 0) >= 4) return // after four empty tries only the long-press on the pencil reads again
         }
@@ -1500,6 +1510,7 @@ class QuickPanel(
         addOpen = false
         PanelTheme.load(context)
         QuickIcons.load(context)
+        autoAddPhoneButtons() // Step 78
         build()
         system.start()
         system.onChanged = { refresh() }

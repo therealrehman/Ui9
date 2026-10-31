@@ -347,6 +347,45 @@ object PhoneButtons {
         }
     }
 
+    // ------------------------------------------------------------------ Step 78: add them by themselves, once
+
+    private const val KEY_AUTO_DONE = "qp_auto_phone"
+    private const val AUTO_MAX = 8
+
+    /**
+     * Step 78: the first time the Quick panel opens, the phone's own buttons are put on it by themselves, WITHOUT Accessibility (store build too).
+     * Only ADDS (at the end of the panel): never reorders, never removes, never touches a button already there.
+     *  - The phone shares its tile list (source C): the app tiles it names (`custom(...)`), i.e. the app tiles this person really has in the phone's panel.
+     *  - Otherwise (source A): the Quick Settings tiles of installed apps, at most [AUTO_MAX].
+     * The tiles the phone draws itself (vivoshare, Ultra Game Mode...) can NOT be found without Accessibility; they stay a manual choice
+     * (Settings > Quick panel > Phone buttons / Add an app as a button). Runs once whatever the result; never throws. Returns the names added.
+     */
+    fun autoAddOnce(context: Context): List<String> {
+        val prefs = context.getSharedPreferences("launcher", Context.MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_AUTO_DONE, false)) return emptyList()
+        prefs.edit().putBoolean(KEY_AUTO_DONE, true).apply() // once, so a failure can never repeat on every open
+        return try {
+            val have = QuickTiles.phoneEntries(context)
+            val specs = parseTileSpecs(readTileList(context))
+            val found = ArrayList<Entry>()
+            if (specs.isNotEmpty()) {
+                for (spec in specs) {
+                    val id = customSpecToId(spec) ?: continue
+                    val (pkg, cls) = splitTileId(id) ?: continue
+                    val label = tileLabel(context, pkg, cls) ?: continue
+                    found.add(Entry(id, label))
+                }
+            } else {
+                found.addAll(appTiles(context))
+            }
+            val fresh = found.distinctBy { it.id }.filter { f -> have.none { it.id == f.id } }.take(AUTO_MAX)
+            if (fresh.isNotEmpty()) QuickTiles.savePhone(context, have + fresh)
+            fresh.map { it.label }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
     // ------------------------------------------------------------------ Source C: the phone's own tile list
 
     /** The raw value of the phone's tile list, or null / empty when this phone does not share it (EMUI and some others). Never throws. */

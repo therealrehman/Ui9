@@ -9,7 +9,7 @@ import android.content.Context
  */
 object LegalText {
 
-    const val EFFECTIVE = "October 29, 2026"
+    const val EFFECTIVE = "October 31, 2026"
 
     class Section(val heading: String, val paragraphs: List<String>)
 
@@ -239,8 +239,9 @@ object LegalText {
         Permission(
             "Seeing Quick Settings tiles of installed apps",
             "Only to let you add them as buttons on the Quick panel (Settings > Quick panel > Phone buttons); the list is used on the phone only. " +
-                "The phone's own tile list (a system setting) is read only when you tap “Match my phone's panel” or “Show the phone's tile list”; " +
-                "it is never stored beyond the buttons you choose and never sent anywhere. These buttons only open a phone screen or an app.",
+                "The first time the Quick panel opens, up to 8 of these tiles are added as buttons by themselves (remove them in Edit). " +
+                "The phone's own tile list (a system setting) is read once at that moment, and again only when you tap “Match my phone's panel” or “Show the phone's tile list”; " +
+                "it is never stored beyond the buttons on the panel and never sent anywhere. These buttons only open a phone screen or an app.",
             true
         ),
         Permission(
